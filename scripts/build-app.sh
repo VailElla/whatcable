@@ -5,14 +5,25 @@
 # builds that should NOT touch the Homebrew tap, run scripts/smoke-test.sh
 # directly instead.
 #
+# Flags:
+#   --pro   Passed through to smoke-test.sh to include Pro features.
+#
 # Configure via .env (see .env.example).
 set -euo pipefail
 
 cd "$(dirname "$0")/.."
 
+# Collect flags to forward to smoke-test.sh.
+SMOKE_ARGS=()
+for arg in "$@"; do
+    case "${arg}" in
+        --pro) SMOKE_ARGS+=("--pro") ;;
+    esac
+done
+
 # smoke-test.sh handles: .env loading, tests, build, sign, notarise, staple,
 # Gatekeeper verify, alive checks, and zip creation.
-./scripts/smoke-test.sh
+./scripts/smoke-test.sh "${SMOKE_ARGS[@]+"${SMOKE_ARGS[@]}"}"
 
 # Load .env again so we have TAP_DIR and other vars in this shell.
 if [[ -f ".env" ]]; then

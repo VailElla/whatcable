@@ -11,6 +11,10 @@
 #   - Plus NOTARY_PROFILE: also notarises and staples (full distribution).
 #
 # Configure via .env (see .env.example).
+#
+# Flags:
+#   --pro   Include Pro features from the app/ submodule (sets WHATCABLE_PRO=1).
+#           Without this flag, builds are OSS-only.
 set -euo pipefail
 
 cd "$(dirname "$0")/.."
@@ -19,6 +23,23 @@ cd "$(dirname "$0")/.."
 if [[ -f ".env" ]]; then
     # shellcheck disable=SC1091
     set -a; source .env; set +a
+fi
+
+# Parse flags. Unset WHATCABLE_PRO from the environment so .env can't
+# accidentally enable Pro; only the --pro flag should do that.
+unset WHATCABLE_PRO 2>/dev/null || true
+for arg in "$@"; do
+    case "${arg}" in
+        --pro)
+            export WHATCABLE_PRO="1"
+            ;;
+    esac
+done
+
+if [[ "${WHATCABLE_PRO:-}" == "1" ]]; then
+    echo "==> Pro build (--pro flag set)"
+else
+    echo "==> OSS build (pass --pro to include Pro features)"
 fi
 
 APP_NAME="WhatCable"
