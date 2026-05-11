@@ -60,18 +60,14 @@ func runPowerMonitor(asJSON: Bool) async {
 
 private func renderPowerMonitor(_ snapshot: PowerMonitorSnapshot) -> String {
     var lines = ["WhatCable Pro -- Power Monitor  (Ctrl-C to stop)", ""]
-    var samplesByPort: [Int: PortPowerSample] = [:]
-    for (offset, sample) in snapshot.portSamples.enumerated() {
-        samplesByPort[displayPortIndex(for: sample, offset: offset)] = sample
+    var activeLines: [String] = []
+    for sample in snapshot.portSamples where isActive(sample) {
+        activeLines.append(renderPortLine(portIndex: sample.portIndex, sample: sample, estimate: snapshot.resistanceEstimate))
     }
-    let highestPort = max(3, samplesByPort.keys.max() ?? 0)
-
-    for port in 1...highestPort {
-        if let sample = samplesByPort[port], isActive(sample) {
-            lines.append(renderPortLine(port: port, sample: sample, estimate: snapshot.resistanceEstimate))
-        } else {
-            lines.append("Port \(port)  --")
-        }
+    if activeLines.isEmpty {
+        lines.append("No active ports")
+    } else {
+        lines.append(contentsOf: activeLines)
     }
 
     lines.append("")
@@ -81,11 +77,11 @@ private func renderPowerMonitor(_ snapshot: PowerMonitorSnapshot) -> String {
     return lines.joined(separator: "\n")
 }
 
-private func renderPortLine(port: Int, sample: PortPowerSample, estimate: CableResistanceEstimate?) -> String {
+private func renderPortLine(portIndex: Int, sample: PortPowerSample, estimate: CableResistanceEstimate?) -> String {
     let voltage = sample.adapterVoltage > 0 ? sample.adapterVoltage : sample.configuredVoltage
     let prefix = String(
         format: "Port %-2d %@  %@  %@",
-        port,
+        portIndex,
         formatVoltage(voltage),
         formatCurrent(sample.current),
         formatPower(sample.watts)
@@ -100,10 +96,6 @@ private func renderSystemLine(_ sample: PowerSample) -> String {
         formatCurrent(sample.systemCurrentIn),
         formatPower(sample.systemPowerIn)
     )
-}
-
-private func displayPortIndex(for sample: PortPowerSample, offset: Int) -> Int {
-    sample.portIndex > 0 ? sample.portIndex : offset + 1
 }
 
 private func isActive(_ sample: PortPowerSample) -> Bool {

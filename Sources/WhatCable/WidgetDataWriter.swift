@@ -45,9 +45,10 @@ final class WidgetDataWriter {
 
 #if WHATCABLE_PRO
     private let powerTelemetry = PowerTelemetryWatcher()
-    /// Rolling per-port wattage samples keyed by 1-based port index. Each
-    /// buffer holds the last 12 samples (~24s at the watcher's 2s poll rate).
-    private var recentPowerByPort: [Int: [Double]] = [:]
+    /// Rolling per-port wattage samples keyed by portKey (e.g. "2/1",
+    /// "17/1"). Each buffer holds the last 12 samples (~24s at the
+    /// watcher's 2s poll rate).
+    private var recentPowerByPort: [String: [Double]] = [:]
     private let maxRecentSamples = 12
 #endif
 
@@ -171,39 +172,24 @@ final class WidgetDataWriter {
     /// Push a fresh PowerTelemetryWatcher snapshot into the rolling buffers.
     private func appendPower(from snapshot: PowerMonitorSnapshot) {
         var changed = false
-        for (offset, sample) in snapshot.portSamples.enumerated() {
-            let index = sample.portIndex > 0 ? sample.portIndex : offset + 1
+        for sample in snapshot.portSamples {
+            let key = sample.portKey.isEmpty ? "2/\(sample.portIndex)" : sample.portKey
             let watts = Double(sample.watts) / 1000
-            // Only track samples while the port is actively delivering power;
-            // idle ports get their buffer cleared so the widget shows a flat
-            // line rather than stale data.
             guard sample.watts > 0 || sample.current > 0 else {
-                if recentPowerByPort.removeValue(forKey: index) != nil {
+                if recentPowerByPort.removeValue(forKey: key) != nil {
                     changed = true
                 }
                 continue
             }
-            var samples = recentPowerByPort[index, default: []]
+            var samples = recentPowerByPort[key, default: []]
             samples.append((watts * 10).rounded() / 10)
             if samples.count > maxRecentSamples {
                 samples.removeFirst(samples.count - maxRecentSamples)
             }
-            recentPowerByPort[index] = samples
+            recentPowerByPort[key] = samples
             changed = true
         }
         if changed { scheduleWrite() }
-    }
-
-    /// Extract the 1-based port index from "Port-USB-C@N" service names.
-    private func portIndex(for port: USBCPort) -> Int? {
-        let candidates = [port.serviceName, port.portDescription].compactMap { $0 }
-        for name in candidates {
-            if let atRange = name.range(of: "@", options: .backwards) {
-                let suffix = name[atRange.upperBound...]
-                if let value = Int(suffix), value > 0 { return value }
-            }
-        }
-        return nil
     }
 #endif
 
@@ -233,8 +219,8 @@ final class WidgetDataWriter {
 
             var recentPower: [Double] = []
 #if WHATCABLE_PRO
-            if let index = portIndex(for: port) {
-                recentPower = recentPowerByPort[index] ?? []
+            if let key = port.portKey {
+                recentPower = recentPowerByPort[key] ?? []
             }
 #endif
 
