@@ -131,6 +131,36 @@
       }
       p { margin: 0 0 14px; color: var(--ink-soft); }
 
+      .search-bar {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin: 0 0 12px;
+      }
+      .search-bar input {
+        flex: 1;
+        padding: 10px 14px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        font-family: inherit;
+        font-size: 14px;
+        color: var(--ink);
+        background: var(--panel);
+        outline: none;
+        transition: border-color 0.15s;
+      }
+      .search-bar input:focus {
+        border-color: var(--accent);
+      }
+      .search-bar input::placeholder {
+        color: var(--muted);
+      }
+      .search-count {
+        font-size: 13px;
+        color: var(--muted);
+        white-space: nowrap;
+      }
+
       .table-wrap {
         margin: 8px 0 28px;
         border: 1px solid var(--line);
@@ -173,6 +203,17 @@
         background: #f4f6f9;
         padding: 1px 6px;
         border-radius: 4px;
+      }
+      .no-results {
+        padding: 24px 12px;
+        text-align: center;
+        color: var(--muted);
+        font-size: 14px;
+      }
+      .load-error {
+        padding: 16px;
+        color: #b91c1c;
+        font-size: 14px;
       }
 
       ol.patterns {
@@ -221,7 +262,7 @@
     <main>
       <div class="wrap wide">
         <h1>Cable database</h1>
-        <p class="subtitle">USB-C cable e-marker fingerprints reported via WhatCable's "Report this cable" flow. Last updated 2026-05-13.</p>
+        <p class="subtitle">USB-C cable e-marker fingerprints reported via WhatCable. Last updated 2026-05-13.</p>
 
         <p>
           A growing list of real-world USB-C cables, indexed by the identity
@@ -231,11 +272,19 @@
           opens a pre-filled GitHub issue.
         </p>
 
-        <div class="table-wrap">
-          <table class="cables">
-            <thead>
-              <tr>
-                <th class="col-context">Brand / model context</th>
+        <div class="search-bar" id="search-bar" hidden>
+          <input type="text" id="search" placeholder="Search cables by brand, vendor, speed, VID..." autocomplete="off">
+          <span class="search-count" id="search-count"></span>
+        </div>
+
+        <div id="cable-table"></div>
+
+        <noscript>
+          <div class="table-wrap">
+            <table class="cables">
+              <thead>
+                <tr>
+                  <th class="col-context">Brand / model context</th>
             <th class="col-vid">VID</th>
             <th class="col-pid">PID</th>
             <th class="col-cable-vdo">Cable VDO</th>
@@ -245,9 +294,9 @@
             <th class="col-power">Power</th>
             <th class="col-type">Type</th>
             <th class="col-source">Source</th>
-              </tr>
-            </thead>
-            <tbody>
+                </tr>
+              </thead>
+              <tbody>
           <tr>
             <td class="col-context">UGOURD TB5/USB4 cable, AliExpress (no USB-IF cert)</td>
             <td class="col-vid"><code>0x0138</code></td>
@@ -404,9 +453,10 @@
             <td class="col-type">passive</td>
             <td class="col-source"><a href="https://github.com/darrylmorley/whatcable/issues/92">#92</a></td>
           </tr>
-            </tbody>
-          </table>
-        </div>
+              </tbody>
+            </table>
+          </div>
+        </noscript>
 
         <h2>Patterns worth flagging</h2>
     <p>
@@ -434,5 +484,123 @@
         <p>WhatCable. Built by <a href="https://github.com/darrylmorley">Darryl Morley</a>.</p>
       </div>
     </footer>
+
+    <script>
+    // Table rendering from cables.json. All dynamic values are escaped via
+    // esc() (textContent -> innerHTML on a detached element). The source
+    // data is our own build-cable-db.swift output, not user input.
+    (function () {
+      var container = document.getElementById("cable-table");
+      var searchBar = document.getElementById("search-bar");
+      var searchInput = document.getElementById("search");
+      var searchCount = document.getElementById("search-count");
+      var allCables = [];
+
+      function esc(s) {
+        var d = document.createElement("div");
+        d.textContent = s;
+        return d.innerHTML;
+      }
+
+      function codeCell(val) {
+        if (!val) return "";
+        return "<code>" + esc(val) + "</code>";
+      }
+
+      function renderTable(cables) {
+        if (cables.length === 0 && allCables.length > 0) {
+          container.innerHTML =
+            '<div class="table-wrap"><div class="no-results">No cables match your search.</div></div>';
+          searchCount.textContent = "0 of " + allCables.length;
+          return;
+        }
+
+        var html = '<div class="table-wrap"><table class="cables">';
+        html += "<thead><tr>";
+        html += '<th class="col-context">Brand / model context</th>';
+        html += '<th class="col-vid">VID</th>';
+        html += '<th class="col-pid">PID</th>';
+        html += '<th class="col-cable-vdo">Cable VDO</th>';
+        html += '<th class="col-vendor">Vendor (USB-IF)</th>';
+        html += '<th class="col-xid">XID</th>';
+        html += '<th class="col-speed">Speed</th>';
+        html += '<th class="col-power">Power</th>';
+        html += '<th class="col-type">Type</th>';
+        html += '<th class="col-source">Source</th>';
+        html += "</tr></thead><tbody>";
+
+        for (var i = 0; i < cables.length; i++) {
+          var c = cables[i];
+          html += "<tr>";
+          html += '<td class="col-context">' + esc(c.brand) + "</td>";
+          html += '<td class="col-vid">' + codeCell(c.vid) + "</td>";
+          html += '<td class="col-pid">' + codeCell(c.pid) + "</td>";
+          html += '<td class="col-cable-vdo">' + codeCell(c.cableVDO) + "</td>";
+          html += '<td class="col-vendor">' + esc(c.vendor) + "</td>";
+          html +=
+            '<td class="col-xid">' +
+            (c.xid === "none" ? "none" : codeCell(c.xid)) +
+            "</td>";
+          html += '<td class="col-speed">' + esc(c.speed) + "</td>";
+          html += '<td class="col-power">' + esc(c.power) + "</td>";
+          html += '<td class="col-type">' + esc(c.type) + "</td>";
+          html +=
+            '<td class="col-source">' +
+            (c.issueURL
+              ? '<a href="' + esc(c.issueURL) + '">' + esc(c.issueNum) + "</a>"
+              : "") +
+            "</td>";
+          html += "</tr>";
+        }
+
+        html += "</tbody></table></div>";
+        container.innerHTML = html;
+
+        if (searchInput.value.trim()) {
+          searchCount.textContent = cables.length + " of " + allCables.length;
+        } else {
+          searchCount.textContent = allCables.length + " cables";
+        }
+      }
+
+      function filterCables() {
+        var q = searchInput.value.trim().toLowerCase();
+        if (!q) {
+          renderTable(allCables);
+          return;
+        }
+        var terms = q.split(/\s+/);
+        var filtered = allCables.filter(function (c) {
+          var haystack = [
+            c.brand, c.vid, c.pid, c.cableVDO, c.vendor,
+            c.xid, c.speed, c.power, c.type, c.issueNum
+          ].join(" ").toLowerCase();
+          for (var i = 0; i < terms.length; i++) {
+            if (haystack.indexOf(terms[i]) === -1) return false;
+          }
+          return true;
+        });
+        renderTable(filtered);
+      }
+
+      fetch("cables.json")
+        .then(function (res) {
+          if (!res.ok) throw new Error("HTTP " + res.status);
+          return res.json();
+        })
+        .then(function (data) {
+          allCables = data;
+          searchBar.hidden = false;
+          renderTable(allCables);
+          searchInput.addEventListener("input", filterCables);
+        })
+        .catch(function (err) {
+          container.innerHTML =
+            '<div class="table-wrap"><div class="load-error">' +
+            "Could not load cable data. " +
+            '<a href="cables.json">View raw data</a>.</div></div>';
+        });
+    })();
+    </script>
   </body>
 </html>

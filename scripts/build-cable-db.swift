@@ -24,6 +24,7 @@ let repoRoot = FileManager.default.currentDirectoryPath
 let vendorTSV = "\(repoRoot)/Sources/WhatCableCore/Resources/usbif-vendors.tsv"
 let dbOutput = "\(repoRoot)/Sources/WhatCableCore/Resources/whatcable.db"
 let dbWebCopy = "\(repoRoot)/docs/whatcable.db"
+let cablesJSON = "\(repoRoot)/docs/cables.json"
 
 // MARK: - SQLite helpers
 
@@ -255,7 +256,7 @@ func importKnownCables() -> Int {
         guard let vid = parseHex(parts[1]),
               let pid = parseHex(parts[2]) else { continue }
         let cableVDO = parseHex(parts[3]) ?? 0
-        let xid = parts[5]
+        let xid = parts[5].replacingOccurrences(of: "`", with: "")
         let speed = parts[6]
         let power = parts[7]
         let type = parts[8]
@@ -299,6 +300,93 @@ func parseHex(_ s: String) -> Int? {
     return Int(trimmed.dropFirst(2), radix: 16)
 }
 
+// MARK: - JSON export for website search
+
+func exportCablesJSON() -> Int {
+    let query = """
+        SELECT c.vid, c.pid, c.cable_vdo, c.brand, c.speed, c.power,
+               c.type, c.xid, c.issue_url, COALESCE(v.name, '') as vendor_name,
+               COALESCE(v.source, '') as vendor_source
+        FROM cables c
+        LEFT JOIN vendors v ON c.vid = v.vid
+        ORDER BY c.vid, c.pid
+        """
+    var stmt: OpaquePointer?
+    guard sqlite3_prepare_v2(db, query, -1, &stmt, nil) == SQLITE_OK else {
+        fputs("warn: prepare failed for JSON export\n", stderr)
+        return 0
+    }
+    defer { sqlite3_finalize(stmt) }
+
+    var entries: [[String: Any]] = []
+    while sqlite3_step(stmt) == SQLITE_ROW {
+        let vid = Int(sqlite3_column_int(stmt, 0))
+        let pid = Int(sqlite3_column_int(stmt, 1))
+        let cableVDO = UInt32(bitPattern: sqlite3_column_int(stmt, 2))
+        let brand = sqlite3_column_text(stmt, 3).map { String(cString: $0) } ?? ""
+        let speed = sqlite3_column_text(stmt, 4).map { String(cString: $0) } ?? ""
+        let power = sqlite3_column_text(stmt, 5).map { String(cString: $0) } ?? ""
+        let type = sqlite3_column_text(stmt, 6).map { String(cString: $0) } ?? ""
+        let xid = sqlite3_column_text(stmt, 7).map { String(cString: $0) } ?? "none"
+        let issueURL = sqlite3_column_text(stmt, 8).map { String(cString: $0) } ?? ""
+        let vendorName = sqlite3_column_text(stmt, 9).map { String(cString: $0) } ?? ""
+        let vendorSource = sqlite3_column_text(stmt, 10).map { String(cString: $0) } ?? ""
+
+        let vendor: String
+        if vid == 0 {
+            vendor = "(zeroed)"
+        } else if vendorName.isEmpty {
+            vendor = "Unregistered"
+        } else {
+            vendor = vendorName
+        }
+
+        let vidHex = String(format: "0x%04X", vid)
+        let pidHex = String(format: "0x%04X", pid)
+        let vdoHex = cableVDO == 0 ? "" : String(format: "0x%08X", cableVDO)
+
+        let issueNum: String
+        if let hashIdx = issueURL.lastIndex(of: "/") {
+            issueNum = "#" + issueURL[issueURL.index(after: hashIdx)...]
+        } else {
+            issueNum = ""
+        }
+
+        let entry: [String: Any] = [
+            "brand": brand,
+            "vid": vidHex,
+            "pid": pidHex,
+            "cableVDO": vdoHex,
+            "vendor": vendor,
+            "registered": vendorSource == "usbif",
+            "xid": xid,
+            "speed": speed,
+            "power": power,
+            "type": type,
+            "issueURL": issueURL,
+            "issueNum": issueNum,
+        ]
+        entries.append(entry)
+    }
+
+    guard let data = try? JSONSerialization.data(
+        withJSONObject: entries, options: [.prettyPrinted, .sortedKeys]
+    ) else {
+        fputs("warn: JSON serialization failed\n", stderr)
+        return 0
+    }
+
+    let url = URL(fileURLWithPath: cablesJSON)
+    do {
+        try data.write(to: url)
+    } catch {
+        fputs("warn: could not write \(cablesJSON): \(error)\n", stderr)
+        return 0
+    }
+
+    return entries.count
+}
+
 // MARK: - Main
 
 openDB()
@@ -312,6 +400,9 @@ print("usb.ids: \(usbids.inserted) new vendors added, \(usbids.skipped) already 
 
 let cableCount = importKnownCables()
 print("Imported \(cableCount) known cables")
+
+let jsonCount = exportCablesJSON()
+print("Exported \(jsonCount) cables to \(cablesJSON)")
 
 // Copy to docs/ for the website.
 closeDB()
