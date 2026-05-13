@@ -13,7 +13,7 @@
 # Configure via .env (see .env.example).
 #
 # Flags:
-#   --pro   Include Pro features from the app/ submodule (sets WHATCABLE_PRO=1).
+#   --pro   Include Pro features from Sources/WhatCablePlugins/ (sets WHATCABLE_PRO=1).
 #           Without this flag, builds are OSS-only.
 set -euo pipefail
 
