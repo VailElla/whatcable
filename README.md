@@ -170,6 +170,10 @@ cp .env.example .env
 - **Apple Silicon only.** Intel Macs route USB-C through Intel Thunderbolt 3 controllers (Titan Ridge / JHL9580). Apple's IOKit driver for those chips does not expose the USB-PD negotiation state or the cable e-marker VDOs, so there's no path to surface the same information on Intel hardware.
 - **Not on the App Store.** App Sandbox blocks the IOKit reads we depend on.
 
+## Linux port
+
+[@abrauchli](https://github.com/abrauchli) built a Rust port for Linux called [usbeehive](https://github.com/abrauchli/usbeehive). Install it with `cargo install usbeehive`. It started life as a `whatcable` crate on crates.io before being renamed to avoid confusion with this repo.
+
 ## Privacy
 
 WhatCable reads USB-C port state directly from IOKit on your Mac. All of that happens locally. Nothing is sent anywhere automatically.

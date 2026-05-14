@@ -16,7 +16,7 @@
 "Connected: %@" = "Connesso: %@";
 "Connection" = "Connessione";
 "Display" = "Visualizzazione";
-"Desktop Mac: charger identity (FedDetails) is not available." = "Mac desktop: identità caricabatterie (FedDetails) non disponibile.";
+"Desktop Mac: charger identity (FedDetails) is not available." = "Mac desktop: identità del caricatore (FedDetails) non disponibile.";
 "Done" = "OK";
 "Downloading…" = "Download…";
 "File a GitHub issue with this cable's e-marker fingerprint" = "Segnala un problema su GitHub con la firma digitale e-marker di questo cavo";
