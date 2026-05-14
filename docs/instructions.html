@@ -166,6 +166,41 @@
         margin-bottom: 14px;
       }
       .note strong { color: var(--ink); }
+      figure {
+        margin: 20px 0;
+      }
+      figure img {
+        display: block;
+        max-width: 100%;
+        border-radius: 10px;
+        border: 1px solid var(--line);
+        box-shadow: 0 2px 8px rgba(15, 23, 42, 0.08);
+      }
+      figcaption {
+        margin-top: 8px;
+        font-size: 13.5px;
+        color: var(--muted);
+      }
+      .toc {
+        margin: 0 0 32px;
+        padding: 0;
+        list-style: none;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px 16px;
+        font-size: 14px;
+      }
+      .pro-badge {
+        display: inline-block;
+        padding: 1px 6px;
+        border-radius: 4px;
+        background: #e6f4f7;
+        color: #0c8ca6;
+        font-size: 12px;
+        font-weight: 600;
+        vertical-align: middle;
+        margin-left: 4px;
+      }
 
       footer {
         padding: 32px 0;
@@ -209,7 +244,20 @@
         <h1>Docs</h1>
         <p class="subtitle">How to use the WhatCable menu bar app. Requires macOS 14+ on Apple Silicon.</p>
 
-        <h2>What it shows</h2>
+        <ul class="toc">
+          <li><a href="#what-it-shows">What it shows</a></li>
+          <li><a href="#charging">Charging diagnostics</a></li>
+          <li><a href="#trust">Cable trust signals</a></li>
+          <li><a href="#engineer">Engineer mode</a></li>
+          <li><a href="#menu">Right-click menu</a></li>
+          <li><a href="#notifications">Notifications</a></li>
+          <li><a href="#settings">Settings</a></li>
+          <li><a href="#pro">Pro features</a></li>
+          <li><a href="#troubleshooting">Troubleshooting</a></li>
+          <li><a href="#good-to-know">Good to know</a></li>
+        </ul>
+
+        <h2 id="what-it-shows">What it shows</h2>
         <p>
           WhatCable sits in your menu bar. Click the icon to see a popover with one card per USB-C port on your Mac.
           Each card shows, in plain English:
@@ -224,66 +272,210 @@
           <li><strong>Active transports:</strong> USB 2, USB 3, Thunderbolt, and DisplayPort paths.</li>
         </ul>
 
-        <h2>Charging diagnostics</h2>
+        <figure>
+          <img src="screenshot.webp" alt="WhatCable popover showing two USB-C ports with cable speed, charging wattage, and charger PDO list" width="480">
+          <figcaption>The main popover. One card per port, plain-English summary of everything connected.</figcaption>
+        </figure>
+
+        <h2 id="charging">Charging diagnostics</h2>
         <p>
           When a charger is connected, WhatCable identifies the bottleneck and shows a banner:
         </p>
         <ul>
-          <li><strong>"Charging well at 96W"</strong> means the cable, charger, and Mac are all matched.</li>
-          <li><strong>"Cable is limiting charging speed"</strong> means the cable is rated below what the charger can deliver.</li>
-          <li><strong>"Charging at 30W (charger can do up to 96W)"</strong> means the Mac is drawing less than the charger offers, usually because the battery is nearly full.</li>
+          <li><strong>"Charging well at 96W"</strong> means the cable, charger, and Mac are all matched. You are getting the best charge rate this setup can deliver.</li>
+          <li><strong>"Cable is limiting charging speed"</strong> means the cable is rated below what the charger can deliver. A 3A cable on a 100W charger will cap you at 60W.</li>
+          <li><strong>"Charging at 30W (charger can do up to 96W)"</strong> means the Mac is drawing less than the charger offers. This is normal when the battery is nearly full, or the Mac is asleep.</li>
         </ul>
+        <p>
+          The charger PDO list shows every voltage profile the charger advertises. The active one is highlighted. This helps you confirm whether your charger actually supports the wattage it claims on the box.
+        </p>
 
-        <h2>Cable trust signals</h2>
+        <h2 id="trust">Cable trust signals</h2>
         <p>
           WhatCable checks e-marker data against the USB Power Delivery spec. When something looks unusual, an orange card appears with the details. This is not proof that a cable is fake. It means something in the reported data is worth a closer look.
         </p>
         <p>Checks include:</p>
         <ul>
-          <li>Vendor ID compared against the USB-IF published list.</li>
+          <li>Vendor ID compared against the USB-IF published list. An unregistered VID is common on cheap cables.</li>
           <li>Speed and current fields validated against PD spec ranges.</li>
           <li>Reserved bit patterns and zero-value metadata flagged.</li>
         </ul>
-
-        <h2>Engineer mode</h2>
         <p>
-          Hold <code>Option</code> and click the menu bar icon to show the underlying IOKit properties for each port. You can also enable this permanently from Settings.
+          If a cable triggers a trust flag, it does not necessarily mean the cable is dangerous. Some budget cables use generic e-marker chips with placeholder data. The flag is there to help you make an informed decision.
         </p>
 
-        <h2>Right-click menu</h2>
+        <h2 id="engineer">Engineer mode</h2>
         <p>
-          Right-click the menu bar icon for quick actions:
+          Hold <code>Option</code> and click the menu bar icon to show the underlying IOKit properties for each port. This includes raw register values, PD message fields, and USB device tree details.
+        </p>
+        <p>
+          You can also enable engineer mode permanently in Settings (the "Show technical details" toggle). Useful if you are debugging a cable or filing a bug report.
+        </p>
+
+        <h2 id="menu">Right-click menu</h2>
+        <p>
+          Right-click (or Control-click) the menu bar icon for quick actions:
         </p>
         <ul>
-          <li><strong>Refresh</strong> to re-scan all ports.</li>
-          <li><strong>Keep window open</strong> to pin the popover (handy for screenshots and demos).</li>
-          <li><strong>Check for Updates</strong> to look for a newer version on GitHub.</li>
-          <li><strong>About</strong> and <strong>WhatCable on GitHub</strong> for links.</li>
-          <li><strong>Quit</strong> to close the app.</li>
+          <li><strong>Refresh:</strong> re-scan all ports immediately.</li>
+          <li><strong>Keep window open:</strong> pin the popover so it stays visible. Handy for screenshots, demos, or comparing cables side by side.</li>
+          <li><strong>Licence:</strong> enter or manage your Pro licence key.</li>
+          <li><strong>Check for Updates:</strong> look for a newer version on GitHub (Homebrew/zip installs only; App Store handles its own updates).</li>
+          <li><strong>About</strong> and <strong>WhatCable on GitHub:</strong> links to the project.</li>
+          <li><strong>Quit:</strong> close the app.</li>
         </ul>
 
-        <h2>Settings</h2>
+        <h2 id="notifications">Notifications</h2>
+        <p>
+          WhatCable can send a macOS notification whenever a USB device or charger connects or disconnects. This is off by default. Turn it on in Settings.
+        </p>
+        <p>
+          When you enable it, macOS will ask for notification permission. Notifications are silent (no sound) and show the device name, speed, and vendor for connections, or a count for disconnections.
+        </p>
+        <p>
+          Notifications work even when the popover is closed. WhatCable runs its own background watchers for USB and power source changes. It primes a baseline at launch so you do not get a burst of "connected" alerts for things that were already plugged in.
+        </p>
+
+        <h2 id="settings">Settings</h2>
         <p>
           Click the gear icon in the popover header to open Settings.
         </p>
         <ul>
           <li><strong>Hide empty ports:</strong> only show ports with something plugged in.</li>
           <li><strong>Launch at login:</strong> start WhatCable automatically when you log in.</li>
-          <li><strong>Dock mode:</strong> run as a regular window instead of a menu bar icon.</li>
-          <li><strong>Notifications:</strong> get alerts when cables connect or disconnect.</li>
+          <li><strong>Menu bar / Dock mode:</strong> by default WhatCable lives in the menu bar with no Dock icon. Turn this off to run it as a regular windowed app instead.</li>
+          <li><strong>Show technical details:</strong> permanently enable engineer mode (the raw IOKit property view). Same as holding Option when you click the icon, but stays on.</li>
+          <li><strong>Notifications:</strong> get alerts when USB devices or chargers connect and disconnect.</li>
+          <li><strong>Font size:</strong> adjust the text size in the popover. Ranges from 80% to 140% of the default.</li>
+          <li><strong>Language:</strong> override the system language. WhatCable picks up the change on its next launch.</li>
         </ul>
 
-        <h2>Good to know</h2>
-        <ul>
-          <li>E-marker data only appears for cables that carry one. Most cables under 60W are unmarked. Thunderbolt, USB4, and 100W+ cables will have one.</li>
-          <li>Some cables only reveal their e-marker once a device is plugged in at the other end. If a cable shows up as basic, plug something into the far end and check again.</li>
-          <li>WhatCable trusts the e-marker chip for cable capabilities. If a cable claims 240W / 40 Gbps but performs poorly, the chip is reporting incorrect data.</li>
-          <li>Vendor name lookup uses USB-IF's published list. VIDs assigned after the bundled snapshot will show as "Unregistered / unknown" until the list is updated.</li>
-        </ul>
+        <h2 id="pro">Pro features</h2>
+        <p>
+          <a href="/pro">WhatCable Pro</a> is a one-time purchase that adds deeper diagnostics on top of everything in the free app. All free features stay free. Pro adds the following:
+        </p>
+
+        <h3>Live power metering <span class="pro-badge">Pro</span></h3>
+        <p>
+          Real-time watts, amps, and voltage per port, updated every two seconds from the battery controller. See exactly what your cable is delivering right now, not just what it negotiated.
+        </p>
+
+        <h3>PD contract inspector <span class="pro-badge">Pro</span></h3>
+        <p>
+          See the full negotiated power delivery contract: active voltage and current, all available PDOs decoded with type-aware formatting (Fixed, PPS, AVS), and any capability mismatches flagged.
+        </p>
+
+        <h3>Cable resistance estimation <span class="pro-badge">Pro</span></h3>
+        <p>
+          Multi-point regression across power samples estimates cable resistance in milliohms. Useful for spotting worn or marginal cables before they cause problems.
+        </p>
+
+        <h3>Port health counters <span class="pro-badge">Pro</span></h3>
+        <p>
+          Lifetime attach/detach events, hard resets, shorts, I2C errors, role swap stats, and FET failures per port. See how a port has been treated over its lifetime.
+        </p>
+
+        <figure>
+          <img src="screenshot-diagnostics.png" alt="Full diagnostics view showing pin diagram, cable identity, port health, and power contract" loading="lazy">
+          <figcaption>Pro diagnostics view with port health counters, PD contract, and cable identity.</figcaption>
+        </figure>
+
+        <h3>PD event trace <span class="pro-badge">Pro</span></h3>
+        <p>
+          Decoded protocol-level event history per port. See attach/detach sequences, contract negotiation steps, and hard reset events as they happen.
+        </p>
+
+        <h3>DP Alt Mode details <span class="pro-badge">Pro</span></h3>
+        <p>
+          Lane count, link rate, tunneled vs native, and full EDID data with monitor model, manufacturer, and year for any display connected over USB-C.
+        </p>
+
+        <figure>
+          <img src="screenshot-dp-altmode.png" alt="DisplayPort Alt Mode diagnostics showing lane allocation and monitor identity" loading="lazy">
+          <figcaption>DP Alt Mode view showing lane allocation, link rate, and monitor identity from EDID.</figcaption>
+        </figure>
+
+        <h3>Raw VDO identity <span class="pro-badge">Pro</span></h3>
+        <p>
+          Full Discover Identity VDOs from SOP and SOP' (the cable plug itself). Go beyond the e-marker summary to the raw fields your cable's controller actually reported.
+        </p>
+
+        <h3>Liquid detection <span class="pro-badge">Pro</span></h3>
+        <p>
+          LDCM sensor status per port. See whether the liquid contact indicator has been triggered on any port. Useful for diagnosing intermittent charging faults.
+        </p>
+
+        <h3>CC advertisement level <span class="pro-badge">Pro</span></h3>
+        <p>
+          Rp current advertisement level with inferred CC line voltage. See what current level your port's pull-up resistor is advertising to attached devices.
+        </p>
+
+        <h3>Power monitor window <span class="pro-badge">Pro</span></h3>
+        <p>
+          A dedicated window with live charts showing watts and voltage over time per port. Pin it while you test a charger or cable under load.
+        </p>
+
+        <figure>
+          <img src="screenshot-power-monitor.png" alt="Power Monitor window showing live wattage chart over time" loading="lazy">
+          <figcaption>Power monitor with live wattage chart. Useful for testing chargers and cables under load.</figcaption>
+        </figure>
+
+        <h3>CLI monitor mode <span class="pro-badge">Pro</span></h3>
+        <p>
+          <code>whatcable --monitor</code> streams live power and cable state to your terminal. Pipe it, script it, log it.
+        </p>
+
+        <h3>Widget power sparkline <span class="pro-badge">Pro</span></h3>
+        <p>
+          The desktop widget shows a live power chart alongside cable status. Glance at your desktop and see charging trends without opening anything.
+        </p>
 
         <div class="note">
-          <strong>Looking for the CLI?</strong> WhatCable includes a command-line tool with JSON output, watch mode, and cable reports. See the <a href="/cli">CLI docs</a>.
+          <strong>Activate Pro:</strong> right-click the WhatCable icon in the menu bar and click <strong>Licence</strong>. Paste your key and click Activate. Works on up to 2 Macs. See the <a href="/pro">Pro page</a> for pricing.
         </div>
+
+        <h2 id="troubleshooting">Troubleshooting</h2>
+
+        <h3>My cable shows as "Basic cable" with no e-marker data</h3>
+        <p>
+          Most cables under 60W do not have an e-marker chip. This is normal and per spec. USB-PD only requires an e-marker for cables rated above 3A (60W). Thunderbolt, USB4, and 100W+ cables will always have one.
+        </p>
+        <p>
+          Some cables only reveal their e-marker once a device is plugged in at the other end. macOS only queries the e-marker during PD negotiation above 3A. Try plugging in a higher-wattage charger (60W+) and check again.
+        </p>
+
+        <h3>Vendor shows as "Unregistered / unknown"</h3>
+        <p>
+          WhatCable looks up vendor names using the USB-IF published list, which is bundled with the app. If a vendor registered after the bundled list was compiled, their name will not appear until the next app update. This does not mean the cable is fake, only that the VID is not in the local list yet.
+        </p>
+
+        <h3>Intel Mac not supported</h3>
+        <p>
+          WhatCable requires Apple Silicon (M1 or later). Intel Macs use a different Thunderbolt controller (Titan Ridge / JHL series) that does not expose USB-PD state through IOKit. There is no workaround for this.
+        </p>
+
+        <h3>WhatCable icon not appearing in the menu bar</h3>
+        <p>
+          If your menu bar is full, macOS may hide the icon. Try closing other menu bar apps or using a tool like Bartender to manage overflow. You can also switch to Dock mode in Settings if menu bar space is tight.
+        </p>
+
+        <h3>Notifications are not showing up</h3>
+        <p>
+          Check two things. First, make sure notifications are turned on in WhatCable's settings (the toggle in the gear menu). Second, check macOS System Settings > Notifications > WhatCable and make sure alerts are allowed. If you denied the permission prompt on first run, you need to re-enable it there.
+        </p>
+
+        <h3>"Report this cable" is not showing any data</h3>
+        <p>
+          The report feature needs e-marker data to work. If no e-marker was read, there is nothing to report. Two common reasons: the cable genuinely does not have an e-marker chip, or macOS has not queried it yet because the negotiated current is below 3A. Try a higher-wattage charger (60W+) to trigger the read.
+        </p>
+
+        <h2 id="good-to-know">Good to know</h2>
+        <ul>
+          <li>WhatCable makes no network calls of its own (App Store version). The Homebrew/zip version checks GitHub for updates once every six hours. No analytics, no telemetry. See the <a href="/privacy">privacy policy</a>.</li>
+          <li>WhatCable trusts the e-marker chip for cable capabilities. If a cable claims 240W / 40 Gbps but performs poorly, the chip is reporting incorrect data.</li>
+          <li>The <a href="/cables">cable database</a> is built from community-reported cables. If your cable is not listed, use "Report this cable" in the app to contribute.</li>
+          <li>WhatCable includes a <a href="/cli">command-line tool</a> with JSON output, watch mode, and cable reports. It ships inside the app bundle and is on your PATH automatically if you installed via Homebrew.</li>
+        </ul>
       </div>
     </main>
 
