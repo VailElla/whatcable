@@ -475,7 +475,9 @@ struct PortCard: View {
                     portKey: port.portKey,
                     portNumber: port.portNumber,
                     serviceName: port.serviceName,
-                    portTypeDescription: port.portTypeDescription
+                    portTypeDescription: port.portTypeDescription,
+                    pinConfiguration: port.pinConfiguration,
+                    plugOrientation: port.plugOrientation
                 )
                 ForEach(Array(PluginRegistry.shared.portCardTrailingBuilders.enumerated()), id: \.offset) { _, builder in
                     if let view = builder(ctx) {
