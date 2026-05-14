@@ -28,6 +28,34 @@
     "xid" : "none"
   },
   {
+    "brand" : "Lindy Anthra Line USB 3.2 Gen 2x2 1 m (36901), e-marker reports Gen 2 not Gen 2x2, VID zeroed",
+    "cableVDO" : "0x00082052",
+    "issueNum" : "#116",
+    "issueURL" : "https:\/\/github.com\/darrylmorley\/whatcable\/issues\/116",
+    "pid" : "0x0000",
+    "power" : "5 A \/ 20 V (100 W)",
+    "registered" : true,
+    "speed" : "USB 3.2 Gen 2 (10 Gbps)",
+    "type" : "passive",
+    "vendor" : "(zeroed)",
+    "vid" : "0x0000",
+    "xid" : "none"
+  },
+  {
+    "brand" : "Aulumu M07 (VID\/PID zeroed)",
+    "cableVDO" : "0x000A4642",
+    "issueNum" : "#108",
+    "issueURL" : "https:\/\/github.com\/darrylmorley\/whatcable\/issues\/108",
+    "pid" : "0x0000",
+    "power" : "5 A \/ 50 V (250 W)",
+    "registered" : true,
+    "speed" : "USB 3.2 Gen 2 (10 Gbps)",
+    "type" : "passive",
+    "vendor" : "(zeroed)",
+    "vid" : "0x0000",
+    "xid" : "none"
+  },
+  {
     "brand" : "vorodcip generic USB-C cable, Amazon Japan (VID\/PID zeroed)",
     "cableVDO" : "0x000A6642",
     "issueNum" : "#91",
@@ -68,6 +96,20 @@
     "vendor" : "Unregistered",
     "vid" : "0x01B6",
     "xid" : "0x303C"
+  },
+  {
+    "brand" : "HP USB-C dock (circa 2019), built-in tethered cable",
+    "cableVDO" : "0x00402FB2",
+    "issueNum" : "#112",
+    "issueURL" : "https:\/\/github.com\/darrylmorley\/whatcable\/issues\/112",
+    "pid" : "0x0967",
+    "power" : "3 A \/ 50 V (150 W)",
+    "registered" : true,
+    "speed" : "USB 3.2 Gen 2 (10 Gbps)",
+    "type" : "passive",
+    "vendor" : "HP Inc.",
+    "vid" : "0x03F0",
+    "xid" : "none"
   },
   {
     "brand" : "Bundled in UGREEN Revodok Max 213 (U710) dock; housing marked TB4",
@@ -140,6 +182,20 @@
     "xid" : "none"
   },
   {
+    "brand" : "Cable Matters TB5 1M cable",
+    "cableVDO" : "0x110A2644",
+    "issueNum" : "#110",
+    "issueURL" : "https:\/\/github.com\/darrylmorley\/whatcable\/issues\/110",
+    "pid" : "0x1533",
+    "power" : "5 A \/ 50 V (250 W)",
+    "registered" : true,
+    "speed" : "USB4 Gen 4 (80 Gbps)",
+    "type" : "passive",
+    "vendor" : "Lintes Technology Co., Ltd.",
+    "vid" : "0x2B1D",
+    "xid" : "0x5F5"
+  },
+  {
     "brand" : "Dbilida TB4-branded 240 W cable, Amazon (no USB-IF cert)",
     "cableVDO" : "",
     "issueNum" : "#49",
@@ -154,6 +210,20 @@
     "xid" : "none"
   },
   {
+    "brand" : "Satechi TB5 1M cable",
+    "cableVDO" : "0x110A2644",
+    "issueNum" : "#109",
+    "issueURL" : "https:\/\/github.com\/darrylmorley\/whatcable\/issues\/109",
+    "pid" : "0x4000",
+    "power" : "5 A \/ 50 V (250 W)",
+    "registered" : true,
+    "speed" : "USB4 Gen 4 (80 Gbps)",
+    "type" : "passive",
+    "vendor" : "Sariana LLC (dba SATECHI)",
+    "vid" : "0x310E",
+    "xid" : "0x5F5"
+  },
+  {
     "brand" : "acasis cable bundled with TBU405M1 enclosure",
     "cableVDO" : "",
     "issueNum" : "#45",
@@ -166,5 +236,47 @@
     "vendor" : "Chengdu Convenientpower Semiconductor Co., LTD",
     "vid" : "0x315C",
     "xid" : "none"
+  },
+  {
+    "brand" : "Silkland 80 Gbps USB4\/TB5 cable 3.3 ft, Amazon",
+    "cableVDO" : "0x000A2644",
+    "issueNum" : "#98",
+    "issueURL" : "https:\/\/github.com\/darrylmorley\/whatcable\/issues\/98",
+    "pid" : "0x0000",
+    "power" : "5 A \/ 50 V (250 W)",
+    "registered" : true,
+    "speed" : "USB4 Gen 4 (80 Gbps)",
+    "type" : "passive",
+    "vendor" : "(Silkland) Shenzhen Guanhai Technology Co., Ltd.",
+    "vid" : "0x3678",
+    "xid" : "none"
+  },
+  {
+    "brand" : "CANDYSIGN MagTie 100 W USB-C, charging-only (USB 2.0)",
+    "cableVDO" : "0x140A4040",
+    "issueNum" : "#113",
+    "issueURL" : "https:\/\/github.com\/darrylmorley\/whatcable\/issues\/113",
+    "pid" : "0x3000",
+    "power" : "5 A \/ 20 V (100 W)",
+    "registered" : true,
+    "speed" : "USB 2.0 (480 Mbps)",
+    "type" : "passive",
+    "vendor" : "ifanr Inc.",
+    "vid" : "0x36E9",
+    "xid" : "0x15141"
+  },
+  {
+    "brand" : "Unknown braided TB-logo cable, possibly Amazon (unregistered VID with valid cert)",
+    "cableVDO" : "0x00084042",
+    "issueNum" : "#99",
+    "issueURL" : "https:\/\/github.com\/darrylmorley\/whatcable\/issues\/99",
+    "pid" : "0x0000",
+    "power" : "5 A \/ 20 V (100 W)",
+    "registered" : false,
+    "speed" : "USB 3.2 Gen 2 (10 Gbps)",
+    "type" : "passive",
+    "vendor" : "Prototype product Vendor ID",
+    "vid" : "0x6666",
+    "xid" : "0x52C"
   }
 ]
