@@ -12,14 +12,11 @@ USB-C hides a lot under one connector. Anything from a USB 2.0 charge-only cable
 
 ![WhatCable popover](docs/screenshot.webp)
 
-> [!IMPORTANT]
-> **Upgrading from 0.5.x to 0.6.0?** WhatCable's bundle ID changed from `com.bitmoor.whatcable` to `uk.whatcable.whatcable` in 0.6.0 to match the new `whatcable.uk` domain. The in-app "Check for Updates" path in 0.5.x will refuse to install 0.6.0 because the downloaded bundle ID won't match what it expects. Upgrade through Homebrew (`brew upgrade --cask whatcable`) or by downloading [the latest release zip](https://github.com/darrylmorley/whatcable/releases/latest) and replacing `WhatCable.app` manually. Your preferences and notification permissions will reset on first launch of 0.6.0; re-enable launch-at-login from Settings if you had it on. This only affects the 0.5.x → 0.6.0 transition.
-
 ## What it shows
 
 Per port, in plain English:
 
-- **At-a-glance headline:** Thunderbolt / USB4, USB device, Charging only, Slow USB / charge-only cable, Nothing connected
+- **At-a-glance headline:** Thunderbolt / USB4, USB device, Display connected, Charging only, Slow USB / charge-only cable, Nothing connected
 - **Charging diagnostic:** when something's plugged in, a banner identifies the bottleneck:
   - *"Cable is limiting charging speed"* (cable rated below the charger)
   - *"Charging at 30W (charger can do up to 96W)"* (Mac is asking for less, e.g. battery near full)
@@ -29,7 +26,10 @@ Per port, in plain English:
 - **Charger PDO list:** every voltage profile the charger advertises (5V / 9V / 12V / 15V / 20V…) with the currently negotiated profile highlighted in real time
 - **Connected device identity:** vendor name and product type, decoded from the PD Discover Identity response
 - **Attached USB devices:** storage, hubs, and peripherals listed under the physical port they're plugged into, with their negotiated speed
+- **Thunderbolt fabric:** when a Thunderbolt / USB4 link is active, shows per-lane speed, generation (TB3, TB4, TB5), and the full switch topology for multi-hop connections through docks
+- **Cable identification:** if the cable's e-marker fingerprint matches a known cable in the bundled database, the brand and model are shown alongside the raw specs
 - **Active transports:** USB 2 / USB 3 / Thunderbolt / DisplayPort
+- **Desktop widget:** small, medium, and large WidgetKit widgets showing live cable status on your desktop
 - **⌥-click** the menu bar icon (or flip the toggle in Settings) to reveal the underlying IOKit properties for engineers
 
 Click the **gear icon** in the popover header to open Settings, where you can:
@@ -37,6 +37,8 @@ Click the **gear icon** in the popover header to open Settings, where you can:
 - Hide empty ports
 - Launch at login
 - Run as a regular Dock app instead of a menu bar icon
+- Adjust the font size
+- Switch language (English, Armenian, Italian, Polish, Simplified Chinese, or follow your system default)
 - Get notifications when cables are connected or disconnected
 
 Right-click the menu bar icon for **Refresh**, a **Keep window open** toggle (handy for screenshots and demos), **Check for Updates…**, **About**, **WhatCable on GitHub**, and **Quit**.
@@ -47,9 +49,9 @@ Visit [whatcable.uk](https://whatcable.uk) for an overview and screenshots, or i
 
 Download the latest `WhatCable.zip` from the [Releases page](https://github.com/darrylmorley/whatcable/releases/latest), unzip, and drag `WhatCable.app` to `/Applications`.
 
-The app is universal (Apple silicon + Intel), signed with a Developer ID, and notarised by Apple, so there are no Gatekeeper warnings.
+The app is signed with a Developer ID and notarised by Apple, so there are no Gatekeeper warnings.
 
-Requires macOS 14 (Sonoma) or later. Apple Silicon only. On Intel Macs, the USB-C ports are driven by Intel Titan Ridge / JHL9580 Thunderbolt 3 controllers, and the USB-PD state and cable e-marker data WhatCable depends on are not exposed through any public IOKit accessor.
+Requires macOS 14 (Sonoma) or later, Apple Silicon only. On Intel Macs, the USB-C ports are driven by Intel Titan Ridge / JHL9580 Thunderbolt 3 controllers, and the USB-PD state and cable e-marker data WhatCable depends on are not exposed through any public IOKit accessor.
 
 > **Note:** The manual install gives you the menu bar app only. The `whatcable` CLI is bundled inside the `.app` and is not on your PATH by default. If you want to use it from the shell, see the [Command-line interface](#command-line-interface) section below for the one-line symlink. Or install via Homebrew, which sets up the CLI automatically.
 
@@ -71,6 +73,7 @@ whatcable                # human-readable summary of every port
 whatcable --json         # structured JSON, pipe into jq
 whatcable --watch        # stream updates as cables come and go (Ctrl+C to exit)
 whatcable --raw          # include underlying IOKit properties
+whatcable --report       # open a pre-filled GitHub issue for the connected cable
 whatcable --version
 whatcable --help
 ```
@@ -94,7 +97,7 @@ WhatCable reads four families of IOKit services. No entitlements, no private API
 | `IOPortTransportComponentCCUSBPDSOP`, `...SOPp`, `...SOPpp` | PD Discover Identity VDOs from the port partner (SOP), the cable's near-end e-marker (SOP'), and the far-end e-marker (SOP'') if present |
 | XHCI controller subtree | Each connected USB device is paired to its physical port via the XHCI port node's `UsbIOPort` registry path, falling back to a bus-index derived from the controller's `locationID` upper byte and the port's `hpm` SPMI ancestor on machines that don't expose `UsbIOPort`. |
 
-Cable speed and power decoding follow the USB Power Delivery spec (aligned to USB-PD R3.2 V1.2, March 2026). Vendor names come from USB-IF's published vendor-ID list, bundled as a TSV refreshed by `scripts/update-vendor-db.sh`.
+Cable speed and power decoding follow the USB Power Delivery spec (aligned to USB-PD R3.2 V1.2, March 2026). Vendor names come from a bundled SQLite database (`whatcable.db`) that merges USB-IF's published vendor list (~13,700 entries), the community `usb.ids` list, and a curated set of cable fingerprints reported by users.
 
 ## Build from source
 
@@ -103,15 +106,15 @@ swift run WhatCable          # menu bar app
 swift run whatcable-cli      # CLI
 ```
 
-Requires Swift 5.9 (Xcode 15+).
+Requires Swift 5.9+ (Xcode 15+).
 
 ## Build a distributable .app
 
 ```bash
-./scripts/build-app.sh
+./scripts/smoke-test.sh
 ```
 
-Produces a universal `dist/WhatCable.app` (arm64 + x86_64) and `dist/WhatCable.zip`.
+Builds, signs, notarises (if configured), and smoke-tests the app. Produces `dist/WhatCable.app` and `dist/WhatCable.zip`. Safe to run on any branch, any time. Does not touch the Homebrew tap.
 
 **Modes:**
 
@@ -124,8 +127,8 @@ Produces a universal `dist/WhatCable.app` (arm64 + x86_64) and `dist/WhatCable.z
 **Cutting a release:**
 
 ```bash
-# write release-notes/v0.5.3.md first, then:
-./scripts/release.sh 0.5.3
+# write release-notes/v<version>.md first, then:
+./scripts/release.sh <version>
 ```
 
 The wrapper does the whole pipeline: bumps the version, runs build-app.sh
@@ -158,7 +161,7 @@ cp .env.example .env
 - **Some cables only reveal their e-marker once something is plugged in at the other end.** The chip in the cable's plug runs off VCONN (a small power rail your Mac feeds into the cable) and only answers when the host issues a "Discover Identity" message. With nothing attached, some Macs read the e-marker straight away, others wait until they see a real partner to negotiate with. If a cable shows up as basic when bare, plug a charger, dock, or device into the far end and check again.
 - **WhatCable trusts the e-marker for capabilities.** Cable speed, current rating, and vendor come straight from the chip in the cable's plug, and software cannot verify what's inside the jacket. If a cable claims 240W / 40 Gbps but performs poorly, the chip is lying, not WhatCable. The trust-signals card flags a small set of internal-consistency tells (zero VID, reserved bit patterns in the Cable VDO, a VID not in the USB-IF list) that often appear on counterfeit or mis-flashed cables, but those flags are hedged signals, not proof.
 - **PD spec coverage:** the decoder is aligned to USB-PD R3.2 V1.2 (March 2026). Earlier 3.0 / 3.1 cables work fine.
-- **Vendor name lookup uses USB-IF's published list** (~13,650 entries, March 2026 snapshot). VIDs assigned by USB-IF after that snapshot will show as "Unregistered / unknown" and trip a trust-signal flag until the bundled list is refreshed.
+- **Vendor name lookup uses a bundled database** (~13,700 USB-IF entries plus the community usb.ids list). VIDs assigned after the bundled snapshot will show as "Unregistered / unknown" and trip a trust-signal flag until the database is refreshed.
 - **macOS only.** iOS sandboxing makes USB-C e-marker access much harder.
 - **Apple Silicon only.** Intel Macs route USB-C through Intel Thunderbolt 3 controllers (Titan Ridge / JHL9580). Apple's IOKit driver for those chips does not expose the USB-PD negotiation state or the cable e-marker VDOs, so there's no path to surface the same information on Intel hardware.
 - **Not on the App Store.** App Sandbox blocks the IOKit reads we depend on.
@@ -173,10 +176,39 @@ WhatCable reads USB-C port state directly from IOKit on your Mac. All of that ha
 
 ## Contributing
 
-Issues and PRs welcome. The code is small and tries to stay readable. Start at [`Sources/WhatCable/ContentView.swift`](Sources/WhatCable/ContentView.swift) for the UI, [`Sources/WhatCableCore/PortSummary.swift`](Sources/WhatCableCore/PortSummary.swift) for the plain-English logic, or [`Sources/WhatCableCore/PDVDO.swift`](Sources/WhatCableCore/PDVDO.swift) for the bit-twiddling. Cross-platform models and the diagnostic engine live in `WhatCableCore`; the IOKit watchers (port state, PD identity, power sources, USB devices) live in [`Sources/WhatCableDarwinBackend/`](Sources/WhatCableDarwinBackend/). The same `WhatCableCore` powers the menu bar app and the `whatcable` CLI in [`Sources/WhatCableCLI/`](Sources/WhatCableCLI/).
+Issues and PRs welcome. The code is small and tries to stay readable.
+
+**Where to start:**
+
+- [`Sources/WhatCable/ContentView.swift`](Sources/WhatCable/ContentView.swift) for the UI
+- [`Sources/WhatCableCore/PortSummary.swift`](Sources/WhatCableCore/PortSummary.swift) for the plain-English diagnostic logic
+- [`Sources/WhatCableCore/PDVDO.swift`](Sources/WhatCableCore/PDVDO.swift) for USB-PD bit decoding
+- [`Sources/WhatCableDarwinBackend/`](Sources/WhatCableDarwinBackend/) for the IOKit watchers (port state, PD identity, power sources, USB devices, Thunderbolt fabric)
+- [`Sources/WhatCableCLI/`](Sources/WhatCableCLI/) for the CLI, which shares `WhatCableCore` with the menu bar app
+
+### Translations
+
+WhatCable uses `.lproj/.strings` files for localisation. Each module (`WhatCable` and `WhatCableCore`) has its own set under `Sources/<module>/Resources/<lang>.lproj/Localizable.strings`.
+
+To add a new language:
+
+1. Copy `en.lproj/Localizable.strings` from both modules into a new `<lang>.lproj/` directory
+2. Translate the values (leave the keys as-is)
+3. Make sure format specifiers (`%@`, `%lld`, `%1$@`, etc.) match the English originals exactly
+4. Run `plutil -lint` on your files to check for syntax errors
+5. Add the language to the picker in [`Sources/WhatCable/SettingsView.swift`](Sources/WhatCable/SettingsView.swift)
+
+### Cable reports
+
+If you have a cable with an e-marker, the "Report this cable" button in the app (or `whatcable --report` from the CLI) opens a pre-filled GitHub issue with the cable's fingerprint. This helps build the bundled cable database so future users see brand/model info for known cables.
 
 ## Credits
 
 Built by [Darryl Morley](https://github.com/darrylmorley).
+
+**Translations:**
+- Armenian: [@Jerryvda](https://github.com/Jerryvda)
+- Italian: [@IonBazan](https://github.com/IonBazan)
+- Polish and Simplified Chinese: [@IonBazan](https://github.com/IonBazan)
 
 Inspired by every time someone has asked "*is this cable any good?*".
