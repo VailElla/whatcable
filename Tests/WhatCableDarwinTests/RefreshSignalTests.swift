@@ -1,6 +1,6 @@
 import XCTest
 import Combine
-@testable import WhatCable
+@testable import WhatCableAppKit
 
 final class RefreshSignalTests: XCTestCase {
     private var signal: RefreshSignal!

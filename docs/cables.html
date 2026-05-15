@@ -10,17 +10,18 @@
     >
     <link rel="icon" href="icon.png" type="image/png">
     <link rel="apple-touch-icon" href="icon.png">
-
+    <link rel="canonical" href="https://www.whatcable.uk/cables">
+    
     <meta property="og:type" content="website">
-    <meta property="og:url" content="https://whatcable.uk/cables">
+    <meta property="og:url" content="https://www.whatcable.uk/cables">
     <meta property="og:title" content="WhatCable: Cable database">
     <meta property="og:description" content="A growing public database of USB-C cable e-marker fingerprints reported via WhatCable, the macOS menu bar app for cable diagnostics.">
-    <meta property="og:image" content="https://whatcable.uk/screenshot.webp">
+    <meta property="og:image" content="https://www.whatcable.uk/screenshot.png">
 
     <meta name="twitter:card" content="summary_large_image">
     <meta name="twitter:title" content="WhatCable: Cable database">
     <meta name="twitter:description" content="A growing public database of USB-C cable e-marker fingerprints reported via WhatCable.">
-    <meta name="twitter:image" content="https://whatcable.uk/screenshot.webp">
+    <meta name="twitter:image" content="https://www.whatcable.uk/screenshot.png">
 
     <script type="application/ld+json">
     {
@@ -28,11 +29,11 @@
       "@type": "Dataset",
       "name": "WhatCable cable fingerprint database",
       "description": "Crowd-sourced USB-C cable e-marker fingerprints reported via WhatCable.",
-      "url": "https://whatcable.uk/cables",
+      "url": "https://www.whatcable.uk/cables",
       "isPartOf": {
         "@type": "WebSite",
         "name": "WhatCable",
-        "url": "https://whatcable.uk"
+        "url": "https://www.whatcable.uk"
       }
     }
     </script>
@@ -111,6 +112,11 @@
       }
       .nav-links a { color: inherit; text-decoration: none; }
       .nav-links a:hover { color: var(--ink); }
+      .nav .btn { display: inline-flex; align-items: center; padding: 8px 14px; border-radius: 8px; font-size: 14px; font-weight: 600; line-height: 1; text-decoration: none; }
+      .nav .btn-secondary { background: #fff; color: var(--ink); border: 1px solid var(--line); }
+      .nav .btn-secondary:hover { border-color: #c8d0db; }
+      .nav .btn-accent { background: #0c8ca6; color: #fff; border: 1px solid #0c8ca6; }
+      .nav .btn-accent:hover { background: #0a7188; }
 
       main { padding: 48px 0 80px; }
       h1 {
@@ -236,10 +242,22 @@
       .cta strong { color: var(--ink); }
 
       footer {
-        border-top: 1px solid var(--line);
-        padding: 24px 0;
-        color: var(--muted);
-        font-size: 13px;
+        padding: 32px 0;
+        background: #0c1219;
+        color: rgba(255, 255, 255, 0.55);
+        font-size: 13.5px;
+        border-top: 1px solid rgba(255, 255, 255, 0.06);
+      }
+      footer .wrap {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+      }
+      footer a { color: rgba(255, 255, 255, 0.85); }
+      footer a:hover { color: #fff; }
+      @media (max-width: 600px) {
+        footer .wrap { flex-direction: column; align-items: flex-start; }
       }
     </style>
   </head>
@@ -254,7 +272,8 @@
           <a href="/instructions">Docs</a>
           <a href="/cli">CLI</a>
           <a href="/cables">Cables</a>
-          <a href="https://github.com/darrylmorley/whatcable">GitHub</a>
+          <a class="btn btn-secondary" href="https://github.com/darrylmorley/whatcable">GitHub</a>
+          <a class="btn btn-accent" href="/pro">Get Pro</a>
         </nav>
       </div>
     </header>
@@ -262,7 +281,7 @@
     <main>
       <div class="wrap wide">
         <h1>Cable database</h1>
-        <p class="subtitle">USB-C cable e-marker fingerprints reported via WhatCable. Last updated 2026-05-15.</p>
+        <p class="subtitle">USB-C cable e-marker fingerprints reported via WhatCable. Last updated 2026-05-13.</p>
 
         <p>
           A growing list of real-world USB-C cables, indexed by the identity
@@ -334,18 +353,6 @@
             <td class="col-source"><a href="https://github.com/darrylmorley/whatcable/issues/90">#90</a></td>
           </tr>
           <tr>
-            <td class="col-context">HP USB-C dock (circa 2019), built-in tethered cable</td>
-            <td class="col-vid"><code>0x03F0</code></td>
-            <td class="col-pid"><code>0x0967</code></td>
-            <td class="col-cable-vdo"><code>0x00402FB2</code></td>
-            <td class="col-vendor">HP Inc.</td>
-            <td class="col-xid">none</td>
-            <td class="col-speed">USB 3.2 Gen 2 (10 Gbps)</td>
-            <td class="col-power">3 A / 50 V (150 W)</td>
-            <td class="col-type">passive</td>
-            <td class="col-source"><a href="https://github.com/darrylmorley/whatcable/issues/112">#112</a></td>
-          </tr>
-          <tr>
             <td class="col-context">Bundled in UGREEN Revodok Max 213 (U710) dock; housing marked TB4</td>
             <td class="col-vid"><code>0x0522</code></td>
             <td class="col-pid"><code>0x0A06</code></td>
@@ -358,30 +365,6 @@
             <td class="col-source"><a href="https://github.com/darrylmorley/whatcable/issues/84">#84</a></td>
           </tr>
           <tr>
-            <td class="col-context">Apple Thunderbolt 5 cable 1 m, Apple Store purchase</td>
-            <td class="col-vid"><code>0x05AC</code></td>
-            <td class="col-pid"><code>0x720A</code></td>
-            <td class="col-cable-vdo"><code>0x110A2644</code></td>
-            <td class="col-vendor">Apple</td>
-            <td class="col-xid">none</td>
-            <td class="col-speed">USB4 Gen 4 (80 Gbps)</td>
-            <td class="col-power">5 A / 50 V (250 W)</td>
-            <td class="col-type">passive</td>
-            <td class="col-source"><a href="https://github.com/darrylmorley/whatcable/issues/93">#93</a></td>
-          </tr>
-          <tr>
-            <td class="col-context">Apple Thunderbolt 5 cable 1 m, Apple Store purchase</td>
-            <td class="col-vid"><code>0x05AC</code></td>
-            <td class="col-pid"><code>0x720A</code></td>
-            <td class="col-cable-vdo"><code>0x110A2644</code></td>
-            <td class="col-vendor">Apple</td>
-            <td class="col-xid">none</td>
-            <td class="col-speed">USB4 Gen 4 (80 Gbps)</td>
-            <td class="col-power">5 A / 50 V (250 W)</td>
-            <td class="col-type">passive</td>
-            <td class="col-source"><a href="https://github.com/darrylmorley/whatcable/issues/131">#131</a></td>
-          </tr>
-          <tr>
             <td class="col-context">Anker 333 USB-C 3.3 ft nylon</td>
             <td class="col-vid"><code>0x201C</code></td>
             <td class="col-pid"><code>0x0000</code></td>
@@ -392,18 +375,6 @@
             <td class="col-power">5 A / 20 V (100 W)</td>
             <td class="col-type">passive</td>
             <td class="col-source"><a href="https://github.com/darrylmorley/whatcable/issues/60">#60</a></td>
-          </tr>
-          <tr>
-            <td class="col-context">Eizo EV2740X monitor bundled KVM cable (Luxshare-ICT)</td>
-            <td class="col-vid"><code>0x208E</code></td>
-            <td class="col-pid"><code>0xC026</code></td>
-            <td class="col-cable-vdo"><code>0x00084041</code></td>
-            <td class="col-vendor">Luxshare-ICT</td>
-            <td class="col-xid">none</td>
-            <td class="col-speed">USB 3.2 Gen 1 (5 Gbps)</td>
-            <td class="col-power">5 A / 20 V (100 W)</td>
-            <td class="col-type">passive</td>
-            <td class="col-source"><a href="https://github.com/darrylmorley/whatcable/issues/137">#137</a></td>
           </tr>
           <tr>
             <td class="col-context">Monoprice Essentials USB-C 10 Gbps 0.5 m</td>
@@ -442,18 +413,6 @@
             <td class="col-source"><a href="https://github.com/darrylmorley/whatcable/issues/62">#62</a></td>
           </tr>
           <tr>
-            <td class="col-context">Cable Matters TB5 1M cable</td>
-            <td class="col-vid"><code>0x2B1D</code></td>
-            <td class="col-pid"><code>0x1533</code></td>
-            <td class="col-cable-vdo"><code>0x110A2644</code></td>
-            <td class="col-vendor">Lintes Technology Co., Ltd.</td>
-            <td class="col-xid"><code>0x5F5</code></td>
-            <td class="col-speed">USB4 Gen 4 (80 Gbps)</td>
-            <td class="col-power">5 A / 50 V (250 W)</td>
-            <td class="col-type">passive</td>
-            <td class="col-source"><a href="https://github.com/darrylmorley/whatcable/issues/110">#110</a></td>
-          </tr>
-          <tr>
             <td class="col-context">Dbilida TB4-branded 240 W cable, Amazon (no USB-IF cert)</td>
             <td class="col-vid"><code>0x2E99</code></td>
             <td class="col-pid"><code>0x0000</code></td>
@@ -466,18 +425,6 @@
             <td class="col-source"><a href="https://github.com/darrylmorley/whatcable/issues/49">#49</a></td>
           </tr>
           <tr>
-            <td class="col-context">Satechi TB5 1M cable</td>
-            <td class="col-vid"><code>0x310E</code></td>
-            <td class="col-pid"><code>0x4000</code></td>
-            <td class="col-cable-vdo"><code>0x110A2644</code></td>
-            <td class="col-vendor">Sariana LLC (dba SATECHI)</td>
-            <td class="col-xid"><code>0x5F5</code></td>
-            <td class="col-speed">USB4 Gen 4 (80 Gbps)</td>
-            <td class="col-power">5 A / 50 V (250 W)</td>
-            <td class="col-type">passive</td>
-            <td class="col-source"><a href="https://github.com/darrylmorley/whatcable/issues/109">#109</a></td>
-          </tr>
-          <tr>
             <td class="col-context">acasis cable bundled with TBU405M1 enclosure</td>
             <td class="col-vid"><code>0x315C</code></td>
             <td class="col-pid"><code>0x0000</code></td>
@@ -488,42 +435,6 @@
             <td class="col-power">5 A / 20 V (100 W)</td>
             <td class="col-type">passive</td>
             <td class="col-source"><a href="https://github.com/darrylmorley/whatcable/issues/45">#45</a></td>
-          </tr>
-          <tr>
-            <td class="col-context">Silkland 80 Gbps USB4/TB5 cable 3.3 ft, Amazon</td>
-            <td class="col-vid"><code>0x3678</code></td>
-            <td class="col-pid"><code>0x0000</code></td>
-            <td class="col-cable-vdo"><code>0x000A2644</code></td>
-            <td class="col-vendor">(Silkland) Shenzhen Guanhai Technology Co., Ltd.</td>
-            <td class="col-xid">none</td>
-            <td class="col-speed">USB4 Gen 4 (80 Gbps)</td>
-            <td class="col-power">5 A / 50 V (250 W)</td>
-            <td class="col-type">passive</td>
-            <td class="col-source"><a href="https://github.com/darrylmorley/whatcable/issues/98">#98</a></td>
-          </tr>
-          <tr>
-            <td class="col-context">CANDYSIGN MagTie 100 W USB-C, charging-only (USB 2.0)</td>
-            <td class="col-vid"><code>0x36E9</code></td>
-            <td class="col-pid"><code>0x3000</code></td>
-            <td class="col-cable-vdo"><code>0x140A4040</code></td>
-            <td class="col-vendor">ifanr Inc.</td>
-            <td class="col-xid"><code>0x15141</code></td>
-            <td class="col-speed">USB 2.0 (480 Mbps)</td>
-            <td class="col-power">5 A / 20 V (100 W)</td>
-            <td class="col-type">passive</td>
-            <td class="col-source"><a href="https://github.com/darrylmorley/whatcable/issues/113">#113</a></td>
-          </tr>
-          <tr>
-            <td class="col-context">Unknown braided TB-logo cable, possibly Amazon (unregistered VID with valid cert)</td>
-            <td class="col-vid"><code>0x6666</code></td>
-            <td class="col-pid"><code>0x0000</code></td>
-            <td class="col-cable-vdo"><code>0x00084042</code></td>
-            <td class="col-vendor">Unregistered</td>
-            <td class="col-xid"><code>0x52C</code></td>
-            <td class="col-speed">USB 3.2 Gen 2 (10 Gbps)</td>
-            <td class="col-power">5 A / 20 V (100 W)</td>
-            <td class="col-type">passive</td>
-            <td class="col-source"><a href="https://github.com/darrylmorley/whatcable/issues/99">#99</a></td>
           </tr>
           <tr>
             <td class="col-context">CUKTECH No.6 140 W (e-marker present but VID/PID/speed all zeroed)</td>
@@ -561,78 +472,6 @@
             <td class="col-type">passive</td>
             <td class="col-source"><a href="https://github.com/darrylmorley/whatcable/issues/92">#92</a></td>
           </tr>
-          <tr>
-            <td class="col-context">Aulumu M07 (VID/PID zeroed)</td>
-            <td class="col-vid"><code>0x0000</code></td>
-            <td class="col-pid"><code>0x0000</code></td>
-            <td class="col-cable-vdo"><code>0x000A4642</code></td>
-            <td class="col-vendor">(zeroed)</td>
-            <td class="col-xid">none</td>
-            <td class="col-speed">USB 3.2 Gen 2 (10 Gbps)</td>
-            <td class="col-power">5 A / 50 V (250 W)</td>
-            <td class="col-type">passive</td>
-            <td class="col-source"><a href="https://github.com/darrylmorley/whatcable/issues/108">#108</a></td>
-          </tr>
-          <tr>
-            <td class="col-context">Lindy Anthra Line USB 3.2 Gen 2x2 1 m (36901), e-marker reports Gen 2, VID zeroed</td>
-            <td class="col-vid"><code>0x0000</code></td>
-            <td class="col-pid"><code>0x0000</code></td>
-            <td class="col-cable-vdo"><code>0x00082052</code></td>
-            <td class="col-vendor">(zeroed)</td>
-            <td class="col-xid">none</td>
-            <td class="col-speed">USB 3.2 Gen 2 (10 Gbps)</td>
-            <td class="col-power">5 A / 20 V (100 W)</td>
-            <td class="col-type">passive</td>
-            <td class="col-source"><a href="https://github.com/darrylmorley/whatcable/issues/116">#116</a></td>
-          </tr>
-          <tr>
-            <td class="col-context">UGreen Revodok 9-in-1 hub cable, Amazon France (VID zeroed, legit hub)</td>
-            <td class="col-vid"><code>0x0000</code></td>
-            <td class="col-pid"><code>0x0000</code></td>
-            <td class="col-cable-vdo"><code>0x00084841</code></td>
-            <td class="col-vendor">(zeroed)</td>
-            <td class="col-xid">none</td>
-            <td class="col-speed">USB 3.2 Gen 1 (5 Gbps)</td>
-            <td class="col-power">5 A / 20 V (100 W)</td>
-            <td class="col-type">passive</td>
-            <td class="col-source"><a href="https://github.com/darrylmorley/whatcable/issues/126">#126</a></td>
-          </tr>
-          <tr>
-            <td class="col-context">vorodcip generic USB-C cable, Amazon Italy (duplicate of #91)</td>
-            <td class="col-vid"><code>0x0000</code></td>
-            <td class="col-pid"><code>0x0000</code></td>
-            <td class="col-cable-vdo"><code>0x000A6642</code></td>
-            <td class="col-vendor">(zeroed)</td>
-            <td class="col-xid">none</td>
-            <td class="col-speed">USB 3.2 Gen 2 (10 Gbps)</td>
-            <td class="col-power">5 A / 50 V (250 W)</td>
-            <td class="col-type">passive</td>
-            <td class="col-source"><a href="https://github.com/darrylmorley/whatcable/issues/132">#132</a></td>
-          </tr>
-          <tr>
-            <td class="col-context">INIU 100 W USB-C cable, Amazon Italy (VID/PID zeroed)</td>
-            <td class="col-vid"><code>0x0000</code></td>
-            <td class="col-pid"><code>0x0000</code></td>
-            <td class="col-cable-vdo"><code>0x00082042</code></td>
-            <td class="col-vendor">(zeroed)</td>
-            <td class="col-xid">none</td>
-            <td class="col-speed">USB 3.2 Gen 2 (10 Gbps)</td>
-            <td class="col-power">5 A / 20 V (100 W)</td>
-            <td class="col-type">passive</td>
-            <td class="col-source"><a href="https://github.com/darrylmorley/whatcable/issues/134">#134</a></td>
-          </tr>
-          <tr>
-            <td class="col-context">Anker 240 W braided cable, bundled with 140 W charger (minimal e-marker data)</td>
-            <td class="col-vid"><code>0x0000</code></td>
-            <td class="col-pid"><code>0x0000</code></td>
-            <td class="col-cable-vdo"></td>
-            <td class="col-vendor">(zeroed)</td>
-            <td class="col-xid">none</td>
-            <td class="col-speed">(none advertised)</td>
-            <td class="col-power">(not advertised)</td>
-            <td class="col-type">passive</td>
-            <td class="col-source"><a href="https://github.com/darrylmorley/whatcable/issues/136">#136</a></td>
-          </tr>
               </tbody>
             </table>
           </div>
@@ -661,7 +500,22 @@
 
     <footer>
       <div class="wrap">
-        <p>WhatCable. Built by <a href="https://github.com/darrylmorley">Darryl Morley</a>.</p>
+        <span>Built by <a href="https://github.com/darrylmorley">Darryl Morley</a>. MIT licensed.</span>
+        <span>
+          <a href="/instructions">Docs</a>
+          &nbsp;·&nbsp;
+          <a href="/cli">CLI</a>
+          &nbsp;·&nbsp;
+          <a href="/cables">Cables</a>
+          &nbsp;·&nbsp;
+          <a href="/pro">Pro</a>
+          &nbsp;·&nbsp;
+          <a href="/support">Support</a>
+          &nbsp;·&nbsp;
+          <a href="/privacy">Privacy</a>
+          &nbsp;·&nbsp;
+          <a href="https://github.com/darrylmorley/whatcable">View source on GitHub</a>
+        </span>
       </div>
     </footer>
 

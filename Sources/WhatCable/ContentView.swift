@@ -676,7 +676,7 @@ struct AdvancedPortDetails: View {
 
     private func row(_ key: String, _ value: String) -> some View {
         HStack {
-            Text(key).scaledFont(.caption).foregroundStyle(.secondary).frame(width: 120, alignment: .leading)
+            Text(key).scaledFont(.caption).foregroundStyle(.secondary).frame(width: 160, alignment: .leading)
             Text(value).scaledFont(.caption, design: .monospaced)
             Spacer()
         }

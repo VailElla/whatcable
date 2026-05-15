@@ -25,3 +25,6 @@ release-notes/
 # USB-IF spec PDFs (copyrighted, not for distribution)
 reference/
 screenshots-pro/
+
+# IOKit investigation probes (compiled binaries and scratch output)
+probes/

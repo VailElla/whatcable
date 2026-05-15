@@ -310,15 +310,3 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSW
     }
 }
 
-final class RefreshSignal: ObservableObject {
-    @Published var tick: Int = 0
-    /// Ephemeral momentary-reveal flag for the advanced IOKit detail view.
-    /// Set true while a ⌥-click on the menu bar icon is opening the popover,
-    /// cleared when the popover closes. The persistent preference lives on
-    /// `AppSettings.showTechnicalDetails`; the effective state is the OR
-    /// of the two.
-    @Published var optionHeld: Bool = false
-    @Published var showSettings: Bool = false
-
-    func bump() { tick &+= 1 }
-}
