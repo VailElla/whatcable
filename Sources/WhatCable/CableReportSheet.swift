@@ -8,12 +8,13 @@ import WhatCableCore
 /// are included.
 struct CableReportSheet: View {
     let cableIdentity: PDIdentity
+    let cioCapability: CIOCableCapability?
     let dismiss: () -> Void
 
     @State private var includeSystemInfo: Bool = false
 
     private var payload: CableReport.Payload? {
-        CableReport.payload(for: cableIdentity, includeSystemInfo: includeSystemInfo)
+        CableReport.payload(for: cableIdentity, includeSystemInfo: includeSystemInfo, cioCapability: cioCapability)
     }
 
     var body: some View {

@@ -12,11 +12,15 @@ public enum CableReport {
         public let cable: CableFingerprint
         public let system: SystemInfo?
         public let appVersion: String
+        /// CIO capability from the Thunderbolt controller, if a TB link
+        /// was active on this port when the report was created.
+        public let cioCapability: CIOCableCapability?
 
-        public init(cable: CableFingerprint, system: SystemInfo?, appVersion: String) {
+        public init(cable: CableFingerprint, system: SystemInfo?, appVersion: String, cioCapability: CIOCableCapability? = nil) {
             self.cable = cable
             self.system = system
             self.appVersion = appVersion
+            self.cioCapability = cioCapability
         }
     }
 
@@ -107,14 +111,16 @@ public enum CableReport {
     public static func payload(
         for identity: PDIdentity,
         includeSystemInfo: Bool = false,
-        appVersion: String = AppInfo.version
+        appVersion: String = AppInfo.version,
+        cioCapability: CIOCableCapability? = nil
     ) -> Payload? {
         let isCable = identity.endpoint == .sopPrime || identity.endpoint == .sopDoublePrime
         guard isCable else { return nil }
         return Payload(
             cable: CableFingerprint(identity: identity),
             system: includeSystemInfo ? SystemInfo.current() : nil,
-            appVersion: appVersion
+            appVersion: appVersion,
+            cioCapability: cioCapability
         )
     }
 
@@ -185,6 +191,36 @@ extension CableReport.Payload {
             }
             lines.append("")
         }
+        if let cio = cioCapability,
+           cio.cableGeneration != nil || cio.cableSpeed != nil || cio.generation != nil
+            || cio.asymmetricModeSupported != nil || cio.legacyAdapter != nil || cio.linkTrainingMode != nil {
+            lines.append("### Thunderbolt link context")
+            lines.append("")
+            lines.append("These values come from the Thunderbolt controller (`IOPortTransportStateCIO`), not the cable's e-marker.")
+            lines.append("")
+            lines.append("| Field | Value |")
+            lines.append("|---|---|")
+            if let v = cio.cableGeneration {
+                lines.append("| CableGeneration | `\(v)` |")
+            }
+            if let v = cio.cableSpeed {
+                lines.append("| CableSpeed | `\(v)` |")
+            }
+            if let v = cio.generation {
+                lines.append("| Generation | `\(v)` |")
+            }
+            if let v = cio.asymmetricModeSupported {
+                lines.append("| AsymmetricModeSupported | \(v ? "Yes" : "No") |")
+            }
+            if let v = cio.legacyAdapter {
+                lines.append("| LegacyAdapter | \(v ? "Yes" : "No") |")
+            }
+            if let v = cio.linkTrainingMode {
+                lines.append("| LinkTrainingMode | `\(v)` |")
+            }
+            lines.append("")
+        }
+
         lines.append("### Environment")
         lines.append("")
         lines.append("- WhatCable: `\(appVersion)`")

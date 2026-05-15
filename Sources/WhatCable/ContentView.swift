@@ -576,7 +576,7 @@ struct PortCard: View {
         .padding(14)
         .background(.quaternary.opacity(0.4), in: RoundedRectangle(cornerRadius: 10))
         .sheet(item: $reportingCable) { cable in
-            CableReportSheet(cableIdentity: cable) {
+            CableReportSheet(cableIdentity: cable, cioCapability: cioCapability) {
                 reportingCable = nil
             }
         }

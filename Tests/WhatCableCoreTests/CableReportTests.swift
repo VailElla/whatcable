@@ -200,6 +200,88 @@ final class CableReportTests: XCTestCase {
         )
     }
 
+    // MARK: - CIO Thunderbolt link context
+
+    func testMarkdownIncludesCIOSectionWhenPresent() {
+        let cio = CIOCableCapability(
+            id: 1,
+            portKey: "2/0",
+            cableGeneration: 2,
+            cableSpeed: 3,
+            generation: 3,
+            asymmetricModeSupported: true,
+            legacyAdapter: false,
+            linkTrainingMode: 2
+        )
+        let payload = CableReport.payload(
+            for: cableIdentity(),
+            cioCapability: cio
+        )!
+        let md = payload.markdown
+        XCTAssertTrue(md.contains("### Thunderbolt link context"))
+        XCTAssertTrue(md.contains("CableGeneration"))
+        XCTAssertTrue(md.contains("| `2` |"))
+        XCTAssertTrue(md.contains("CableSpeed"))
+        XCTAssertTrue(md.contains("| `3` |"))
+        XCTAssertTrue(md.contains("Generation"))
+        XCTAssertTrue(md.contains("AsymmetricModeSupported"))
+        XCTAssertTrue(md.contains("| Yes |"))
+        XCTAssertTrue(md.contains("LegacyAdapter"))
+        XCTAssertTrue(md.contains("| No |"))
+        XCTAssertTrue(md.contains("LinkTrainingMode"))
+    }
+
+    func testMarkdownOmitsCIOSectionWhenAbsent() {
+        let payload = CableReport.payload(for: cableIdentity())!
+        let md = payload.markdown
+        XCTAssertFalse(md.contains("### Thunderbolt link context"))
+        XCTAssertFalse(md.contains("CableGeneration"))
+    }
+
+    func testCIOSectionOmittedWhenAllFieldsNil() {
+        let cio = CIOCableCapability(
+            id: 1,
+            portKey: "2/0",
+            cableGeneration: nil,
+            cableSpeed: nil,
+            generation: nil,
+            asymmetricModeSupported: nil,
+            legacyAdapter: nil,
+            linkTrainingMode: nil
+        )
+        let payload = CableReport.payload(
+            for: cableIdentity(),
+            cioCapability: cio
+        )!
+        let md = payload.markdown
+        XCTAssertFalse(md.contains("### Thunderbolt link context"),
+            "All-nil CIO should not render an empty table")
+    }
+
+    func testCIOSectionOmitsNilFields() {
+        // CIO with only cableSpeed set, everything else nil.
+        let cio = CIOCableCapability(
+            id: 1,
+            portKey: "2/0",
+            cableGeneration: nil,
+            cableSpeed: 3,
+            generation: nil,
+            asymmetricModeSupported: nil,
+            legacyAdapter: nil,
+            linkTrainingMode: nil
+        )
+        let payload = CableReport.payload(
+            for: cableIdentity(),
+            cioCapability: cio
+        )!
+        let md = payload.markdown
+        XCTAssertTrue(md.contains("### Thunderbolt link context"))
+        XCTAssertTrue(md.contains("CableSpeed"))
+        XCTAssertFalse(md.contains("CableGeneration"))
+        XCTAssertFalse(md.contains("AsymmetricModeSupported"))
+        XCTAssertFalse(md.contains("LinkTrainingMode"))
+    }
+
     func testMarkdownLabelsExtraVDOsAsOther() {
         // PD response can include up to 7 VDOs (ID Header + Cert Stat +
         // Product + up to 4 Product Type VDOs). Anything past index 3 we

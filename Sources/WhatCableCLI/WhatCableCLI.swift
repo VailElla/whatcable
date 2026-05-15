@@ -58,7 +58,7 @@ struct WhatCableCLI {
             let snapshot = try await provider.snapshot()
 
             if report {
-                printCableReports(identities: snapshot.identities)
+                printCableReports(identities: snapshot.identities, cioCapabilities: snapshot.cioCapabilities)
                 return
             }
 
@@ -225,7 +225,7 @@ private func timestampHeader() -> String {
     return "whatcable --watch · \(formatter.string(from: Date()))\n\n"
 }
 
-private func printCableReports(identities: [PDIdentity]) {
+private func printCableReports(identities: [PDIdentity], cioCapabilities: [CIOCableCapability]) {
     let cables = identities.filter {
         $0.endpoint == .sopPrime || $0.endpoint == .sopDoublePrime
     }
@@ -239,9 +239,11 @@ private func printCableReports(identities: [PDIdentity]) {
             print("=== Cable \(i + 1) of \(cables.count) ===")
             print("")
         }
+        let cio = cioCapabilities.first { $0.portKey == identity.portKey }
         guard let payload = CableReport.payload(
             for: identity,
-            includeSystemInfo: true
+            includeSystemInfo: true,
+            cioCapability: cio
         ) else { continue }
         print(payload.markdown)
         print("")
