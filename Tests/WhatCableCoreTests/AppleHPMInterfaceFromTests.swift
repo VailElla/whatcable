@@ -1,7 +1,8 @@
-import XCTest
+import Foundation
+import Testing
 @testable import WhatCableCore
 
-/// Covers `USBCPort.from(...)` — the pure factory the watcher uses to turn a
+/// Covers `USBCPort.from(...)` -- the pure factory the watcher uses to turn a
 /// raw IOKit property dictionary into a `USBCPort`. Fixture dictionaries are
 /// transcribed from real `ioreg -l -w 0 -p IOService` dumps, so the keys and
 /// shapes here match what live machines actually report.
@@ -9,7 +10,8 @@ import XCTest
 /// Currently anchored on the M2 MacBook Air dump from #13 (the trigger for
 /// #14). Add fixtures from M1, M3, M5, etc. as ioreg dumps from those
 /// machines arrive.
-final class USBCPortFromTests: XCTestCase {
+@Suite("USBCPort.from factory")
+struct USBCPortFromTests {
 
     // MARK: - M2 MacBook Air fixtures (from #13)
 
@@ -87,60 +89,64 @@ final class USBCPortFromTests: XCTestCase {
 
     // MARK: - Happy paths
 
-    func testM2MBA_USBCPort_Parses() throws {
-        let port = try XCTUnwrap(USBCPort.from(
+    @Test("M2 MBA USB-C port parses")
+    func m2MBA_USBCPort_Parses() throws {
+        let port = try #require(USBCPort.from(
             entryID: 0x1000005c4,
             serviceName: "Port-USB-C@1",
             className: "AppleTCControllerType10",
             properties: m2MBA_USBC_Disconnected
         ))
-        XCTAssertEqual(port.serviceName, "Port-USB-C@1")
-        XCTAssertEqual(port.className, "AppleTCControllerType10")
-        XCTAssertEqual(port.portTypeDescription, "USB-C")
-        XCTAssertEqual(port.portNumber, 1)
-        XCTAssertEqual(port.connectionActive, false)
-        XCTAssertEqual(port.transportsSupported, ["CC", "USB2", "USB3", "CIO", "DisplayPort"])
-        XCTAssertTrue(port.transportsActive.isEmpty)
-        XCTAssertEqual(port.pinConfiguration["tx1"], "1")
-        XCTAssertEqual(port.pinConfiguration["rx2"], "5")
+        #expect(port.serviceName == "Port-USB-C@1")
+        #expect(port.className == "AppleTCControllerType10")
+        #expect(port.portTypeDescription == "USB-C")
+        #expect(port.portNumber == 1)
+        #expect(port.connectionActive == false)
+        #expect(port.transportsSupported == ["CC", "USB2", "USB3", "CIO", "DisplayPort"])
+        #expect(port.transportsActive.isEmpty)
+        #expect(port.pinConfiguration["tx1"] == "1")
+        #expect(port.pinConfiguration["rx2"] == "5")
     }
 
-    func testM2MBA_MagSafePort_Parses() throws {
-        let port = try XCTUnwrap(USBCPort.from(
+    @Test("M2 MBA MagSafe port parses")
+    func m2MBA_MagSafePort_Parses() throws {
+        let port = try #require(USBCPort.from(
             entryID: 0x1000005cd,
             serviceName: "Port-MagSafe 3@1",
             className: "AppleTCControllerType11",
             properties: m2MBA_MagSafe_Connected
         ))
-        XCTAssertEqual(port.portTypeDescription, "MagSafe 3")
-        XCTAssertEqual(port.connectionActive, true)
-        XCTAssertEqual(port.transportsActive, ["CC"])
+        #expect(port.portTypeDescription == "MagSafe 3")
+        #expect(port.connectionActive == true)
+        #expect(port.transportsActive == ["CC"])
         // Confirms portKey resolves to MagSafe's 17/N (PortType=17 in raw props).
-        XCTAssertEqual(port.portKey, "17/1")
+        #expect(port.portKey == "17/1")
     }
 
     /// Regression for #9: the watcher must not invent a connectionActive
     /// for a disconnected port. The factory should preserve the boolean
     /// verbatim.
-    func testConnectionActivePreservedFromProperties() throws {
-        let disconnected = try XCTUnwrap(USBCPort.from(
+    @Test("connectionActive preserved from properties")
+    func connectionActivePreservedFromProperties() throws {
+        let disconnected = try #require(USBCPort.from(
             entryID: 1, serviceName: "Port-USB-C@1",
             className: "AppleTCControllerType10",
             properties: m2MBA_USBC_Disconnected
         ))
-        XCTAssertEqual(disconnected.connectionActive, false)
+        #expect(disconnected.connectionActive == false)
 
-        let connected = try XCTUnwrap(USBCPort.from(
+        let connected = try #require(USBCPort.from(
             entryID: 2, serviceName: "Port-MagSafe 3@1",
             className: "AppleTCControllerType11",
             properties: m2MBA_MagSafe_Connected
         ))
-        XCTAssertEqual(connected.connectionActive, true)
+        #expect(connected.connectionActive == true)
     }
 
     // MARK: - Filter rejects non-port entries
 
-    func testRejectsNonPortServiceName() {
+    @Test("rejects non-port service name")
+    func rejectsNonPortServiceName() {
         // A service that has PortTypeDescription but isn't named Port-*
         // (e.g. an internal DRD node) should be filtered out.
         var props = m2MBA_USBC_Disconnected
@@ -149,41 +155,44 @@ final class USBCPortFromTests: XCTestCase {
             entryID: 1, serviceName: "AppleHPMDevice@38",
             className: "AppleHPMDevice", properties: props
         )
-        XCTAssertNil(port)
+        #expect(port == nil)
     }
 
-    func testRejectsMissingPortTypeDescription() {
+    @Test("rejects missing PortTypeDescription")
+    func rejectsMissingPortTypeDescription() {
         var props = m2MBA_USBC_Disconnected
         props.removeValue(forKey: "PortTypeDescription")
         let port = USBCPort.from(
             entryID: 1, serviceName: "Port-USB-C@1",
             className: "AppleTCControllerType10", properties: props
         )
-        XCTAssertNil(port)
+        #expect(port == nil)
     }
 
-    func testRejectsUnrecognisedPortType() {
+    @Test("rejects unrecognised port type")
+    func rejectsUnrecognisedPortType() {
         // A future class might attach `PortTypeDescription` like "Lightning"
-        // — until we know it's safe, we only accept USB-C and MagSafe*.
+        // -- until we know it's safe, we only accept USB-C and MagSafe*.
         var props = m2MBA_USBC_Disconnected
         props["PortTypeDescription"] = "Lightning"
         let port = USBCPort.from(
             entryID: 1, serviceName: "Port-Lightning@1",
             className: "AppleTCControllerType10", properties: props
         )
-        XCTAssertNil(port)
+        #expect(port == nil)
     }
 
-    func testAcceptsAnyMagSafeSuffix() throws {
-        // We accept any "MagSafe …" suffix, not just "MagSafe 3". Future
+    @Test("accepts any MagSafe suffix")
+    func acceptsAnyMagSafeSuffix() throws {
+        // We accept any "MagSafe ..." suffix, not just "MagSafe 3". Future
         // hardware (MagSafe 4?) shouldn't need a code change here.
         var props = m2MBA_MagSafe_Connected
         props["PortTypeDescription"] = "MagSafe 4"
-        let port = try XCTUnwrap(USBCPort.from(
+        let port = try #require(USBCPort.from(
             entryID: 1, serviceName: "Port-MagSafe 4@1",
             className: "AppleTCControllerType11", properties: props
         ))
-        XCTAssertEqual(port.portTypeDescription, "MagSafe 4")
+        #expect(port.portTypeDescription == "MagSafe 4")
     }
 
     // MARK: - Class-name agnostic
@@ -193,73 +202,79 @@ final class USBCPortFromTests: XCTestCase {
     /// node makes it to the factory, the className field is just
     /// metadata. Regression guard so adding new class names to the
     /// watcher doesn't accidentally require changes here too.
-    func testAcceptsArbitraryClassNameForRealPort() throws {
-        let port = try XCTUnwrap(USBCPort.from(
+    @Test("accepts arbitrary className for real port")
+    func acceptsArbitraryClassNameForRealPort() throws {
+        let port = try #require(USBCPort.from(
             entryID: 1, serviceName: "Port-USB-C@1",
             className: "AppleHPMInterfaceType99",
             properties: m2MBA_USBC_Disconnected
         ))
-        XCTAssertEqual(port.className, "AppleHPMInterfaceType99")
+        #expect(port.className == "AppleHPMInterfaceType99")
     }
 
     // MARK: - Property parsing edge cases
 
-    func testHexDataFieldsParse() throws {
+    @Test("hex Data fields parse")
+    func hexDataFieldsParse() throws {
         var props = m2MBA_USBC_Disconnected
         props["FW Version"] = Data([0x01, 0x02, 0xAB, 0xFF])
         props["Boot Flags"] = Data([0xDE, 0xAD])
-        let port = try XCTUnwrap(USBCPort.from(
+        let port = try #require(USBCPort.from(
             entryID: 1, serviceName: "Port-USB-C@1",
             className: "AppleTCControllerType10", properties: props
         ))
-        XCTAssertEqual(port.firmwareVersion, "01 02 AB FF")
-        XCTAssertEqual(port.bootFlagsHex, "DE AD")
+        #expect(port.firmwareVersion == "01 02 AB FF")
+        #expect(port.bootFlagsHex == "DE AD")
     }
 
-    func testHexDataFieldsAreNilWhenMissing() throws {
-        let port = try XCTUnwrap(USBCPort.from(
+    @Test("hex Data fields nil when missing")
+    func hexDataFieldsAreNilWhenMissing() throws {
+        let port = try #require(USBCPort.from(
             entryID: 1, serviceName: "Port-USB-C@1",
             className: "AppleTCControllerType10",
             properties: m2MBA_USBC_Disconnected
         ))
-        XCTAssertNil(port.firmwareVersion)
-        XCTAssertNil(port.bootFlagsHex)
+        #expect(port.firmwareVersion == nil)
+        #expect(port.bootFlagsHex == nil)
     }
 
-    func testPowerCurrentLimitsParseAsInts() throws {
+    @Test("power current limits parse as ints")
+    func powerCurrentLimitsParseAsInts() throws {
         var props = m2MBA_USBC_Disconnected
         props["IOAccessoryPowerCurrentLimits"] = [
             NSNumber(value: 1500), NSNumber(value: 3000),
             NSNumber(value: 4500), NSNumber(value: 0), NSNumber(value: 0)
         ]
-        let port = try XCTUnwrap(USBCPort.from(
+        let port = try #require(USBCPort.from(
             entryID: 1, serviceName: "Port-USB-C@1",
             className: "AppleTCControllerType10", properties: props
         ))
-        XCTAssertEqual(port.powerCurrentLimits, [1500, 3000, 4500, 0, 0])
+        #expect(port.powerCurrentLimits == [1500, 3000, 4500, 0, 0])
     }
 
-    func testRawPropertiesCaptureAllKeys() throws {
-        let port = try XCTUnwrap(USBCPort.from(
+    @Test("raw properties capture all keys")
+    func rawPropertiesCaptureAllKeys() throws {
+        let port = try #require(USBCPort.from(
             entryID: 1, serviceName: "Port-USB-C@1",
             className: "AppleTCControllerType10",
             properties: m2MBA_USBC_Disconnected
         ))
         // Raw props mirror every key from the input dictionary as a string.
-        XCTAssertEqual(port.rawProperties["PortType"], "2")
-        XCTAssertEqual(port.rawProperties["PortNumber"], "1")
-        XCTAssertEqual(port.rawProperties["PortTypeDescription"], "USB-C")
-        XCTAssertEqual(port.rawProperties["ConnectionActive"], "0")
+        #expect(port.rawProperties["PortType"] == "2")
+        #expect(port.rawProperties["PortNumber"] == "1")
+        #expect(port.rawProperties["PortTypeDescription"] == "USB-C")
+        #expect(port.rawProperties["ConnectionActive"] == "0")
     }
 
-    func testBusIndexPassedThrough() throws {
-        let port = try XCTUnwrap(USBCPort.from(
+    @Test("busIndex passed through")
+    func busIndexPassedThrough() throws {
+        let port = try #require(USBCPort.from(
             entryID: 1, serviceName: "Port-USB-C@1",
             className: "AppleHPMInterfaceType10",
             properties: m2MBA_USBC_Disconnected,
             busIndex: 5
         ))
-        XCTAssertEqual(port.busIndex, 5)
+        #expect(port.busIndex == 5)
     }
 
     // MARK: - portKey disambiguation
@@ -267,7 +282,8 @@ final class USBCPortFromTests: XCTestCase {
     /// USB-C and MagSafe ports sharing the same portNumber must produce
     /// different portKey values. Without this, the diagnostic view can
     /// show data for the wrong port.
-    func testPortKeyDisambiguatesUSBCAndMagSafe() {
+    @Test("portKey disambiguates USB-C and MagSafe")
+    func portKeyDisambiguatesUSBCAndMagSafe() {
         let usbC = USBCPort(
             id: 1,
             serviceName: "Port-USB-C@1",
@@ -303,17 +319,18 @@ final class USBCPortFromTests: XCTestCase {
         )
 
         // Both have portNumber 1, but portKey must differ.
-        XCTAssertEqual(usbC.portNumber, magSafe.portNumber)
-        XCTAssertNotEqual(usbC.portKey, magSafe.portKey,
+        #expect(usbC.portNumber == magSafe.portNumber)
+        #expect(usbC.portKey != magSafe.portKey,
             "USB-C and MagSafe with same portNumber must have different portKeys")
 
         // Verify the expected formats: USB-C uses PortType 2, MagSafe uses 0x11 (17).
-        XCTAssertEqual(usbC.portKey, "2/1")
-        XCTAssertEqual(magSafe.portKey, "17/1")
+        #expect(usbC.portKey == "2/1")
+        #expect(magSafe.portKey == "17/1")
     }
 
     /// A port with no portNumber should return nil portKey.
-    func testPortKeyNilWhenNoPortNumber() {
+    @Test("portKey nil when no portNumber")
+    func portKeyNilWhenNoPortNumber() {
         let port = USBCPort(
             id: 1,
             serviceName: "Port-USB-C@1",
@@ -330,6 +347,6 @@ final class USBCPortFromTests: XCTestCase {
             firmwareVersion: nil, bootFlagsHex: nil,
             rawProperties: [:]
         )
-        XCTAssertNil(port.portKey)
+        #expect(port.portKey == nil)
     }
 }

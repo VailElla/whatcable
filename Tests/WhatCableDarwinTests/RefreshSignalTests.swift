@@ -1,54 +1,49 @@
-import XCTest
+import Testing
 import Combine
 @testable import WhatCableAppKit
 
-final class RefreshSignalTests: XCTestCase {
-    private var signal: RefreshSignal!
-    private var cancellables: Set<AnyCancellable>!
+@Suite("RefreshSignal")
+struct RefreshSignalTests {
+    private var signal: RefreshSignal
+    private var cancellables: Set<AnyCancellable>
 
-    override func setUp() {
-        super.setUp()
+    init() {
         signal = RefreshSignal()
         cancellables = []
     }
 
-    func testInitialState() {
-        XCTAssertEqual(signal.tick, 0)
-        XCTAssertFalse(signal.optionHeld)
-        XCTAssertFalse(signal.showSettings)
+    @Test("initial state")
+    func initialState() {
+        #expect(signal.tick == 0)
+        #expect(signal.optionHeld == false)
+        #expect(signal.showSettings == false)
     }
 
-    func testBumpIncrementsTick() {
+    @Test("bump increments tick")
+    mutating func bumpIncrementsTick() {
         signal.bump()
-        XCTAssertEqual(signal.tick, 1)
+        #expect(signal.tick == 1)
         signal.bump()
-        XCTAssertEqual(signal.tick, 2)
+        #expect(signal.tick == 2)
     }
 
-    func testShowSettingsToggle() {
+    @Test("showSettings toggle")
+    mutating func showSettingsToggle() {
         var observedValue = false
-        let expectation = expectation(description: "showSettings published")
-
-        signal.$showSettings
+        let cancellable = signal.$showSettings
             .dropFirst()
-            .sink { value in
-                observedValue = value
-                expectation.fulfill()
-            }
-            .store(in: &cancellables)
-
+            .sink { observedValue = $0 }
         signal.showSettings = true
-        XCTAssertTrue(signal.showSettings)
-
-        waitForExpectations(timeout: 1.0)
-        XCTAssertTrue(observedValue)
+        #expect(signal.showSettings == true)
+        #expect(observedValue == true)
+        _ = cancellable
     }
 
-    func testOptionHeldToggle() {
+    @Test("optionHeld toggle")
+    mutating func optionHeldToggle() {
         signal.optionHeld = true
-        XCTAssertTrue(signal.optionHeld)
+        #expect(signal.optionHeld == true)
         signal.optionHeld = false
-        XCTAssertFalse(signal.optionHeld)
+        #expect(signal.optionHeld == false)
     }
 }
-

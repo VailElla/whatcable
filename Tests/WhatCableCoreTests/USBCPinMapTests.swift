@@ -1,4 +1,4 @@
-import XCTest
+import Testing
 @testable import WhatCableCore
 
 /// Unit tests for USBCPinMap model.
@@ -6,235 +6,258 @@ import XCTest
 /// Test fixtures come from real IOKit probe data captured on Apple Silicon.
 /// Each pin configuration dict matches an actual `ioreg` dump from the
 /// probes/ directory.
-final class USBCPinMapTests: XCTestCase {
+@Suite("USB-C Pin Map")
+struct USBCPinMapTests {
 
     // MARK: - Factory: nil for empty input
 
-    func testReturnsNilForEmptyDict() {
+    @Test("Returns nil for empty dict")
+    func returnsNilForEmptyDict() {
         let map = USBCPinMap.from(pinConfiguration: [:])
-        XCTAssertNil(map)
+        #expect(map == nil)
     }
 
     // MARK: - All zeros (MagSafe / nothing connected)
 
-    func testAllZerosHasNoActivity() {
+    @Test("All zeros has no activity")
+    func allZerosHasNoActivity() {
         let pins = allZeros
         let map = USBCPinMap.from(pinConfiguration: pins)!
-        XCTAssertFalse(map.hasActivity)
+        #expect(!map.hasActivity)
     }
 
-    func testAllZerosSignalSummary() {
+    @Test("All zeros signal summary")
+    func allZerosSignalSummary() {
         let map = USBCPinMap.from(pinConfiguration: allZeros)!
-        XCTAssertEqual(map.signalSummary, "No data signals")
+        #expect(map.signalSummary == "No data signals")
     }
 
     // MARK: - USB 3 pair A (probe: USB device port)
 
-    func testUSB3PairADetected() {
+    @Test("USB3 pair A detected")
+    func usb3PairADetected() {
         // From probe: tx1=1, rx1=2, all others zero.
         let map = USBCPinMap.from(pinConfiguration: usb3PairA)!
-        XCTAssertTrue(map.hasActivity)
+        #expect(map.hasActivity)
 
         // tx1 drives A2/A3
-        XCTAssertEqual(map.topRow[1].signal, .usb3PairA)  // A2
-        XCTAssertEqual(map.topRow[2].signal, .usb3PairA)  // A3
+        #expect(map.topRow[1].signal == .usb3PairA)  // A2
+        #expect(map.topRow[2].signal == .usb3PairA)  // A3
 
         // rx1 drives B10/B11
-        XCTAssertEqual(map.bottomRow[1].signal, .usb3PairA)  // B11
-        XCTAssertEqual(map.bottomRow[2].signal, .usb3PairA)  // B10
+        #expect(map.bottomRow[1].signal == .usb3PairA)  // B11
+        #expect(map.bottomRow[2].signal == .usb3PairA)  // B10
 
         // Everything else on data pins should be inactive
-        XCTAssertEqual(map.topRow[9].signal, .inactive)   // A10 (rx2)
-        XCTAssertEqual(map.bottomRow[10].signal, .inactive) // B2 (tx2)
+        #expect(map.topRow[9].signal == .inactive)   // A10 (rx2)
+        #expect(map.bottomRow[10].signal == .inactive) // B2 (tx2)
     }
 
-    func testUSB3PairASignalSummary() {
+    @Test("USB3 pair A signal summary")
+    func usb3PairASignalSummary() {
         let map = USBCPinMap.from(pinConfiguration: usb3PairA)!
-        XCTAssertEqual(map.signalSummary, "USB 3")
+        #expect(map.signalSummary == "USB 3")
     }
 
     // MARK: - USB 3 pair B (probe: dock port)
 
-    func testUSB3PairBDetected() {
+    @Test("USB3 pair B detected")
+    func usb3PairBDetected() {
         // From probe: tx2=3, rx2=4, all others zero.
         let map = USBCPinMap.from(pinConfiguration: usb3PairB)!
-        XCTAssertTrue(map.hasActivity)
+        #expect(map.hasActivity)
 
         // tx2 drives B2/B3
-        XCTAssertEqual(map.bottomRow[10].signal, .usb3PairB)  // B2
-        XCTAssertEqual(map.bottomRow[9].signal, .usb3PairB)   // B3
+        #expect(map.bottomRow[10].signal == .usb3PairB)  // B2
+        #expect(map.bottomRow[9].signal == .usb3PairB)   // B3
 
         // rx2 drives A10/A11
-        XCTAssertEqual(map.topRow[9].signal, .usb3PairB)   // A10
-        XCTAssertEqual(map.topRow[10].signal, .usb3PairB)  // A11
+        #expect(map.topRow[9].signal == .usb3PairB)   // A10
+        #expect(map.topRow[10].signal == .usb3PairB)  // A11
     }
 
     // MARK: - 4-lane DisplayPort (probe: monitor port)
 
-    func testFourLaneDPDetected() {
+    @Test("Four lane DP detected")
+    func fourLaneDPDetected() {
         // From probe: tx1=6, rx1=5, tx2=7, rx2=8, sbu1=2, sbu2=1
         let map = USBCPinMap.from(pinConfiguration: fourLaneDP)!
-        XCTAssertTrue(map.hasActivity)
+        #expect(map.hasActivity)
 
         // tx1 (value 6) = DP Lane 1 on A2/A3
-        XCTAssertEqual(map.topRow[1].signal, .dpLane(1))
-        XCTAssertEqual(map.topRow[2].signal, .dpLane(1))
+        #expect(map.topRow[1].signal == .dpLane(1))
+        #expect(map.topRow[2].signal == .dpLane(1))
 
         // rx1 (value 5) = DP Lane 0 on B10/B11
-        XCTAssertEqual(map.bottomRow[1].signal, .dpLane(0))
-        XCTAssertEqual(map.bottomRow[2].signal, .dpLane(0))
+        #expect(map.bottomRow[1].signal == .dpLane(0))
+        #expect(map.bottomRow[2].signal == .dpLane(0))
 
         // tx2 (value 7) = DP Lane 2 on B2/B3
-        XCTAssertEqual(map.bottomRow[10].signal, .dpLane(2))
-        XCTAssertEqual(map.bottomRow[9].signal, .dpLane(2))
+        #expect(map.bottomRow[10].signal == .dpLane(2))
+        #expect(map.bottomRow[9].signal == .dpLane(2))
 
         // rx2 (value 8) = DP Lane 3 on A10/A11
-        XCTAssertEqual(map.topRow[9].signal, .dpLane(3))
-        XCTAssertEqual(map.topRow[10].signal, .dpLane(3))
+        #expect(map.topRow[9].signal == .dpLane(3))
+        #expect(map.topRow[10].signal == .dpLane(3))
 
         // SBU pins carry DP AUX
-        XCTAssertEqual(map.topRow[7].signal, .dpAux)     // A8 (sbu1)
-        XCTAssertEqual(map.bottomRow[4].signal, .dpAux)   // B8 (sbu2)
+        #expect(map.topRow[7].signal == .dpAux)     // A8 (sbu1)
+        #expect(map.bottomRow[4].signal == .dpAux)   // B8 (sbu2)
     }
 
-    func testFourLaneDPSignalSummary() {
+    @Test("Four lane DP signal summary")
+    func fourLaneDPSignalSummary() {
         let map = USBCPinMap.from(pinConfiguration: fourLaneDP)!
-        XCTAssertEqual(map.signalSummary, "DP (4 lanes)")
+        #expect(map.signalSummary == "DP (4 lanes)")
     }
 
     // MARK: - Static pins always present
 
-    func testStaticPinsAreCorrect() {
+    @Test("Static pins are correct")
+    func staticPinsAreCorrect() {
         let map = USBCPinMap.from(pinConfiguration: allZeros)!
 
         // Ground pins
-        XCTAssertEqual(map.topRow[0].signal, .ground)     // A1
-        XCTAssertEqual(map.topRow[11].signal, .ground)    // A12
-        XCTAssertEqual(map.bottomRow[0].signal, .ground)  // B12
-        XCTAssertEqual(map.bottomRow[11].signal, .ground) // B1
+        #expect(map.topRow[0].signal == .ground)     // A1
+        #expect(map.topRow[11].signal == .ground)    // A12
+        #expect(map.bottomRow[0].signal == .ground)  // B12
+        #expect(map.bottomRow[11].signal == .ground) // B1
 
         // VBUS pins
-        XCTAssertEqual(map.topRow[3].signal, .vbus)       // A4
-        XCTAssertEqual(map.topRow[8].signal, .vbus)       // A9
-        XCTAssertEqual(map.bottomRow[3].signal, .vbus)    // B9
-        XCTAssertEqual(map.bottomRow[8].signal, .vbus)    // B4
+        #expect(map.topRow[3].signal == .vbus)       // A4
+        #expect(map.topRow[8].signal == .vbus)       // A9
+        #expect(map.bottomRow[3].signal == .vbus)    // B9
+        #expect(map.bottomRow[8].signal == .vbus)    // B4
 
         // CC pins
-        XCTAssertEqual(map.topRow[4].signal, .cc)         // A5
-        XCTAssertEqual(map.bottomRow[7].signal, .cc)      // B5
+        #expect(map.topRow[4].signal == .cc)         // A5
+        #expect(map.bottomRow[7].signal == .cc)      // B5
 
         // USB 2.0 pins
-        XCTAssertEqual(map.topRow[5].signal, .usb2)       // A6
-        XCTAssertEqual(map.topRow[6].signal, .usb2)       // A7
-        XCTAssertEqual(map.bottomRow[5].signal, .usb2)    // B7
-        XCTAssertEqual(map.bottomRow[6].signal, .usb2)    // B6
+        #expect(map.topRow[5].signal == .usb2)       // A6
+        #expect(map.topRow[6].signal == .usb2)       // A7
+        #expect(map.bottomRow[5].signal == .usb2)    // B7
+        #expect(map.bottomRow[6].signal == .usb2)    // B6
     }
 
-    func testStaticPinsAreNotDynamic() {
+    @Test("Static pins are not dynamic")
+    func staticPinsAreNotDynamic() {
         let map = USBCPinMap.from(pinConfiguration: allZeros)!
-        XCTAssertFalse(USBCPinMap.Signal.ground.isDynamic)
-        XCTAssertFalse(USBCPinMap.Signal.vbus.isDynamic)
-        XCTAssertFalse(USBCPinMap.Signal.cc.isDynamic)
-        XCTAssertFalse(USBCPinMap.Signal.usb2.isDynamic)
-        XCTAssertFalse(USBCPinMap.Signal.inactive.isDynamic)
+        #expect(!USBCPinMap.Signal.ground.isDynamic)
+        #expect(!USBCPinMap.Signal.vbus.isDynamic)
+        #expect(!USBCPinMap.Signal.cc.isDynamic)
+        #expect(!USBCPinMap.Signal.usb2.isDynamic)
+        #expect(!USBCPinMap.Signal.inactive.isDynamic)
         // Confirm no static pin is flagged as dynamic
-        XCTAssertFalse(map.topRow[0].signal.isDynamic)   // GND
-        XCTAssertFalse(map.topRow[3].signal.isDynamic)   // VBUS
+        #expect(!map.topRow[0].signal.isDynamic)   // GND
+        #expect(!map.topRow[3].signal.isDynamic)   // VBUS
     }
 
     // MARK: - Pin IDs and row sizes
 
-    func testRowSizes() {
+    @Test("Row sizes")
+    func rowSizes() {
         let map = USBCPinMap.from(pinConfiguration: allZeros)!
-        XCTAssertEqual(map.topRow.count, 12)
-        XCTAssertEqual(map.bottomRow.count, 12)
-        XCTAssertEqual(map.allPins.count, 24)
+        #expect(map.topRow.count == 12)
+        #expect(map.bottomRow.count == 12)
+        #expect(map.allPins.count == 24)
     }
 
-    func testTopRowPinIDs() {
+    @Test("Top row pin IDs")
+    func topRowPinIDs() {
         let map = USBCPinMap.from(pinConfiguration: allZeros)!
         let ids = map.topRow.map(\.id)
-        XCTAssertEqual(ids, ["A1","A2","A3","A4","A5","A6","A7","A8","A9","A10","A11","A12"])
+        #expect(ids == ["A1","A2","A3","A4","A5","A6","A7","A8","A9","A10","A11","A12"])
     }
 
-    func testBottomRowPinIDs() {
+    @Test("Bottom row pin IDs")
+    func bottomRowPinIDs() {
         let map = USBCPinMap.from(pinConfiguration: allZeros)!
         let ids = map.bottomRow.map(\.id)
         // Reversed: B12 down to B1 for visual layout
-        XCTAssertEqual(ids, ["B12","B11","B10","B9","B8","B7","B6","B5","B4","B3","B2","B1"])
+        #expect(ids == ["B12","B11","B10","B9","B8","B7","B6","B5","B4","B3","B2","B1"])
     }
 
     // MARK: - Orientation
 
-    func testOrientationNormal() {
+    @Test("Orientation normal")
+    func orientationNormal() {
         let map = USBCPinMap.from(pinConfiguration: allZeros, plugOrientation: 1)!
-        XCTAssertEqual(map.orientation, 1)
-        XCTAssertEqual(map.orientationLabel, "Normal")
+        #expect(map.orientation == 1)
+        #expect(map.orientationLabel == "Normal")
     }
 
-    func testOrientationFlipped() {
+    @Test("Orientation flipped")
+    func orientationFlipped() {
         let map = USBCPinMap.from(pinConfiguration: allZeros, plugOrientation: 2)!
-        XCTAssertEqual(map.orientation, 2)
-        XCTAssertEqual(map.orientationLabel, "Flipped")
+        #expect(map.orientation == 2)
+        #expect(map.orientationLabel == "Flipped")
     }
 
-    func testOrientationUnknown() {
+    @Test("Orientation unknown")
+    func orientationUnknown() {
         let map = USBCPinMap.from(pinConfiguration: allZeros, plugOrientation: nil)!
-        XCTAssertEqual(map.orientation, 0)
-        XCTAssertEqual(map.orientationLabel, "Unknown")
+        #expect(map.orientation == 0)
+        #expect(map.orientationLabel == "Unknown")
     }
 
     // MARK: - Signal labels
 
-    func testSignalLabels() {
-        XCTAssertEqual(USBCPinMap.Signal.ground.label, "GND")
-        XCTAssertEqual(USBCPinMap.Signal.vbus.label, "VBUS")
-        XCTAssertEqual(USBCPinMap.Signal.cc.label, "CC")
-        XCTAssertEqual(USBCPinMap.Signal.usb2.label, "USB 2.0")
-        XCTAssertEqual(USBCPinMap.Signal.usb3PairA.label, "USB 3")
-        XCTAssertEqual(USBCPinMap.Signal.usb3PairB.label, "USB 3")
-        XCTAssertEqual(USBCPinMap.Signal.dpLane(2).label, "DP Lane 2")
-        XCTAssertEqual(USBCPinMap.Signal.dpAux.label, "DP AUX")
-        XCTAssertEqual(USBCPinMap.Signal.inactive.label, "Inactive")
-        XCTAssertEqual(USBCPinMap.Signal.unknown(99).label, "Signal 99")
+    @Test("Signal labels")
+    func signalLabels() {
+        #expect(USBCPinMap.Signal.ground.label == "GND")
+        #expect(USBCPinMap.Signal.vbus.label == "VBUS")
+        #expect(USBCPinMap.Signal.cc.label == "CC")
+        #expect(USBCPinMap.Signal.usb2.label == "USB 2.0")
+        #expect(USBCPinMap.Signal.usb3PairA.label == "USB 3")
+        #expect(USBCPinMap.Signal.usb3PairB.label == "USB 3")
+        #expect(USBCPinMap.Signal.dpLane(2).label == "DP Lane 2")
+        #expect(USBCPinMap.Signal.dpAux.label == "DP AUX")
+        #expect(USBCPinMap.Signal.inactive.label == "Inactive")
+        #expect(USBCPinMap.Signal.unknown(99).label == "Signal 99")
     }
 
     // MARK: - Unknown values preserved
 
-    func testUnknownDataValue() {
+    @Test("Unknown data value")
+    func unknownDataValue() {
         let pins = ["tx1": "42", "rx1": "0", "tx2": "0", "rx2": "0", "sbu1": "0", "sbu2": "0"]
         let map = USBCPinMap.from(pinConfiguration: pins)!
-        XCTAssertEqual(map.topRow[1].signal, .unknown(42))
-        XCTAssertTrue(map.topRow[1].signal.isDynamic == false)
+        #expect(map.topRow[1].signal == .unknown(42))
+        #expect(map.topRow[1].signal.isDynamic == false)
     }
 
-    func testUnknownSBUValue() {
+    @Test("Unknown SBU value")
+    func unknownSBUValue() {
         let pins = ["tx1": "0", "rx1": "0", "tx2": "0", "rx2": "0", "sbu1": "7", "sbu2": "0"]
         let map = USBCPinMap.from(pinConfiguration: pins)!
-        XCTAssertEqual(map.topRow[7].signal, .unknown(7))
+        #expect(map.topRow[7].signal == .unknown(7))
     }
 
     // MARK: - Mixed signals (hypothetical 2-lane DP + USB3)
 
-    func testTwoLaneDPPlusUSB3Summary() {
+    @Test("Two lane DP plus USB3 summary")
+    func twoLaneDPPlusUSB3Summary() {
         // 2 DP lanes on tx1/rx1, USB3 pair B on tx2/rx2
         let pins = ["tx1": "6", "rx1": "5", "tx2": "3", "rx2": "4", "sbu1": "2", "sbu2": "1"]
         let map = USBCPinMap.from(pinConfiguration: pins)!
-        XCTAssertEqual(map.signalSummary, "USB 3 + DP (2 lanes)")
+        #expect(map.signalSummary == "USB 3 + DP (2 lanes)")
     }
 
     // MARK: - Hashable / Equatable
 
-    func testEquatable() {
+    @Test("Equatable")
+    func equatable() {
         let a = USBCPinMap.from(pinConfiguration: usb3PairA, plugOrientation: 1)!
         let b = USBCPinMap.from(pinConfiguration: usb3PairA, plugOrientation: 1)!
-        XCTAssertEqual(a, b)
+        #expect(a == b)
     }
 
-    func testNotEqualWhenDifferentConfig() {
+    @Test("Not equal when different config")
+    func notEqualWhenDifferentConfig() {
         let a = USBCPinMap.from(pinConfiguration: usb3PairA)!
         let b = USBCPinMap.from(pinConfiguration: fourLaneDP)!
-        XCTAssertNotEqual(a, b)
+        #expect(a != b)
     }
 
     // MARK: - Fixtures from probe data

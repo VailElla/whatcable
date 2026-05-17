@@ -1,27 +1,31 @@
-import XCTest
+import Testing
 @testable import WhatCableCore
 
-final class UpdateCheckerTests: XCTestCase {
-    func testRemoteIsNewer() {
-        XCTAssertTrue(AppInfo.isNewer(remote: "0.4.0", current: "0.3.1"))
-        XCTAssertTrue(AppInfo.isNewer(remote: "0.3.2", current: "0.3.1"))
-        XCTAssertTrue(AppInfo.isNewer(remote: "1.0.0", current: "0.99.99"))
+@Suite("Update Checker")
+struct UpdateCheckerTests {
+    @Test("Remote is newer")
+    func remoteIsNewer() {
+        #expect(AppInfo.isNewer(remote: "0.4.0", current: "0.3.1"))
+        #expect(AppInfo.isNewer(remote: "0.3.2", current: "0.3.1"))
+        #expect(AppInfo.isNewer(remote: "1.0.0", current: "0.99.99"))
     }
 
-    func testRemoteIsOlderOrEqual() {
-        XCTAssertFalse(AppInfo.isNewer(remote: "0.3.0", current: "0.3.1"))
-        XCTAssertFalse(AppInfo.isNewer(remote: "0.3.1", current: "0.3.1"))
-        XCTAssertFalse(AppInfo.isNewer(remote: "0.2.9", current: "0.3.0"))
+    @Test("Remote is older or equal")
+    func remoteIsOlderOrEqual() {
+        #expect(!AppInfo.isNewer(remote: "0.3.0", current: "0.3.1"))
+        #expect(!AppInfo.isNewer(remote: "0.3.1", current: "0.3.1"))
+        #expect(!AppInfo.isNewer(remote: "0.2.9", current: "0.3.0"))
     }
 
-    func testDifferentLengths() {
-        XCTAssertFalse(AppInfo.isNewer(remote: "0.4", current: "0.4.0"))
-        XCTAssertFalse(AppInfo.isNewer(remote: "0.4.0", current: "0.4"))
-        XCTAssertTrue(AppInfo.isNewer(remote: "0.4.1", current: "0.4"))
+    @Test("Different lengths")
+    func differentLengths() {
+        #expect(!AppInfo.isNewer(remote: "0.4", current: "0.4.0"))
+        #expect(!AppInfo.isNewer(remote: "0.4.0", current: "0.4"))
+        #expect(AppInfo.isNewer(remote: "0.4.1", current: "0.4"))
     }
 
-    func testDevFallback() {
-        XCTAssertTrue(AppInfo.isNewer(remote: "0.3.0", current: "dev"))
+    @Test("Dev fallback")
+    func devFallback() {
+        #expect(AppInfo.isNewer(remote: "0.3.0", current: "dev"))
     }
 }
-

@@ -1,11 +1,12 @@
-import XCTest
+import Testing
 @testable import WhatCableCore
 
 /// Phase 3 integration: PortSummary should pull TB fabric data through and
 /// emit specific link-state bullets when a port has a matching switch graph.
 /// Anchored against Joe's M2 Pro + ASUS PA32QCV (USB4) + CalDigit TS3 Plus
 /// daisy-chain from issue #52.
-final class PortSummaryThunderboltTests: XCTestCase {
+@Suite("Port Summary Thunderbolt")
+struct PortSummaryThunderboltTests {
 
     // MARK: - Fixtures
 
@@ -85,7 +86,8 @@ final class PortSummaryThunderboltTests: XCTestCase {
 
     // MARK: - Single-hop (host + one device)
 
-    func testHostUsb4LinkProducesSpecificBullet() {
+    @Test("Host USB4 link produces specific bullet")
+    func hostUsb4LinkProducesSpecificBullet() {
         let port = tbPort(socket: "1")
         let host = sw(
             uid: 100, depth: 0, parent: nil,
@@ -103,17 +105,18 @@ final class PortSummaryThunderboltTests: XCTestCase {
             thunderboltSwitches: [host, device]
         )
 
-        XCTAssertTrue(
+        #expect(
             summary.bullets.contains("Linked at up to 20 Gb/s × 2"),
             "expected USB4 link label, got: \(summary.bullets)"
         )
-        XCTAssertTrue(
+        #expect(
             summary.bullets.contains("Connected to ASUS-Display PA32QCV"),
             "expected single-hop device label, got: \(summary.bullets)"
         )
     }
 
-    func testTb3LinkProducesTb3Bullet() {
+    @Test("TB3 link produces TB3 bullet")
+    func tb3LinkProducesTb3Bullet() {
         let port = tbPort(socket: "1")
         let host = sw(
             uid: 100, depth: 0, parent: nil,
@@ -122,12 +125,13 @@ final class PortSummaryThunderboltTests: XCTestCase {
         )
 
         let summary = PortSummary(port: port, thunderboltSwitches: [host])
-        XCTAssertTrue(summary.bullets.contains("Linked at up to 10 Gb/s × 2"))
+        #expect(summary.bullets.contains("Linked at up to 10 Gb/s × 2"))
     }
 
     // MARK: - Daisy-chain step-down (the headline UX)
 
-    func testDaisyChainStepDownIsSurfaced() {
+    @Test("Daisy chain step-down is surfaced")
+    func daisyChainStepDownIsSurfaced() {
         // Joe's topology: USB4 to ASUS, TS3 Plus daisy-chained off the
         // ASUS at TB3 single-lane.
         let port = tbPort(socket: "1")
@@ -155,15 +159,15 @@ final class PortSummaryThunderboltTests: XCTestCase {
             thunderboltSwitches: [host, asus, ts3]
         )
 
-        XCTAssertTrue(
+        #expect(
             summary.bullets.contains("Linked at up to 20 Gb/s × 2"),
             "host link bullet missing; got: \(summary.bullets)"
         )
-        XCTAssertTrue(
+        #expect(
             summary.bullets.contains("Connected via 2 hops: ASUS-Display PA32QCV → CalDigit, Inc. TS3 Plus"),
             "daisy-chain device list missing; got: \(summary.bullets)"
         )
-        XCTAssertTrue(
+        #expect(
             summary.bullets.contains { $0.contains("Last leg drops from up to 20 Gb/s × 2 to up to 10 Gb/s × 1") },
             "step-down bullet missing; got: \(summary.bullets)"
         )
@@ -177,7 +181,8 @@ final class PortSummaryThunderboltTests: XCTestCase {
     /// the controller-side view aggregating lanes the device-side view
     /// doesn't; it's not a real step-down. Step-down only fires for
     /// daisy-chains with two or more downstream switches.
-    func testSingleHopDoesNotEmitStepDown() {
+    @Test("Single hop does not emit step-down")
+    func singleHopDoesNotEmitStepDown() {
         let port = tbPort(socket: "1")
         let host = sw(
             uid: 100, depth: 0, parent: nil,
@@ -193,12 +198,12 @@ final class PortSummaryThunderboltTests: XCTestCase {
         )
 
         let summary = PortSummary(port: port, thunderboltSwitches: [host, samsung])
-        XCTAssertFalse(
-            summary.bullets.contains { $0.contains("Last leg drops") },
+        #expect(
+            summary.bullets.contains { $0.contains("Last leg drops") } == false,
             "single-hop must not emit step-down warning; got: \(summary.bullets)"
         )
         // Sanity: the single-hop bullets we DO want should still be there.
-        XCTAssertTrue(
+        #expect(
             summary.bullets.contains("Connected to SAMSUNG ELECTRONICS CO.,LTD C34J79x"),
             "device label still required"
         )
@@ -206,13 +211,14 @@ final class PortSummaryThunderboltTests: XCTestCase {
 
     // MARK: - Fallback when no matching switch is found
 
-    func testFallsBackToGenericLabelWhenNoMatchingSwitch() {
+    @Test("Falls back to generic label when no matching switch")
+    func fallsBackToGenericLabelWhenNoMatchingSwitch() {
         let port = tbPort(socket: "1")
         // Switch list is empty: PortSummary should fall back to the
         // pre-Phase-3 generic line so we don't regress on machines without
         // the watcher data.
         let summary = PortSummary(port: port, thunderboltSwitches: [])
-        XCTAssertTrue(
+        #expect(
             summary.bullets.contains("Thunderbolt / USB4 link active"),
             "expected fallback bullet when no switch data; got: \(summary.bullets)"
         )
@@ -220,7 +226,8 @@ final class PortSummaryThunderboltTests: XCTestCase {
 
     // MARK: - TB5 confirmed (issue #52: M5 Pro + UGreen JHL9580 dock)
 
-    func testTb5LinkRendersWithPerLaneLabel() {
+    @Test("TB5 link renders with per-lane label")
+    func tb5LinkRendersWithPerLaneLabel() {
         let port = tbPort(socket: "1")
         let host = sw(
             uid: 100, depth: 0, parent: nil,
@@ -228,12 +235,12 @@ final class PortSummaryThunderboltTests: XCTestCase {
             ports: [lanePort(portNumber: 1, socketID: "1", speed: .tb5, widthRaw: 0x2)]
         )
         let summary = PortSummary(port: port, thunderboltSwitches: [host])
-        XCTAssertTrue(
+        #expect(
             summary.bullets.contains { $0.contains("40 Gb/s") },
             "TB5 should report per-lane 40 Gb/s; got: \(summary.bullets)"
         )
-        XCTAssertFalse(
-            summary.bullets.contains { $0.contains("Unknown generation") },
+        #expect(
+            summary.bullets.contains { $0.contains("Unknown generation") } == false,
             "TB5 should no longer be hedged; got: \(summary.bullets)"
         )
     }
@@ -259,7 +266,8 @@ final class PortSummaryThunderboltTests: XCTestCase {
         )
     }
 
-    func testPassiveEmarkerWithActiveTBLinkShowsClarification() {
+    @Test("Passive e-marker with active TB link shows clarification")
+    func passiveEmarkerWithActiveTBLinkShowsClarification() {
         let port = tbPort(socket: "1")
         let host = sw(
             uid: 100, depth: 0, parent: nil,
@@ -274,13 +282,14 @@ final class PortSummaryThunderboltTests: XCTestCase {
             thunderboltSwitches: [host]
         )
 
-        XCTAssertTrue(
+        #expect(
             summary.bullets.contains { $0.contains("E-marker reports passive") && $0.contains("Thunderbolt") },
             "expected passive-but-TB clarification bullet; got: \(summary.bullets)"
         )
     }
 
-    func testPassiveEmarkerWithoutTBLinkDoesNotShowClarification() {
+    @Test("Passive e-marker without TB link does not show clarification")
+    func passiveEmarkerWithoutTBLinkDoesNotShowClarification() {
         let port = USBCPort(
             id: 1,
             serviceName: "Port-USB-C@1",
@@ -312,8 +321,8 @@ final class PortSummaryThunderboltTests: XCTestCase {
 
         let summary = PortSummary(port: port, identities: [cable])
 
-        XCTAssertFalse(
-            summary.bullets.contains { $0.contains("E-marker reports passive") },
+        #expect(
+            summary.bullets.contains { $0.contains("E-marker reports passive") } == false,
             "passive cable on non-TB port should not show TB clarification; got: \(summary.bullets)"
         )
     }
@@ -323,7 +332,8 @@ final class PortSummaryThunderboltTests: XCTestCase {
     /// When CIO data is present with a known speed code, PortSummary should
     /// replace the generic passive/TB fallback with a "Controller confirms"
     /// bullet plus an explanation of why the e-marker says passive.
-    func testCIOConfirmsTBCableReplacesPassiveBullet() {
+    @Test("CIO confirms TB cable replaces passive bullet")
+    func cioConfirmsTBCableReplacesPassiveBullet() {
         let port = tbPort(socket: "1")
         let host = sw(
             uid: 100, depth: 0, parent: nil,
@@ -345,23 +355,24 @@ final class PortSummaryThunderboltTests: XCTestCase {
             cioCapability: cio
         )
 
-        XCTAssertTrue(
+        #expect(
             summary.bullets.contains { $0.contains("Controller confirms Thunderbolt cable") && $0.contains("40 Gbps") },
             "expected CIO confirmation bullet; got: \(summary.bullets)"
         )
-        XCTAssertTrue(
+        #expect(
             summary.bullets.contains { $0.contains("E-marker reports passive. This is normal") },
             "expected educational explanation bullet; got: \(summary.bullets)"
         )
-        XCTAssertFalse(
-            summary.bullets.contains { $0.contains("Thunderbolt is negotiated separately") },
+        #expect(
+            summary.bullets.contains { $0.contains("Thunderbolt is negotiated separately") } == false,
             "old fallback bullet should be gone when CIO confirms; got: \(summary.bullets)"
         )
     }
 
     /// When CIO data is present but the speed code is unrecognised, fall back
     /// to the existing passive/TB clarification (don't leak raw codes).
-    func testCIOWithUnknownSpeedCodeFallsBackToPassiveBullet() {
+    @Test("CIO with unknown speed code falls back to passive bullet")
+    func cioWithUnknownSpeedCodeFallsBackToPassiveBullet() {
         let port = tbPort(socket: "1")
         let host = sw(
             uid: 100, depth: 0, parent: nil,
@@ -384,18 +395,19 @@ final class PortSummaryThunderboltTests: XCTestCase {
             cioCapability: cio
         )
 
-        XCTAssertTrue(
+        #expect(
             summary.bullets.contains { $0.contains("E-marker reports passive") && $0.contains("Thunderbolt is negotiated separately") },
             "unknown CIO speed should fall back to passive/TB clarification; got: \(summary.bullets)"
         )
-        XCTAssertFalse(
-            summary.bullets.contains { $0.contains("Controller confirms") },
+        #expect(
+            summary.bullets.contains { $0.contains("Controller confirms") } == false,
             "should not show CIO confirmation for unknown speed code; got: \(summary.bullets)"
         )
     }
 
     /// When CIO data exists but has no cableSpeed at all, fall back.
-    func testCIOWithNilSpeedFallsBackToPassiveBullet() {
+    @Test("CIO with nil speed falls back to passive bullet")
+    func cioWithNilSpeedFallsBackToPassiveBullet() {
         let port = tbPort(socket: "1")
         let host = sw(
             uid: 100, depth: 0, parent: nil,
@@ -417,13 +429,14 @@ final class PortSummaryThunderboltTests: XCTestCase {
             cioCapability: cio
         )
 
-        XCTAssertTrue(
+        #expect(
             summary.bullets.contains { $0.contains("Thunderbolt is negotiated separately") },
             "nil CIO speed should fall back; got: \(summary.bullets)"
         )
     }
 
-    func testActiveCableWithTBLinkDoesNotShowPassiveNote() {
+    @Test("Active cable with TB link does not show passive note")
+    func activeCableWithTBLinkDoesNotShowPassiveNote() {
         let port = tbPort(socket: "1")
         let host = sw(
             uid: 100, depth: 0, parent: nil,
@@ -447,11 +460,11 @@ final class PortSummaryThunderboltTests: XCTestCase {
             thunderboltSwitches: [host]
         )
 
-        XCTAssertFalse(
-            summary.bullets.contains { $0.contains("E-marker reports passive") },
+        #expect(
+            summary.bullets.contains { $0.contains("E-marker reports passive") } == false,
             "active cable should not show passive note; got: \(summary.bullets)"
         )
-        XCTAssertTrue(
+        #expect(
             summary.bullets.contains { $0.contains("Active cable") },
             "active cable should show active label; got: \(summary.bullets)"
         )

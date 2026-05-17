@@ -1,63 +1,72 @@
-import XCTest
+import Testing
 @testable import WhatCableCore
 
 /// Unit tests for AdapterInfo and AdapterHVCEntry.
-final class AdapterInfoTests: XCTestCase {
+@Suite("Adapter Info")
+struct AdapterInfoTests {
 
     // MARK: - AdapterHVCEntry
 
-    func testHVCEntryWatts() {
+    @Test("HVC entry watts calculation")
+    func hvcEntryWatts() {
         let entry = AdapterHVCEntry(voltageMV: 20000, currentMA: 5000)
-        XCTAssertEqual(entry.wattsInt, 100)
+        #expect(entry.wattsInt == 100)
     }
 
-    func testHVCEntryWattsRounding() {
+    @Test("HVC entry watts rounding")
+    func hvcEntryWattsRounding() {
         // 4990 mA * 20000 mV = 99.8W, rounds to 100
         let entry = AdapterHVCEntry(voltageMV: 20000, currentMA: 4990)
-        XCTAssertEqual(entry.wattsInt, 100)
+        #expect(entry.wattsInt == 100)
     }
 
-    func testHVCEntryLabel() {
+    @Test("HVC entry label format")
+    func hvcEntryLabel() {
         let entry = AdapterHVCEntry(voltageMV: 20000, currentMA: 4990)
-        XCTAssertEqual(entry.label, "20V/4.99A")
+        #expect(entry.label == "20V/4.99A")
     }
 
-    func testHVCEntryLabelLowVoltage() {
+    @Test("HVC entry label at low voltage")
+    func hvcEntryLabelLowVoltage() {
         let entry = AdapterHVCEntry(voltageMV: 5000, currentMA: 2960)
-        XCTAssertEqual(entry.label, "5V/2.96A")
+        #expect(entry.label == "5V/2.96A")
     }
 
-    func testHVCEntryEquatable() {
+    @Test("HVC entry Equatable conformance")
+    func hvcEntryEquatable() {
         let a = AdapterHVCEntry(voltageMV: 9000, currentMA: 3000)
         let b = AdapterHVCEntry(voltageMV: 9000, currentMA: 3000)
-        XCTAssertEqual(a, b)
+        #expect(a == b)
     }
 
-    func testHVCEntryHashable() {
+    @Test("HVC entry Hashable conformance")
+    func hvcEntryHashable() {
         let a = AdapterHVCEntry(voltageMV: 5000, currentMA: 3000)
         let b = AdapterHVCEntry(voltageMV: 20000, currentMA: 5000)
         let set: Set<AdapterHVCEntry> = [a, b, a]
-        XCTAssertEqual(set.count, 2)
+        #expect(set.count == 2)
     }
 
     // MARK: - AdapterInfo backward compatibility
 
-    func testMinimalInitStillWorks() {
+    @Test("Minimal init keeps backward compatibility")
+    func minimalInitStillWorks() {
         // Existing callers pass only (watts, isCharging, source).
         // New fields should all default to nil / empty.
         let info = AdapterInfo(watts: 100, isCharging: true, source: "AC")
-        XCTAssertEqual(info.watts, 100)
-        XCTAssertEqual(info.isCharging, true)
-        XCTAssertEqual(info.source, "AC")
-        XCTAssertNil(info.voltageMV)
-        XCTAssertNil(info.currentMA)
-        XCTAssertNil(info.adapterDescription)
-        XCTAssertNil(info.powerTier)
-        XCTAssertNil(info.isWireless)
-        XCTAssertTrue(info.hvcMenu.isEmpty)
+        #expect(info.watts == 100)
+        #expect(info.isCharging == true)
+        #expect(info.source == "AC")
+        #expect(info.voltageMV == nil)
+        #expect(info.currentMA == nil)
+        #expect(info.adapterDescription == nil)
+        #expect(info.powerTier == nil)
+        #expect(info.isWireless == nil)
+        #expect(info.hvcMenu.isEmpty)
     }
 
-    func testFullInit() {
+    @Test("Full init populates all fields")
+    func fullInit() {
         let menu = [
             AdapterHVCEntry(voltageMV: 5000, currentMA: 2960),
             AdapterHVCEntry(voltageMV: 9000, currentMA: 2980),
@@ -75,35 +84,38 @@ final class AdapterInfoTests: XCTestCase {
             isWireless: false,
             hvcMenu: menu
         )
-        XCTAssertEqual(info.watts, 100)
-        XCTAssertEqual(info.voltageMV, 20000)
-        XCTAssertEqual(info.currentMA, 4990)
-        XCTAssertEqual(info.adapterDescription, "pd charger")
-        XCTAssertEqual(info.powerTier, 2)
-        XCTAssertEqual(info.isWireless, false)
-        XCTAssertEqual(info.hvcMenu.count, 4)
-        XCTAssertEqual(info.hvcMenu.last?.wattsInt, 100)
+        #expect(info.watts == 100)
+        #expect(info.voltageMV == 20000)
+        #expect(info.currentMA == 4990)
+        #expect(info.adapterDescription == "pd charger")
+        #expect(info.powerTier == 2)
+        #expect(info.isWireless == false)
+        #expect(info.hvcMenu.count == 4)
+        #expect(info.hvcMenu.last?.wattsInt == 100)
     }
 
-    func testEquatableWithHVCMenu() {
+    @Test("Equatable with HVC menu")
+    func equatableWithHVCMenu() {
         let menu = [AdapterHVCEntry(voltageMV: 20000, currentMA: 5000)]
         let a = AdapterInfo(watts: 100, isCharging: nil, source: "AC", hvcMenu: menu)
         let b = AdapterInfo(watts: 100, isCharging: nil, source: "AC", hvcMenu: menu)
-        XCTAssertEqual(a, b)
+        #expect(a == b)
     }
 
-    func testNotEqualWhenHVCMenuDiffers() {
+    @Test("Not equal when HVC menu differs")
+    func notEqualWhenHVCMenuDiffers() {
         let a = AdapterInfo(watts: 100, isCharging: nil, source: "AC",
                             hvcMenu: [AdapterHVCEntry(voltageMV: 20000, currentMA: 5000)])
         let b = AdapterInfo(watts: 100, isCharging: nil, source: "AC",
                             hvcMenu: [AdapterHVCEntry(voltageMV: 20000, currentMA: 3000)])
-        XCTAssertNotEqual(a, b)
+        #expect(a != b)
     }
 
-    func testNilAdapterAllFieldsNil() {
+    @Test("Nil adapter has all fields nil")
+    func nilAdapterAllFieldsNil() {
         let info = AdapterInfo(watts: nil, isCharging: nil, source: nil)
-        XCTAssertNil(info.watts)
-        XCTAssertNil(info.source)
-        XCTAssertTrue(info.hvcMenu.isEmpty)
+        #expect(info.watts == nil)
+        #expect(info.source == nil)
+        #expect(info.hvcMenu.isEmpty)
     }
 }

@@ -1,9 +1,10 @@
-import XCTest
+import Testing
+import Foundation
 @testable import WhatCableCore
 
 /// Exercises the bundle-walking logic that AppInfo.version uses when
 /// Bundle.main can't resolve the .app directly. The two failure modes that
-/// shipped to users in v0.5.1 → v0.5.3 were:
+/// shipped to users in v0.5.1 -> v0.5.3 were:
 ///   - CLI in Contents/Helpers/ not finding the parent .app
 ///   - CLI invoked via Homebrew symlink walking up from /opt/homebrew/bin
 /// Both are bundle-path-resolution bugs that fixture tests catch cheaply.
@@ -13,20 +14,15 @@ import XCTest
 /// (walk up from a path, find an Info.plist, read CFBundleShortVersionString)
 /// against a synthesised bundle on disk. If the algorithm changes in
 /// AppInfo.swift, this needs to track it.
-final class AppInfoVersionTests: XCTestCase {
+@Suite("AppInfo Version Resolution")
+struct AppInfoVersionTests {
 
-    private var tempDir: URL!
+    private let tempDir: URL
 
-    override func setUpWithError() throws {
-        try super.setUpWithError()
+    init() throws {
         tempDir = URL(fileURLWithPath: NSTemporaryDirectory())
             .appendingPathComponent("WhatCableTests-\(UUID().uuidString)")
         try FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
-    }
-
-    override func tearDownWithError() throws {
-        try? FileManager.default.removeItem(at: tempDir)
-        try super.tearDownWithError()
     }
 
     /// Mirrors the fallback algorithm in AppInfo.version. If you change the
@@ -68,21 +64,24 @@ final class AppInfoVersionTests: XCTestCase {
         return app
     }
 
-    func testFindsVersionFromContentsMacOS() throws {
+    @Test("Finds version from Contents/MacOS")
+    func findsVersionFromContentsMacOS() throws {
         let app = try buildSyntheticBundle(version: "1.2.3")
         let exe = app.appendingPathComponent("Contents/MacOS/WhatCable").path
-        XCTAssertEqual(resolveVersion(executablePath: exe), "1.2.3")
+        #expect(resolveVersion(executablePath: exe) == "1.2.3")
     }
 
-    func testFindsVersionFromContentsHelpers() throws {
+    @Test("Finds version from Contents/Helpers")
+    func findsVersionFromContentsHelpers() throws {
         // The case that broke v0.5.1: CLI in Helpers/ should still find the
         // bundle by walking one extra level.
         let app = try buildSyntheticBundle(version: "1.2.3")
         let exe = app.appendingPathComponent("Contents/Helpers/whatcable").path
-        XCTAssertEqual(resolveVersion(executablePath: exe), "1.2.3")
+        #expect(resolveVersion(executablePath: exe) == "1.2.3")
     }
 
-    func testResolvesSymlinkBeforeWalking() throws {
+    @Test("Resolves symlink before walking")
+    func resolvesSymlinkBeforeWalking() throws {
         // The case that broke v0.5.2: invoking via a symlink outside the
         // bundle should still find the version. Without symlink resolution,
         // walking up from /tmp/.../bin/whatcable would never reach the .app.
@@ -94,16 +93,18 @@ final class AppInfoVersionTests: XCTestCase {
         let link = binDir.appendingPathComponent("whatcable")
         try FileManager.default.createSymbolicLink(at: link, withDestinationURL: realExe)
 
-        XCTAssertEqual(resolveVersion(executablePath: link.path), "1.2.3")
+        #expect(resolveVersion(executablePath: link.path) == "1.2.3")
     }
 
-    func testFallsBackToDevWhenNoBundle() throws {
+    @Test("Falls back to dev when no bundle")
+    func fallsBackToDevWhenNoBundle() throws {
         let exe = tempDir.appendingPathComponent("standalone-binary").path
         try Data().write(to: URL(fileURLWithPath: exe))
-        XCTAssertEqual(resolveVersion(executablePath: exe), "dev")
+        #expect(resolveVersion(executablePath: exe) == "dev")
     }
 
-    func testFallsBackToDevWhenInfoPlistHasNoVersion() throws {
+    @Test("Falls back to dev when Info.plist has no version")
+    func fallsBackToDevWhenInfoPlistHasNoVersion() throws {
         // A bundle structure with an Info.plist that doesn't carry the
         // version key should still fall back rather than crash.
         let app = tempDir.appendingPathComponent("WhatCable.app")
@@ -117,6 +118,6 @@ final class AppInfoVersionTests: XCTestCase {
         let exe = macOS.appendingPathComponent("WhatCable")
         try Data().write(to: exe)
 
-        XCTAssertEqual(resolveVersion(executablePath: exe.path), "dev")
+        #expect(resolveVersion(executablePath: exe.path) == "dev")
     }
 }

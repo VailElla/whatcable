@@ -1,7 +1,8 @@
-import XCTest
+import Testing
 import WhatCableCore
 
-final class TextFormatterTests: XCTestCase {
+@Suite("Text Formatter")
+struct TextFormatterTests {
 
     // MARK: - Fixtures
 
@@ -37,30 +38,33 @@ final class TextFormatterTests: XCTestCase {
 
     // MARK: - Smoke
 
-    func testRenderProducesNonEmptyOutput() {
+    @Test("Render produces non-empty output")
+    func renderProducesNonEmptyOutput() {
         let output = TextFormatter.render(
             ports: [makePort()], sources: [], identities: [], showRaw: false
         )
-        XCTAssertFalse(output.isEmpty)
+        #expect(!output.isEmpty)
     }
 
-    func testRenderEmptyPortsProducesNonEmptyOutput() {
+    @Test("Render empty ports produces non-empty output")
+    func renderEmptyPortsProducesNonEmptyOutput() {
         let output = TextFormatter.render(
             ports: [], sources: [], identities: [], showRaw: false
         )
-        XCTAssertFalse(output.isEmpty)
-        XCTAssertTrue(output.contains("No USB-C"))
+        #expect(!output.isEmpty)
+        #expect(output.contains("No USB-C"))
     }
 
     // MARK: - Headline passthrough
 
-    func testHeadlineFromPortSummaryAppearsVerbatim() {
+    @Test("Headline from PortSummary appears verbatim")
+    func headlineFromPortSummaryAppearsVerbatim() {
         let port = makePort(connected: false)
         let summary = PortSummary(port: port)
         let output = TextFormatter.render(
             ports: [port], sources: [], identities: [], showRaw: false
         )
-        XCTAssertTrue(
+        #expect(
             output.contains(summary.headline),
             "expected headline \"\(summary.headline)\" in render output"
         )
@@ -68,12 +72,13 @@ final class TextFormatterTests: XCTestCase {
 
     // MARK: - ANSI escapes absent when not a TTY
 
-    func testNoANSIEscapesInNonTTYOutput() {
+    @Test("No ANSI escapes in non-TTY output")
+    func noANSIEscapesInNonTTYOutput() {
         let output = TextFormatter.render(
             ports: [makePort()], sources: [], identities: [], showRaw: false
         )
-        XCTAssertFalse(
-            output.contains("\u{1B}["),
+        #expect(
+            output.contains("\u{1B}[") == false,
             "ANSI escape sequences should not appear when stdout is not a TTY"
         )
     }
@@ -100,30 +105,33 @@ final class TextFormatterTests: XCTestCase {
         )
     }
 
-    func testNoTrustSignalsHeadingWhenCableIsClean() {
+    @Test("No trust signals heading when cable is clean")
+    func noTrustSignalsHeadingWhenCableIsClean() {
         let port = makePort()
         let cable = cableIdentity(portNumber: port.portNumber ?? 1)
         let output = TextFormatter.render(
             ports: [port], sources: [], identities: [cable], showRaw: false
         )
-        XCTAssertFalse(
-            output.contains("Cable trust signals"),
+        #expect(
+            output.contains("Cable trust signals") == false,
             "Clean cable should not surface a trust-signals section"
         )
     }
 
-    func testTrustSignalsRenderWhenFlagFires() {
+    @Test("Trust signals render when flag fires")
+    func trustSignalsRenderWhenFlagFires() {
         let port = makePort()
         let cable = cableIdentity(portNumber: port.portNumber ?? 1, vendorID: 0)
         let output = TextFormatter.render(
             ports: [port], sources: [], identities: [cable], showRaw: false
         )
-        XCTAssertTrue(output.contains("Cable trust signals"))
-        XCTAssertTrue(output.contains(TrustFlag.zeroVendorID.title))
-        XCTAssertTrue(output.contains(TrustFlag.zeroVendorID.detail))
+        #expect(output.contains("Cable trust signals"))
+        #expect(output.contains(TrustFlag.zeroVendorID.title))
+        #expect(output.contains(TrustFlag.zeroVendorID.detail))
     }
 
-    func testMultipleTrustFlagsAllRender() {
+    @Test("Multiple trust flags all render")
+    func multipleTrustFlagsAllRender() {
         let port = makePort()
         // Unregistered VID + reserved speed = two flags.
         let vdo = UInt32(0b111) | UInt32(2 << 5) | UInt32(1 << 13)
@@ -135,13 +143,14 @@ final class TextFormatterTests: XCTestCase {
         let output = TextFormatter.render(
             ports: [port], sources: [], identities: [cable], showRaw: false
         )
-        XCTAssertTrue(output.contains(TrustFlag.vidNotInUSBIFList(0xDEAD).title))
-        XCTAssertTrue(output.contains(TrustFlag.reservedSpeedEncoding(7).title))
+        #expect(output.contains(TrustFlag.vidNotInUSBIFList(0xDEAD).title))
+        #expect(output.contains(TrustFlag.reservedSpeedEncoding(7).title))
     }
 
     // MARK: - Active Cable VDO 2 raw view
 
-    func testActiveCableVDO2SectionAppearsInRawMode() {
+    @Test("Active cable VDO2 section appears in raw mode")
+    func activeCableVDO2SectionAppearsInRawMode() {
         let port = makePort()
         // VDO2 with optical + retimer + isolated + USB4 supported (bit 8 = 0).
         var vdo4: UInt32 = 0
@@ -161,13 +170,14 @@ final class TextFormatterTests: XCTestCase {
         let output = TextFormatter.render(
             ports: [port], sources: [], identities: [active], showRaw: true
         )
-        XCTAssertTrue(output.contains("Active cable (VDO 2)"))
-        XCTAssertTrue(output.contains("Physical connection") && output.contains("Optical"))
-        XCTAssertTrue(output.contains("Active element") && output.contains("Re-timer"))
-        XCTAssertTrue(output.contains("USB4 supported") && output.contains("Yes"))
+        #expect(output.contains("Active cable (VDO 2)"))
+        #expect(output.contains("Physical connection") && output.contains("Optical"))
+        #expect(output.contains("Active element") && output.contains("Re-timer"))
+        #expect(output.contains("USB4 supported") && output.contains("Yes"))
     }
 
-    func testActiveCableVDO2SectionAbsentWithoutRawFlag() {
+    @Test("Active cable VDO2 section absent without raw flag")
+    func activeCableVDO2SectionAbsentWithoutRawFlag() {
         let port = makePort()
         let vdo3: UInt32 = UInt32(0b011) | UInt32(2 << 5) | UInt32(1 << 13) | UInt32(0b10 << 11)
         let active = USBPDSOP(
@@ -181,13 +191,14 @@ final class TextFormatterTests: XCTestCase {
         let output = TextFormatter.render(
             ports: [port], sources: [], identities: [active], showRaw: false
         )
-        XCTAssertFalse(
-            output.contains("Active cable (VDO 2)"),
+        #expect(
+            output.contains("Active cable (VDO 2)") == false,
             "VDO 2 deep view should only render with --raw"
         )
     }
 
-    func testTrustSignalsSuppressedForNonCableEndpoint() {
+    @Test("Trust signals suppressed for non-cable endpoint")
+    func trustSignalsSuppressedForNonCableEndpoint() {
         // SOP (port partner) shouldn't be evaluated as a cable, so even
         // a zero VID on a port-partner identity shouldn't trip the section.
         let port = makePort()
@@ -205,6 +216,6 @@ final class TextFormatterTests: XCTestCase {
         let output = TextFormatter.render(
             ports: [port], sources: [], identities: [partner], showRaw: false
         )
-        XCTAssertFalse(output.contains("Cable trust signals"))
+        #expect(output.contains("Cable trust signals") == false)
     }
 }

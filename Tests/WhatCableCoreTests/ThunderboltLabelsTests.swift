@@ -1,109 +1,125 @@
-import XCTest
+import Testing
 @testable import WhatCableCore
 
 /// Tests for the user-facing label helpers and topology walker.
 /// These cover the rendering convention chosen for Phase 3:
-///   - per-lane Gb/s × lane count, matching Apple's `system_profiler`
+///   - per-lane Gb/s x lane count, matching Apple's `system_profiler`
 ///   - hedge wording for unknown speed codes
 ///   - daisy-chain detection by `parentSwitchUID`
-final class ThunderboltLabelsTests: XCTestCase {
+@Suite("Thunderbolt Labels")
+struct ThunderboltLabelsTests {
 
     // MARK: - linkLabel
 
-    func testLabelForTb3DualLane() {
+    @Test("Label for TB3 dual lane")
+    func labelForTb3DualLane() {
         let port = makeLanePort(speed: .tb3, widthRaw: 0x2)
-        XCTAssertEqual(ThunderboltLabels.linkLabel(for: port), "Up to 10 Gb/s × 2")
+        #expect(ThunderboltLabels.linkLabel(for: port) == "Up to 10 Gb/s × 2")
     }
 
-    func testLabelForTb3SingleLane() {
+    @Test("Label for TB3 single lane")
+    func labelForTb3SingleLane() {
         let port = makeLanePort(speed: .tb3, widthRaw: 0x1)
-        XCTAssertEqual(ThunderboltLabels.linkLabel(for: port), "Up to 10 Gb/s × 1")
+        #expect(ThunderboltLabels.linkLabel(for: port) == "Up to 10 Gb/s × 1")
     }
 
-    func testLabelForUsb4DualLane() {
+    @Test("Label for USB4 dual lane")
+    func labelForUsb4DualLane() {
         let port = makeLanePort(speed: .usb4Tb4, widthRaw: 0x2)
-        XCTAssertEqual(ThunderboltLabels.linkLabel(for: port), "Up to 20 Gb/s × 2")
+        #expect(ThunderboltLabels.linkLabel(for: port) == "Up to 20 Gb/s × 2")
     }
 
     /// TB5 was confirmed against a real M5 Pro + UGreen JHL9580 dock
     /// sample on issue #52, so the renderer now emits the same per-lane
     /// label format as TB3 and TB4 / USB4.
-    func testLabelForTb5DualLane() {
+    @Test("Label for TB5 dual lane")
+    func labelForTb5DualLane() {
         let port = makeLanePort(speed: .tb5, widthRaw: 0x2)
-        XCTAssertEqual(ThunderboltLabels.linkLabel(for: port), "Up to 40 Gb/s × 2")
+        #expect(ThunderboltLabels.linkLabel(for: port) == "Up to 40 Gb/s × 2")
     }
 
     /// TB5 asymmetric 3 TX / 1 RX is the 120 Gb/s configuration reported
     /// by `system_profiler` on the M5 Pro + UGreen dock sample.
-    func testLabelForTb5Asymmetric() {
+    @Test("Label for TB5 asymmetric")
+    func labelForTb5Asymmetric() {
         let port = makeLanePort(speed: .tb5, widthRaw: 0x4)
-        XCTAssertEqual(ThunderboltLabels.linkLabel(for: port), "Up to 40 Gb/s (3 TX / 1 RX)")
+        #expect(ThunderboltLabels.linkLabel(for: port) == "Up to 40 Gb/s (3 TX / 1 RX)")
     }
 
-    func testLabelForUnknownGenerationIsHedged() {
+    @Test("Label for unknown generation is hedged")
+    func labelForUnknownGenerationIsHedged() {
         let port = makeLanePort(speed: .unknown(rawSpeedCode: 0x1), widthRaw: 0x2)
-        XCTAssertEqual(ThunderboltLabels.linkLabel(for: port), "Unknown generation (raw speed code 0x1)")
+        #expect(ThunderboltLabels.linkLabel(for: port) == "Unknown generation (raw speed code 0x1)")
     }
 
-    func testLabelNilForIdlePort() {
+    @Test("Label nil for idle port")
+    func labelNilForIdlePort() {
         let port = makeLanePort(speed: nil, widthRaw: 0)
-        XCTAssertNil(ThunderboltLabels.linkLabel(for: port))
+        #expect(ThunderboltLabels.linkLabel(for: port) == nil)
     }
 
-    func testLabelForAsymmetricLink() {
+    @Test("Label for asymmetric link")
+    func labelForAsymmetricLink() {
         // 3 TX / 1 RX. We have no real TB5 sample, but the model must
         // produce a sensible label if one ever lands.
         let port = makeLanePort(speed: .usb4Tb4, widthRaw: 0x4)
-        XCTAssertEqual(ThunderboltLabels.linkLabel(for: port), "Up to 20 Gb/s (3 TX / 1 RX)")
+        #expect(ThunderboltLabels.linkLabel(for: port) == "Up to 20 Gb/s (3 TX / 1 RX)")
     }
 
     // MARK: - deviceName
 
-    func testDeviceNameAsus() {
+    @Test("Device name ASUS")
+    func deviceNameAsus() {
         let sw = makeSwitch(uid: 1, vendor: "ASUS-Display", model: "PA32QCV")
-        XCTAssertEqual(ThunderboltLabels.deviceName(for: sw), "ASUS-Display PA32QCV")
+        #expect(ThunderboltLabels.deviceName(for: sw) == "ASUS-Display PA32QCV")
     }
 
-    func testDeviceNameMissingFieldsFallsBack() {
+    @Test("Device name missing fields falls back")
+    func deviceNameMissingFieldsFallsBack() {
         let sw = makeSwitch(uid: 1, vendor: "", model: "")
-        XCTAssertEqual(ThunderboltLabels.deviceName(for: sw), "Unknown device")
+        #expect(ThunderboltLabels.deviceName(for: sw) == "Unknown device")
     }
 
     // MARK: - Topology socket-ID parsing
 
-    func testSocketIDExtractedFromAtSuffix() {
-        XCTAssertEqual(ThunderboltTopology.socketID(fromServiceName: "Port-USB-C@1"), "1")
-        XCTAssertEqual(ThunderboltTopology.socketID(fromServiceName: "Port-USB-C@3"), "3")
+    @Test("Socket ID extracted from at-suffix")
+    func socketIDExtractedFromAtSuffix() {
+        #expect(ThunderboltTopology.socketID(fromServiceName: "Port-USB-C@1") == "1")
+        #expect(ThunderboltTopology.socketID(fromServiceName: "Port-USB-C@3") == "3")
     }
 
-    func testSocketIDNilWhenNoAtSuffix() {
-        XCTAssertNil(ThunderboltTopology.socketID(fromServiceName: "Port-USB-C"))
+    @Test("Socket ID nil when no at-suffix")
+    func socketIDNilWhenNoAtSuffix() {
+        #expect(ThunderboltTopology.socketID(fromServiceName: "Port-USB-C") == nil)
     }
 
     // MARK: - Topology chain walking
 
-    func testChainSingleHop() {
+    @Test("Chain single hop")
+    func chainSingleHop() {
         let host = makeSwitch(uid: 100, depth: 0, parent: nil, ports: [
             makeLanePort(portNumber: 1, socketID: "1", speed: .usb4Tb4, widthRaw: 0x2)
         ])
         let device = makeSwitch(uid: 200, depth: 1, parent: 100, vendor: "ASUS-Display", model: "PA32QCV")
         let chain = ThunderboltTopology.chain(from: host, in: [host, device])
-        XCTAssertEqual(chain.count, 2)
-        XCTAssertEqual(chain.first?.id, 100)
-        XCTAssertEqual(chain.last?.id, 200)
+        #expect(chain.count == 2)
+        #expect(chain.first?.id == 100)
+        #expect(chain.last?.id == 200)
     }
 
-    func testChainDaisyTwoHops() {
+    @Test("Chain daisy two hops")
+    func chainDaisyTwoHops() {
         let host = makeSwitch(uid: 100, depth: 0, parent: nil, ports: [])
         let asus = makeSwitch(uid: 200, depth: 1, parent: 100, vendor: "ASUS-Display", model: "PA32QCV")
         let ts3 = makeSwitch(uid: 300, depth: 2, parent: 200, vendor: "CalDigit, Inc.", model: "TS3 Plus")
         let chain = ThunderboltTopology.chain(from: host, in: [host, asus, ts3])
-        XCTAssertEqual(chain.map(\.id), [100, 200, 300])
+        #expect(chain.map(\.id) == [100, 200, 300])
     }
 
     // MARK: - hostRoot lookup by Socket ID
 
-    func testHostRootMatchesBySocketID() {
+    @Test("Host root matches by socket ID")
+    func hostRootMatchesBySocketID() {
         let portA = makeLanePort(portNumber: 1, socketID: "1", speed: .usb4Tb4, widthRaw: 0x2)
         let portB = makeLanePort(portNumber: 2, socketID: "2", speed: nil, widthRaw: 0)
         let root1 = makeSwitch(uid: 100, depth: 0, parent: nil, ports: [portA])
@@ -111,23 +127,25 @@ final class ThunderboltLabelsTests: XCTestCase {
         let device = makeSwitch(uid: 999, depth: 1, parent: 100)
         let switches = [root1, root2, device]
 
-        XCTAssertEqual(ThunderboltTopology.hostRoot(forSocketID: "1", in: switches)?.id, 100)
-        XCTAssertEqual(ThunderboltTopology.hostRoot(forSocketID: "2", in: switches)?.id, 200)
-        XCTAssertNil(ThunderboltTopology.hostRoot(forSocketID: "3", in: switches))
+        #expect(ThunderboltTopology.hostRoot(forSocketID: "1", in: switches)?.id == 100)
+        #expect(ThunderboltTopology.hostRoot(forSocketID: "2", in: switches)?.id == 200)
+        #expect(ThunderboltTopology.hostRoot(forSocketID: "3", in: switches) == nil)
     }
 
     // MARK: - activeDownstreamLanePort
 
-    func testActiveDownstreamLanePortOnHostRoot() {
+    @Test("Active downstream lane port on host root")
+    func activeDownstreamLanePortOnHostRoot() {
         let port1 = makeLanePort(portNumber: 1, socketID: "1", speed: .usb4Tb4, widthRaw: 0x2)
         let root = makeSwitch(uid: 100, depth: 0, parent: nil, ports: [port1])
-        XCTAssertEqual(ThunderboltTopology.activeDownstreamLanePort(root)?.portNumber, 1)
+        #expect(ThunderboltTopology.activeDownstreamLanePort(root)?.portNumber == 1)
     }
 
     /// On a downstream switch, the upstream lane port (matching
     /// `upstreamPortNumber`) faces the host. The downstream port is the
     /// one that goes toward the next-hop device.
-    func testActiveDownstreamLanePortSkipsUpstreamOnDeepSwitch() {
+    @Test("Active downstream lane port skips upstream on deep switch")
+    func activeDownstreamLanePortSkipsUpstreamOnDeepSwitch() {
         let upPort = makeLanePort(portNumber: 1, socketID: nil, speed: .usb4Tb4, widthRaw: 0x2)
         let downPort = makeLanePort(portNumber: 4, socketID: nil, speed: .tb3, widthRaw: 0x1)
         let dock = makeSwitch(
@@ -135,7 +153,7 @@ final class ThunderboltLabelsTests: XCTestCase {
             upstreamPortNumber: 1,
             ports: [upPort, downPort]
         )
-        XCTAssertEqual(ThunderboltTopology.activeDownstreamLanePort(dock)?.portNumber, 4)
+        #expect(ThunderboltTopology.activeDownstreamLanePort(dock)?.portNumber == 4)
     }
 }
 

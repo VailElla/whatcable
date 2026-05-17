@@ -1,62 +1,71 @@
-import XCTest
+import Testing
 @testable import WhatCableCore
 
-final class USBPortMatchingTests: XCTestCase {
-    func testMatchesDevicesByUsbIOPortPhysicalPortName() {
+@Suite("USB port matching")
+struct USBPortMatchingTests {
+    @Test("matches devices by usbIOPort physical port name")
+    func matchesDevicesByUsbIOPortPhysicalPortName() {
         let port = makePort(serviceName: "Port-USB-C@1", busIndex: 2)
         let matching = makeDevice(id: 1, controllerPortName: "Port-USB-C@1", busIndex: 9)
         let other = makeDevice(id: 2, controllerPortName: "Port-USB-C@2", busIndex: 2)
 
-        XCTAssertEqual(port.matchingDevices(from: [other, matching]), [matching])
+        #expect(port.matchingDevices(from: [other, matching]) == [matching])
     }
 
-    func testMatchesDeviceBasePortNameVariation() {
+    @Test("matches device base port name variation")
+    func matchesDeviceBasePortNameVariation() {
         let port = makePort(serviceName: "Port-USB-C@1", busIndex: 2)
         let matching = makeDevice(id: 1, controllerPortName: "Port-USB-C", busIndex: 2)
 
-        XCTAssertEqual(port.matchingDevices(from: [matching]), [matching])
+        #expect(port.matchingDevices(from: [matching]) == [matching])
     }
 
-    func testMatchesPortBaseNameVariation() {
+    @Test("matches port base name variation")
+    func matchesPortBaseNameVariation() {
         let port = makePort(serviceName: "Port-USB-C", busIndex: 2)
         let matching = makeDevice(id: 1, controllerPortName: "Port-USB-C@1", busIndex: 2)
 
-        XCTAssertEqual(port.matchingDevices(from: [matching]), [matching])
+        #expect(port.matchingDevices(from: [matching]) == [matching])
     }
 
-    func testDecoratedPortNameVariationsDoNotCrossMatch() {
+    @Test("decorated port name variations do not cross match")
+    func decoratedPortNameVariationsDoNotCrossMatch() {
         let port = makePort(serviceName: "Port-USB-C@1", busIndex: 1)
         let other = makeDevice(id: 1, controllerPortName: "Port-USB-C@2", busIndex: 2)
 
-        XCTAssertEqual(port.matchingDevices(from: [other]), [])
+        #expect(port.matchingDevices(from: [other]) == [])
     }
 
-    func testDirectUsbIOPortPresencePreventsBusFallback() {
+    @Test("direct usbIOPort presence prevents bus fallback")
+    func directUsbIOPortPresencePreventsBusFallback() {
         let port = makePort(serviceName: "Port-USB-C@1", busIndex: 1)
         let deviceOnOtherPort = makeDevice(id: 1, controllerPortName: "Port-USB-C@2", busIndex: 1)
 
-        XCTAssertEqual(port.matchingDevices(from: [deviceOnOtherPort]), [])
+        #expect(port.matchingDevices(from: [deviceOnOtherPort]) == [])
     }
 
-    func testFallsBackToBusIndexOnlyForNamelessDevices() {
+    @Test("falls back to busIndex only for nameless devices")
+    func fallsBackToBusIndexOnlyForNamelessDevices() {
         let port = makePort(serviceName: "Port-USB-C@1", busIndex: 3)
         let namedElsewhere = makeDevice(id: 1, controllerPortName: "Port-USB-C@2", busIndex: 3)
         let namelessMatch = makeDevice(id: 2, busIndex: 3)
 
-        XCTAssertEqual(port.matchingDevices(from: [namedElsewhere, namelessMatch]), [namelessMatch])
+        #expect(port.matchingDevices(from: [namedElsewhere, namelessMatch]) == [namelessMatch])
     }
 
-    func testNoMatchKeyReturnsNoDevicesInsteadOfAllDevices() {
+    @Test("no match key returns no devices instead of all devices")
+    func noMatchKeyReturnsNoDevicesInsteadOfAllDevices() {
         let port = makePort(serviceName: "Port-USB-C@1")
         let devices = [
             makeDevice(id: 1, busIndex: 1),
             makeDevice(id: 2, busIndex: 2)
         ]
 
-        XCTAssertEqual(port.matchingDevices(from: devices), [])
+        #expect(port.matchingDevices(from: devices) == [])
     }
 
-    func testBusFallbackRequiresUSBTransport() {
+    @Test("bus fallback requires USB transport")
+    func busFallbackRequiresUSBTransport() {
         let port = makePort(
             serviceName: "Port-MagSafe 3@1",
             busIndex: 1,
@@ -65,10 +74,11 @@ final class USBPortMatchingTests: XCTestCase {
         )
         let device = makeDevice(id: 1, busIndex: 1)
 
-        XCTAssertEqual(port.matchingDevices(from: [device]), [])
+        #expect(port.matchingDevices(from: [device]) == [])
     }
 
-    func testBusFallbackTreatsCIOAsUSBCapable() {
+    @Test("bus fallback treats CIO as USB capable")
+    func busFallbackTreatsCIOAsUSBCapable() {
         let port = makePort(
             serviceName: "Port-USB-C@1",
             busIndex: 1,
@@ -77,17 +87,18 @@ final class USBPortMatchingTests: XCTestCase {
         )
         let device = makeDevice(id: 1, busIndex: 1)
 
-        XCTAssertEqual(port.matchingDevices(from: [device]), [device])
+        #expect(port.matchingDevices(from: [device]) == [device])
     }
 
-    func testMagSafePortKeyUsesMagSafePortTypeWithoutRawPortType() {
+    @Test("MagSafe portKey uses MagSafe port type without raw PortType")
+    func magSafePortKeyUsesMagSafePortTypeWithoutRawPortType() {
         let port = makePort(
             serviceName: "Port-MagSafe 3@1",
             portTypeDescription: "MagSafe 3",
             rawProperties: [:]
         )
 
-        XCTAssertEqual(port.portKey, "17/1")
+        #expect(port.portKey == "17/1")
     }
 
     private func makePort(

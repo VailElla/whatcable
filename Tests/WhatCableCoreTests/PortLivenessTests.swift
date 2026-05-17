@@ -1,7 +1,8 @@
-import XCTest
+import Testing
 @testable import WhatCableCore
 
-final class PortLivenessTests: XCTestCase {
+@Suite("Port Liveness")
+struct PortLivenessTests {
 
     // MARK: - Fixtures
 
@@ -65,29 +66,33 @@ final class PortLivenessTests: XCTestCase {
 
     // MARK: - Cases
 
-    func testNothingPresentIsNotLive() {
-        XCTAssertFalse(isPortLive(
+    @Test("Nothing present is not live")
+    func nothingPresentIsNotLive() {
+        #expect(!isPortLive(
             port: usbCPort(connectionActive: false),
             powerSources: [], identities: [], matchingDevices: []
         ))
     }
 
-    func testUSBDeviceMakesPortLive() {
-        XCTAssertTrue(isPortLive(
+    @Test("USB device makes port live")
+    func usbDeviceMakesPortLive() {
+        #expect(isPortLive(
             port: usbCPort(connectionActive: false),
             powerSources: [], identities: [], matchingDevices: [usbDevice()]
         ))
     }
 
-    func testUSBPDSOPMakesPortLive() {
-        XCTAssertTrue(isPortLive(
+    @Test("USB PD SOP makes port live")
+    func usbPDSOPMakesPortLive() {
+        #expect(isPortLive(
             port: usbCPort(connectionActive: false),
             powerSources: [], identities: [partnerIdentity()], matchingDevices: []
         ))
     }
 
-    func testNonMagSafeConnectionActiveMakesPortLive() {
-        XCTAssertTrue(isPortLive(
+    @Test("Non-MagSafe connectionActive makes port live")
+    func nonMagSafeConnectionActiveMakesPortLive() {
+        #expect(isPortLive(
             port: usbCPort(connectionActive: true),
             powerSources: [], identities: [], matchingDevices: []
         ))
@@ -95,12 +100,13 @@ final class PortLivenessTests: XCTestCase {
 
     // MARK: - Issue #47 regressions
 
-    func testStalePowerSourceAloneDoesNotMakePortLive() {
+    @Test("Stale power source alone does not make port live")
+    func stalePowerSourceAloneDoesNotMakePortLive() {
         // Issue #47: M2 MBA showed disconnected ports as connected because the
         // PowerSourceWatcher held a stale negotiated PDO. The port itself
         // correctly reports connectionActive=false, so the union must not
         // light up purely on the cached source.
-        XCTAssertFalse(isPortLive(
+        #expect(!isPortLive(
             port: usbCPort(connectionActive: false),
             powerSources: [staleUSBPDSource()],
             identities: [],
@@ -108,11 +114,12 @@ final class PortLivenessTests: XCTestCase {
         ))
     }
 
-    func testStalePowerSourceOnDisconnectedMagSafeIsNotLive() {
+    @Test("Stale power source on disconnected MagSafe is not live")
+    func stalePowerSourceOnDisconnectedMagSafeIsNotLive() {
         // The MagSafe port from issue #47's JSON dump: connectionActive=false,
         // but the watcher still exposes a 30W winning PDO from the previous
         // session. Must not be treated as live.
-        XCTAssertFalse(isPortLive(
+        #expect(!isPortLive(
             port: magSafePort(connectionActive: false),
             powerSources: [staleUSBPDSource()],
             identities: [],
@@ -120,17 +127,18 @@ final class PortLivenessTests: XCTestCase {
         ))
     }
 
-    func testPowerSourceWithActiveConnectionIsLive() {
+    @Test("Power source with active connection is live")
+    func powerSourceWithActiveConnectionIsLive() {
         // Charger genuinely plugged in: power source plus an active
         // connection. This is the case we still want to count as live, on
         // both USB-C and MagSafe.
-        XCTAssertTrue(isPortLive(
+        #expect(isPortLive(
             port: usbCPort(connectionActive: true),
             powerSources: [staleUSBPDSource()],
             identities: [],
             matchingDevices: []
         ))
-        XCTAssertTrue(isPortLive(
+        #expect(isPortLive(
             port: magSafePort(connectionActive: true),
             powerSources: [staleUSBPDSource()],
             identities: [],
@@ -138,11 +146,12 @@ final class PortLivenessTests: XCTestCase {
         ))
     }
 
-    func testMagSafeConnectionActiveAloneIsNotLive() {
+    @Test("MagSafe connectionActive alone is not live")
+    func magSafeConnectionActiveAloneIsNotLive() {
         // The original MagSafe quirk: connectionActive=true lingers for
         // several seconds after unplug. Without any other live signal, we
         // shouldn't trust it.
-        XCTAssertFalse(isPortLive(
+        #expect(!isPortLive(
             port: magSafePort(connectionActive: true),
             powerSources: [], identities: [], matchingDevices: []
         ))

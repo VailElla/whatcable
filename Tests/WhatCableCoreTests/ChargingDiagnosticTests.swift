@@ -1,7 +1,8 @@
-import XCTest
+import Testing
 @testable import WhatCableCore
 
-final class ChargingDiagnosticTests: XCTestCase {
+@Suite("Charging Diagnostic")
+struct ChargingDiagnosticTests {
 
     // MARK: - Fixtures
 
@@ -109,21 +110,24 @@ final class ChargingDiagnosticTests: XCTestCase {
         )
     }
 
-    func testReturnsNilOnInactivePortWithStalePDO() {
+    @Test("Returns nil on inactive port with stale PDO")
+    func returnsNilOnInactivePortWithStalePDO() {
         let diag = ChargingDiagnostic(
             port: inactiveMagSafePort,
             sources: [usbPD(maxW: 94, winningW: 94)],
             identities: []
         )
-        XCTAssertNil(diag)
+        #expect(diag == nil)
     }
 
-    func testReturnsNilWithoutUSBPDSource() {
+    @Test("Returns nil without USB-PD source")
+    func returnsNilWithoutUSBPDSource() {
         let diag = ChargingDiagnostic(port: port, sources: [], identities: [])
-        XCTAssertNil(diag)
+        #expect(diag == nil)
     }
 
-    func testCableLimitsCharger() {
+    @Test("Cable limits charger")
+    func cableLimitsCharger() {
         // 96W charger + 60W cable -> cable is the bottleneck
         let diag = ChargingDiagnostic(
             port: port,
@@ -131,14 +135,16 @@ final class ChargingDiagnosticTests: XCTestCase {
             identities: [cableIdentity(watts: 60)]
         )
         guard case .cableLimit(let cableW, let chargerW) = diag?.bottleneck else {
-            return XCTFail("expected .cableLimit, got \(String(describing: diag?.bottleneck))")
+            Issue.record("expected .cableLimit, got \(String(describing: diag?.bottleneck))")
+            return
         }
-        XCTAssertEqual(cableW, 60)
-        XCTAssertEqual(chargerW, 96)
-        XCTAssertTrue(diag!.isWarning)
+        #expect(cableW == 60)
+        #expect(chargerW == 96)
+        #expect(diag!.isWarning)
     }
 
-    func testMacIsRequestingLess() {
+    @Test("Mac is requesting less")
+    func macIsRequestingLess() {
         // 96W charger + 100W cable, but Mac is only pulling 30W (battery near full)
         let diag = ChargingDiagnostic(
             port: port,
@@ -146,14 +152,16 @@ final class ChargingDiagnosticTests: XCTestCase {
             identities: [cableIdentity(watts: 100)]
         )
         guard case .macLimit(let n, let chargerW, let cableW) = diag?.bottleneck else {
-            return XCTFail("expected .macLimit, got \(String(describing: diag?.bottleneck))")
+            Issue.record("expected .macLimit, got \(String(describing: diag?.bottleneck))")
+            return
         }
-        XCTAssertEqual(n, 30)
-        XCTAssertEqual(chargerW, 96)
-        XCTAssertEqual(cableW, 100)
+        #expect(n == 30)
+        #expect(chargerW == 96)
+        #expect(cableW == 100)
     }
 
-    func testEverythingMatched() {
+    @Test("Everything matched")
+    func everythingMatched() {
         // 96W charger + 100W cable + 96W winning -> .fine
         let diag = ChargingDiagnostic(
             port: port,
@@ -161,13 +169,15 @@ final class ChargingDiagnosticTests: XCTestCase {
             identities: [cableIdentity(watts: 100)]
         )
         guard case .fine(let n) = diag?.bottleneck else {
-            return XCTFail("expected .fine, got \(String(describing: diag?.bottleneck))")
+            Issue.record("expected .fine, got \(String(describing: diag?.bottleneck))")
+            return
         }
-        XCTAssertEqual(n, 96)
-        XCTAssertFalse(diag!.isWarning)
+        #expect(n == 96)
+        #expect(diag!.isWarning == false)
     }
 
-    func testNoCableEmarker_FineIfMatched() {
+    @Test("No cable e-marker, fine if matched")
+    func noCableEmarker_FineIfMatched() {
         // Charger advertises 60W, Mac negotiates 60W, no cable identity.
         let diag = ChargingDiagnostic(
             port: port,
@@ -175,34 +185,39 @@ final class ChargingDiagnosticTests: XCTestCase {
             identities: []
         )
         if case .fine = diag?.bottleneck { return }
-        XCTFail("expected .fine without cable identity, got \(String(describing: diag?.bottleneck))")
+        Issue.record("expected .fine without cable identity, got \(String(describing: diag?.bottleneck))")
     }
 
-    func testBrickIDPowerSourceIsValidForMagSafe() {
+    @Test("Brick ID power source is valid for MagSafe")
+    func brickIDPowerSourceIsValidForMagSafe() {
         let diag = ChargingDiagnostic(
             port: port,
             sources: [brickID(maxW: 140, winningW: 140)],
             identities: []
         )
         guard case .fine(let n) = diag?.bottleneck else {
-            return XCTFail("expected .fine from Brick ID source, got \(String(describing: diag?.bottleneck))")
+            Issue.record("expected .fine from Brick ID source, got \(String(describing: diag?.bottleneck))")
+            return
         }
-        XCTAssertEqual(n, 140)
+        #expect(n == 140)
     }
 
-    func testUSBPDIsPreferredWhenUSBPDAndBrickIDAreBothPresent() {
+    @Test("USB-PD is preferred when both USB-PD and Brick ID present")
+    func usbPDIsPreferredWhenBothPresent() {
         let diag = ChargingDiagnostic(
             port: port,
             sources: [brickID(maxW: 30, winningW: 30), usbPD(maxW: 96, winningW: 96)],
             identities: [cableIdentity(watts: 100)]
         )
         guard case .fine(let n) = diag?.bottleneck else {
-            return XCTFail("expected .fine from USB-PD source, got \(String(describing: diag?.bottleneck))")
+            Issue.record("expected .fine from USB-PD source, got \(String(describing: diag?.bottleneck))")
+            return
         }
-        XCTAssertEqual(n, 96)
+        #expect(n == 96)
     }
 
-    func testSystemAdapterWattsAreNotUsedAsPerPortFallback() {
+    @Test("System adapter watts are not used as per-port fallback")
+    func systemAdapterWattsAreNotUsedAsPerPortFallback() {
         // Regression for issue #46. Per-port USB-PD source has no winning PDO
         // and no options, so we have nothing real to report. The system-wide
         // adapter wattage must NOT be substituted, because on a Mac with two
@@ -213,10 +228,11 @@ final class ChargingDiagnosticTests: XCTestCase {
             identities: [],
             adapter: AdapterInfo(watts: 140, isCharging: nil, source: "AC")
         )
-        XCTAssertNil(diag)
+        #expect(diag == nil)
     }
 
-    func testZeroWattWinningPDOSuppressesDiagnostic() {
+    @Test("Zero watt winning PDO suppresses diagnostic")
+    func zeroWattWinningPDOSuppressesDiagnostic() {
         // A winning PDO with maxPowerMW rounding to 0 is just as useless as
         // a missing one. Don't render "Charging well at 0W".
         let zeroWinning = PowerSource(
@@ -225,10 +241,11 @@ final class ChargingDiagnosticTests: XCTestCase {
             winning: PowerOption(voltageMV: 0, maxCurrentMA: 0, maxPowerMW: 0)
         )
         let diag = ChargingDiagnostic(port: port, sources: [zeroWinning], identities: [])
-        XCTAssertNil(diag)
+        #expect(diag == nil)
     }
 
-    func testTwoPortsWithDifferentChargersDoNotCrossContaminate() {
+    @Test("Two ports with different chargers do not cross-contaminate")
+    func twoPortsWithDifferentChargersDoNotCrossContaminate() {
         // Issue #46: M1 MBA with an 87W adapter on @1 and a 30W power bank on
         // @2 that briefly reports a USB-PD source without a winning PDO.
         // The diagnostic for @2 must not borrow the 87W system adapter watts.
@@ -253,42 +270,47 @@ final class ChargingDiagnosticTests: XCTestCase {
             identities: [],
             adapter: AdapterInfo(watts: 87, isCharging: nil, source: "AC")
         )
-        XCTAssertNil(diag, "port @2 must not inherit port @1's adapter wattage")
+        #expect(diag == nil, "port @2 must not inherit port @1's adapter wattage")
     }
 
     // MARK: - Edge cases (#15)
 
-    func testStalePDOAtZeroWattsOnDisconnectedPort() {
+    @Test("Stale PDO at zero watts on disconnected port")
+    func stalePDOAtZeroWattsOnDisconnectedPort() {
         let diag = ChargingDiagnostic(
             port: inactiveMagSafePort,
             sources: [usbPD(maxW: 0, winningW: 0)],
             identities: []
         )
-        XCTAssertNil(diag)
+        #expect(diag == nil)
     }
 
-    func testStalePDOAt240WOnDisconnectedPort() {
+    @Test("Stale PDO at 240W on disconnected port")
+    func stalePDOAt240WOnDisconnectedPort() {
         let diag = ChargingDiagnostic(
             port: inactiveMagSafePort,
             sources: [usbPD(maxW: 240, winningW: 240)],
             identities: []
         )
-        XCTAssertNil(diag)
+        #expect(diag == nil)
     }
 
-    func testCable240W_Charger60W_CableIsNotBottleneck() {
+    @Test("Cable 240W, charger 60W, cable is not bottleneck")
+    func cable240W_Charger60W_CableIsNotBottleneck() {
         let diag = ChargingDiagnostic(
             port: port,
             sources: [usbPD(maxW: 60, winningW: 60)],
             identities: [cableIdentity(watts: 240)]
         )
         guard case .fine(let n) = diag?.bottleneck else {
-            return XCTFail("expected .fine, got \(String(describing: diag?.bottleneck))")
+            Issue.record("expected .fine, got \(String(describing: diag?.bottleneck))")
+            return
         }
-        XCTAssertEqual(n, 60)
+        #expect(n == 60)
     }
 
-    func testMagSafePowerSourceUsesCorrectPortType() {
+    @Test("MagSafe power source uses correct port type")
+    func magSafePowerSourceUsesCorrectPortType() {
         let magSafeSource = PowerSource(
             id: 1, name: "USB-PD", parentPortType: 0x11, parentPortNumber: 1,
             options: [PowerOption(voltageMV: 20_000, maxCurrentMA: 4700, maxPowerMW: 94_000)],
@@ -311,13 +333,15 @@ final class ChargingDiagnosticTests: XCTestCase {
             identities: []
         )
         guard case .fine(let n) = diag?.bottleneck else {
-            return XCTFail("expected .fine, got \(String(describing: diag?.bottleneck))")
+            Issue.record("expected .fine, got \(String(describing: diag?.bottleneck))")
+            return
         }
-        XCTAssertEqual(n, 94)
-        XCTAssertEqual(magSafePort.portKey, magSafeSource.portKey)
+        #expect(n == 94)
+        #expect(magSafePort.portKey == magSafeSource.portKey)
     }
 
-    func testMultipleSourcesPicksUSBPD() {
+    @Test("Multiple sources picks USB-PD")
+    func multipleSourcesPicksUSBPD() {
         let brickID = PowerSource(
             id: 10, name: "Brick ID", parentPortType: 2, parentPortNumber: 1,
             options: [PowerOption(voltageMV: 20_000, maxCurrentMA: 1500, maxPowerMW: 30_000)],
@@ -331,14 +355,16 @@ final class ChargingDiagnosticTests: XCTestCase {
             identities: [cableIdentity(watts: 100)]
         )
         guard case .fine(let n) = diag?.bottleneck else {
-            return XCTFail("expected .fine from USB-PD source, got \(String(describing: diag?.bottleneck))")
+            Issue.record("expected .fine from USB-PD source, got \(String(describing: diag?.bottleneck))")
+            return
         }
-        XCTAssertEqual(n, 96)
+        #expect(n == 96)
     }
 
     // MARK: - System adapter fallback (issue #141)
 
-    func testSystemAdapterFallbackShowsWattage() {
+    @Test("System adapter fallback shows wattage")
+    func systemAdapterFallbackShowsWattage() {
         // Issue #141: TB dock delivers power but only registers a Brick ID
         // source with no PDOs. With a single active port and a system
         // adapter reading, the fallback should produce a diagnostic.
@@ -347,7 +373,7 @@ final class ChargingDiagnosticTests: XCTestCase {
             activePortCount: 1,
             adapter: AdapterInfo(watts: 96, isCharging: nil, source: "AC")
         )
-        XCTAssertEqual(wattageSource, .systemAdapterFallback(watts: 96))
+        #expect(wattageSource == .systemAdapterFallback(watts: 96))
 
         let diag = ChargingDiagnostic(
             port: port,
@@ -356,13 +382,15 @@ final class ChargingDiagnosticTests: XCTestCase {
             wattageSource: wattageSource
         )
         guard case .chargerLimit(let w) = diag?.bottleneck else {
-            return XCTFail("expected .chargerLimit from adapter fallback, got \(String(describing: diag?.bottleneck))")
+            Issue.record("expected .chargerLimit from adapter fallback, got \(String(describing: diag?.bottleneck))")
+            return
         }
-        XCTAssertEqual(w, 96)
-        XCTAssertEqual(diag?.summary, "System reports charger at 96W")
+        #expect(w == 96)
+        #expect(diag?.summary == "System reports charger at 96W")
     }
 
-    func testSystemAdapterFallbackBlockedWhenUSBPDPresent() {
+    @Test("System adapter fallback blocked when USB-PD present")
+    func systemAdapterFallbackBlockedWhenUSBPDPresent() {
         // Issue #46 regression: a USB-PD source exists (even with no
         // options), so the resolver must not fall back to the system
         // adapter. The USB-PD source owns this port's wattage.
@@ -375,10 +403,11 @@ final class ChargingDiagnosticTests: XCTestCase {
             activePortCount: 1,
             adapter: AdapterInfo(watts: 87, isCharging: nil, source: "AC")
         )
-        XCTAssertEqual(wattageSource, .unknown)
+        #expect(wattageSource == .unknown)
     }
 
-    func testSystemAdapterFallbackBlockedWhenMultiplePortsActive() {
+    @Test("System adapter fallback blocked when multiple ports active")
+    func systemAdapterFallbackBlockedWhenMultiplePortsActive() {
         // Two active ports, both with Brick ID only. We can't tell which
         // port the system adapter reading belongs to.
         let wattageSource = ChargerWattageSource.resolve(
@@ -386,15 +415,16 @@ final class ChargingDiagnosticTests: XCTestCase {
             activePortCount: 2,
             adapter: AdapterInfo(watts: 96, isCharging: nil, source: "AC")
         )
-        XCTAssertEqual(wattageSource, .unknown)
+        #expect(wattageSource == .unknown)
     }
 
-    func testResolverReturnsPortNegotiatedForNormalUSBPD() {
+    @Test("Resolver returns portNegotiated for normal USB-PD")
+    func resolverReturnsPortNegotiatedForNormalUSBPD() {
         let wattageSource = ChargerWattageSource.resolve(
             portSources: [usbPD(maxW: 96, winningW: 96)],
             activePortCount: 1,
             adapter: nil
         )
-        XCTAssertEqual(wattageSource, .portNegotiated(watts: 96))
+        #expect(wattageSource == .portNegotiated(watts: 96))
     }
 }

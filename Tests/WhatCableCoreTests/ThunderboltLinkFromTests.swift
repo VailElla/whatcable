@@ -1,7 +1,8 @@
-import XCTest
+import Foundation
+import Testing
 @testable import WhatCableCore
 
-/// Covers `IOThunderboltSwitch.from(...)` and `IOThunderboltPort.from(...)` —
+/// Covers `IOThunderboltSwitch.from(...)` and `IOThunderboltPort.from(...)` -
 /// the pure factories the watcher uses to turn raw IOKit property
 /// dictionaries into model values. Fixture dictionaries are transcribed
 /// from real `whatcable --tb-debug` paste-backs on issue #52, so the keys
@@ -11,133 +12,150 @@ import XCTest
 /// - Steve's M3 Air + Samsung C34J79x via TB3 (one downstream switch)
 /// - Joe's M2 Pro + ASUS PA32QCV (USB4) + CalDigit TS3 Plus daisy-chain
 ///   (downstream + sub-downstream)
-final class ThunderboltLinkFromTests: XCTestCase {
+@Suite("Thunderbolt Link From")
+struct ThunderboltLinkFromTests {
 
     // MARK: - LinkGeneration enum
 
-    func testLinkGenerationKnownCodes() {
-        XCTAssertEqual(LinkGeneration.from(rawSpeedCode: 0x8), .tb3)
-        XCTAssertEqual(LinkGeneration.from(rawSpeedCode: 0x4), .usb4Tb4)
-        XCTAssertEqual(LinkGeneration.from(rawSpeedCode: 0x2), .tb5)
+    @Test("Link generation known codes")
+    func linkGenerationKnownCodes() {
+        #expect(LinkGeneration.from(rawSpeedCode: 0x8) == .tb3)
+        #expect(LinkGeneration.from(rawSpeedCode: 0x4) == .usb4Tb4)
+        #expect(LinkGeneration.from(rawSpeedCode: 0x2) == .tb5)
     }
 
-    func testLinkGenerationIdleReturnsNil() {
-        XCTAssertNil(LinkGeneration.from(rawSpeedCode: 0))
+    @Test("Link generation idle returns nil")
+    func linkGenerationIdleReturnsNil() {
+        #expect(LinkGeneration.from(rawSpeedCode: 0) == nil)
     }
 
-    func testLinkGenerationUnknownCode() {
+    @Test("Link generation unknown code")
+    func linkGenerationUnknownCode() {
         // Forward-compat: a future generation should not crash the parser.
-        XCTAssertEqual(LinkGeneration.from(rawSpeedCode: 0x1), .unknown(rawSpeedCode: 0x1))
+        #expect(LinkGeneration.from(rawSpeedCode: 0x1) == .unknown(rawSpeedCode: 0x1))
     }
 
-    func testLinkGenerationPerLaneGbps() {
-        XCTAssertEqual(LinkGeneration.tb3.perLaneGbps, 10)
-        XCTAssertEqual(LinkGeneration.usb4Tb4.perLaneGbps, 20)
-        XCTAssertEqual(LinkGeneration.tb5.perLaneGbps, 40)
-        XCTAssertNil(LinkGeneration.unknown(rawSpeedCode: 0x1).perLaneGbps)
+    @Test("Link generation per-lane Gbps")
+    func linkGenerationPerLaneGbps() {
+        #expect(LinkGeneration.tb3.perLaneGbps == 10)
+        #expect(LinkGeneration.usb4Tb4.perLaneGbps == 20)
+        #expect(LinkGeneration.tb5.perLaneGbps == 40)
+        #expect(LinkGeneration.unknown(rawSpeedCode: 0x1).perLaneGbps == nil)
     }
 
     // MARK: - LinkWidth bitmask
 
-    func testLinkWidthSingle() {
+    @Test("Link width single")
+    func linkWidthSingle() {
         let w = LinkWidth(rawValue: 0x1)
-        XCTAssertTrue(w.single)
-        XCTAssertFalse(w.dual)
-        XCTAssertEqual(w.txLanes, 1)
-        XCTAssertEqual(w.rxLanes, 1)
-        XCTAssertTrue(w.isActive)
+        #expect(w.single)
+        #expect(!w.dual)
+        #expect(w.txLanes == 1)
+        #expect(w.rxLanes == 1)
+        #expect(w.isActive)
     }
 
-    func testLinkWidthDual() {
+    @Test("Link width dual")
+    func linkWidthDual() {
         let w = LinkWidth(rawValue: 0x2)
-        XCTAssertFalse(w.single)
-        XCTAssertTrue(w.dual)
-        XCTAssertEqual(w.txLanes, 2)
-        XCTAssertEqual(w.rxLanes, 2)
+        #expect(!w.single)
+        #expect(w.dual)
+        #expect(w.txLanes == 2)
+        #expect(w.rxLanes == 2)
     }
 
-    func testLinkWidthAsymmetricTx() {
+    @Test("Link width asymmetric TX")
+    func linkWidthAsymmetricTx() {
         // 3 TX / 1 RX. TB5 only; we have no real sample yet but the
         // model has to handle it without breaking.
         let w = LinkWidth(rawValue: 0x4)
-        XCTAssertTrue(w.asymmetricTx)
-        XCTAssertEqual(w.txLanes, 3)
-        XCTAssertEqual(w.rxLanes, 1)
+        #expect(w.asymmetricTx)
+        #expect(w.txLanes == 3)
+        #expect(w.rxLanes == 1)
     }
 
-    func testLinkWidthAsymmetricRx() {
+    @Test("Link width asymmetric RX")
+    func linkWidthAsymmetricRx() {
         let w = LinkWidth(rawValue: 0x8)
-        XCTAssertTrue(w.asymmetricRx)
-        XCTAssertEqual(w.txLanes, 1)
-        XCTAssertEqual(w.rxLanes, 3)
+        #expect(w.asymmetricRx)
+        #expect(w.txLanes == 1)
+        #expect(w.rxLanes == 3)
     }
 
-    func testLinkWidthIdle() {
+    @Test("Link width idle")
+    func linkWidthIdle() {
         let w = LinkWidth(rawValue: 0)
-        XCTAssertFalse(w.isActive)
-        XCTAssertEqual(w.txLanes, 0)
+        #expect(!w.isActive)
+        #expect(w.txLanes == 0)
     }
 
     // MARK: - TargetLinkWidth (different encoding from current width)
 
-    func testTargetLinkWidthSingle() {
-        XCTAssertEqual(TargetLinkWidth.from(rawValue: 0x1), .single)
+    @Test("Target link width single")
+    func targetLinkWidthSingle() {
+        #expect(TargetLinkWidth.from(rawValue: 0x1) == .single)
     }
 
     /// `Target Link Width = 3` is the named DUAL register value, NOT
     /// asymmetric. This was a footgun the planning doc nearly baked in.
-    func testTargetLinkWidthThreeMeansDual() {
-        XCTAssertEqual(TargetLinkWidth.from(rawValue: 0x3), .dual)
+    @Test("Target link width three means dual")
+    func targetLinkWidthThreeMeansDual() {
+        #expect(TargetLinkWidth.from(rawValue: 0x3) == .dual)
     }
 
-    func testTargetLinkWidthUnknown() {
-        XCTAssertEqual(TargetLinkWidth.from(rawValue: 0x7), .unknown(rawValue: 0x7))
+    @Test("Target link width unknown")
+    func targetLinkWidthUnknown() {
+        #expect(TargetLinkWidth.from(rawValue: 0x7) == .unknown(rawValue: 0x7))
     }
 
     // MARK: - SupportedSpeedMask
 
     /// Apple TB4-class controllers report 12 (0x4 | 0x8) on every host root
     /// we've seen so far.
-    func testSupportedSpeedMaskTb4Class() {
+    @Test("Supported speed mask TB4 class")
+    func supportedSpeedMaskTb4Class() {
         let m = SupportedSpeedMask(rawValue: 12)
-        XCTAssertTrue(m.supportsTb3)
-        XCTAssertTrue(m.supportsUsb4Tb4)
-        XCTAssertFalse(m.supportsTb5)
+        #expect(m.supportsTb3)
+        #expect(m.supportsUsb4Tb4)
+        #expect(m.supportsTb5 == false)
     }
 
     /// A future TB5 controller should report 14 (0x2 | 0x4 | 0x8). Verified
     /// by inference only; no real sample yet.
-    func testSupportedSpeedMaskTb5Class() {
+    @Test("Supported speed mask TB5 class")
+    func supportedSpeedMaskTb5Class() {
         let m = SupportedSpeedMask(rawValue: 14)
-        XCTAssertTrue(m.supportsTb5)
-        XCTAssertTrue(m.supportsUsb4Tb4)
-        XCTAssertTrue(m.supportsTb3)
+        #expect(m.supportsTb5)
+        #expect(m.supportsUsb4Tb4)
+        #expect(m.supportsTb3)
     }
 
     // MARK: - AdapterType decoding
 
-    func testAdapterTypeDecoding() {
-        XCTAssertEqual(AdapterType.from(rawValue: 0), .inactive)
-        XCTAssertEqual(AdapterType.from(rawValue: 1), .lane)
-        XCTAssertEqual(AdapterType.from(rawValue: 2), .nhi)
-        XCTAssertEqual(AdapterType.from(rawValue: 0x0e0101), .dpIn)
-        XCTAssertEqual(AdapterType.from(rawValue: 0x0e0102), .dpOut)
-        XCTAssertEqual(AdapterType.from(rawValue: 0x100101), .pcieDown)
-        XCTAssertEqual(AdapterType.from(rawValue: 0x100102), .pcieUp)
-        XCTAssertEqual(AdapterType.from(rawValue: 0x200101), .usb3Down)
-        XCTAssertEqual(AdapterType.from(rawValue: 0x200102), .usb3Up)
-        XCTAssertEqual(AdapterType.from(rawValue: 0xdeadbe), .other(0xdeadbe))
+    @Test("Adapter type decoding")
+    func adapterTypeDecoding() {
+        #expect(AdapterType.from(rawValue: 0) == .inactive)
+        #expect(AdapterType.from(rawValue: 1) == .lane)
+        #expect(AdapterType.from(rawValue: 2) == .nhi)
+        #expect(AdapterType.from(rawValue: 0x0e0101) == .dpIn)
+        #expect(AdapterType.from(rawValue: 0x0e0102) == .dpOut)
+        #expect(AdapterType.from(rawValue: 0x100101) == .pcieDown)
+        #expect(AdapterType.from(rawValue: 0x100102) == .pcieUp)
+        #expect(AdapterType.from(rawValue: 0x200101) == .usb3Down)
+        #expect(AdapterType.from(rawValue: 0x200102) == .usb3Up)
+        #expect(AdapterType.from(rawValue: 0xdeadbe) == .other(0xdeadbe))
     }
 
-    func testAdapterTypeDecimalValuesFromIokit() {
+    @Test("Adapter type decimal values from IOKit")
+    func adapterTypeDecimalValuesFromIokit() {
         // The IOKit dumps print these as decimals; sanity-check the
         // hex-to-decimal conversions.
-        XCTAssertEqual(AdapterType.from(rawValue: 917761), .dpIn)
-        XCTAssertEqual(AdapterType.from(rawValue: 917762), .dpOut)
-        XCTAssertEqual(AdapterType.from(rawValue: 1048833), .pcieDown)
-        XCTAssertEqual(AdapterType.from(rawValue: 1048834), .pcieUp)
-        XCTAssertEqual(AdapterType.from(rawValue: 2097409), .usb3Down)
-        XCTAssertEqual(AdapterType.from(rawValue: 2097410), .usb3Up)
+        #expect(AdapterType.from(rawValue: 917761) == .dpIn)
+        #expect(AdapterType.from(rawValue: 917762) == .dpOut)
+        #expect(AdapterType.from(rawValue: 1048833) == .pcieDown)
+        #expect(AdapterType.from(rawValue: 1048834) == .pcieUp)
+        #expect(AdapterType.from(rawValue: 2097409) == .usb3Down)
+        #expect(AdapterType.from(rawValue: 2097410) == .usb3Up)
     }
 
     // MARK: - Steve's Samsung C34J79x downstream switch (TB3)
@@ -176,34 +194,36 @@ final class ThunderboltLinkFromTests: XCTestCase {
         ]
     }
 
-    func testSamsungSwitchParses() {
+    @Test("Samsung switch parses")
+    func samsungSwitchParses() {
         let model = IOThunderboltSwitch.from(
             properties: samsungSwitch,
             className: "IOIOThunderboltSwitchType3",
             ports: []
         )
-        XCTAssertNotNil(model)
-        XCTAssertEqual(model?.id, 105094508797638400)
-        XCTAssertEqual(model?.depth, 1)
-        XCTAssertEqual(model?.routeString, 1)
-        XCTAssertEqual(model?.modelName, "C34J79x")
-        XCTAssertEqual(model?.vendorName, "SAMSUNG ELECTRONICS CO.,LTD")
-        XCTAssertEqual(model?.upstreamPortNumber, 3)
-        XCTAssertFalse(model?.isHostRoot ?? true)
+        #expect(model != nil)
+        #expect(model?.id == 105094508797638400)
+        #expect(model?.depth == 1)
+        #expect(model?.routeString == 1)
+        #expect(model?.modelName == "C34J79x")
+        #expect(model?.vendorName == "SAMSUNG ELECTRONICS CO.,LTD")
+        #expect(model?.upstreamPortNumber == 3)
+        #expect(model?.isHostRoot == false)
     }
 
-    func testHostTb3PortParsesAsActiveTb3Link() {
+    @Test("Host TB3 port parses as active TB3 link")
+    func hostTb3PortParsesAsActiveTb3Link() {
         let port = IOThunderboltPort.from(properties: hostTb3Port)
-        XCTAssertNotNil(port)
-        XCTAssertEqual(port?.adapterType, .lane)
-        XCTAssertEqual(port?.socketID, "1")
-        XCTAssertEqual(port?.currentSpeed, .tb3)
-        XCTAssertEqual(port?.perLaneGbps, 10)
-        XCTAssertEqual(port?.currentWidth?.dual, true)
-        XCTAssertEqual(port?.txLanes, 2)
-        XCTAssertEqual(port?.targetWidth, .dual)
-        XCTAssertEqual(port?.linkBandwidthRaw, 200)
-        XCTAssertTrue(port?.hasActiveLink ?? false)
+        #expect(port != nil)
+        #expect(port?.adapterType == .lane)
+        #expect(port?.socketID == "1")
+        #expect(port?.currentSpeed == .tb3)
+        #expect(port?.perLaneGbps == 10)
+        #expect(port?.currentWidth?.dual == true)
+        #expect(port?.txLanes == 2)
+        #expect(port?.targetWidth == .dual)
+        #expect(port?.linkBandwidthRaw == 200)
+        #expect(port?.hasActiveLink ?? false)
     }
 
     // MARK: - Joe's daisy-chain (USB4 + TB3 step-down)
@@ -272,40 +292,44 @@ final class ThunderboltLinkFromTests: XCTestCase {
         ]
     }
 
-    func testHostUsb4PortDetectedAsTb4Class() {
+    @Test("Host USB4 port detected as TB4 class")
+    func hostUsb4PortDetectedAsTb4Class() {
         let port = IOThunderboltPort.from(properties: hostUsb4Port)
-        XCTAssertEqual(port?.currentSpeed, .usb4Tb4)
-        XCTAssertEqual(port?.perLaneGbps, 20)
-        XCTAssertEqual(port?.txLanes, 2)
-        XCTAssertEqual(port?.linkBandwidthRaw, 400)
+        #expect(port?.currentSpeed == .usb4Tb4)
+        #expect(port?.perLaneGbps == 20)
+        #expect(port?.txLanes == 2)
+        #expect(port?.linkBandwidthRaw == 400)
     }
 
-    func testDaisyChainStepDownDetected() {
+    @Test("Daisy chain step-down detected")
+    func daisyChainStepDownDetected() {
         // The interesting UX bullet for this topology is "USB4 to ASUS,
         // step-down to TB3 single-lane on the next leg". This test
         // confirms the model exposes everything a renderer needs to
         // produce that label. The renderer itself is Phase 3.
         let usb4 = IOThunderboltPort.from(properties: hostUsb4Port)
         let tb3 = IOThunderboltPort.from(properties: ts3PlusUpstreamPort)
-        XCTAssertEqual(usb4?.currentSpeed, .usb4Tb4)
-        XCTAssertEqual(tb3?.currentSpeed, .tb3)
+        #expect(usb4?.currentSpeed == .usb4Tb4)
+        #expect(tb3?.currentSpeed == .tb3)
         // Per-lane Gbps drops on the second hop. Lane count also drops.
-        XCTAssertGreaterThan(usb4?.perLaneGbps ?? 0, tb3?.perLaneGbps ?? 0)
-        XCTAssertGreaterThan(usb4?.txLanes ?? 0, tb3?.txLanes ?? 0)
+        #expect((usb4?.perLaneGbps ?? 0) > (tb3?.perLaneGbps ?? 0))
+        #expect((usb4?.txLanes ?? 0) > (tb3?.txLanes ?? 0))
     }
 
-    func testTs3PlusSwitchAtDepth2() {
+    @Test("TS3 Plus switch at depth 2")
+    func ts3PlusSwitchAtDepth2() {
         let model = IOThunderboltSwitch.from(
             properties: ts3PlusSwitch,
             className: "IOIOThunderboltSwitchType3",
             ports: []
         )
-        XCTAssertEqual(model?.depth, 2)
-        XCTAssertEqual(model?.routeString, 769)
-        XCTAssertEqual(model?.modelName, "TS3 Plus")
+        #expect(model?.depth == 2)
+        #expect(model?.routeString == 769)
+        #expect(model?.modelName == "TS3 Plus")
     }
 
-    func testAsusSwitchHandlesNegativeUid() {
+    @Test("ASUS switch handles negative UID")
+    func asusSwitchHandlesNegativeUid() {
         // Regression guard: IOKit reports some UIDs as signed Int64 with
         // the sign bit set. The model must store these without truncation.
         let model = IOThunderboltSwitch.from(
@@ -313,13 +337,14 @@ final class ThunderboltLinkFromTests: XCTestCase {
             className: "IOIOThunderboltSwitchIntelJHL8440",
             ports: []
         )
-        XCTAssertEqual(model?.id, -9185256489162756864)
-        XCTAssertEqual(model?.modelName, "PA32QCV")
+        #expect(model?.id == -9185256489162756864)
+        #expect(model?.modelName == "PA32QCV")
     }
 
     // MARK: - Idle / non-lane ports
 
-    func testIdleHostPortHasNoLinkState() {
+    @Test("Idle host port has no link state")
+    func idleHostPortHasNoLinkState() {
         // From the M5 Pro idle probe: lane port with everything zeroed.
         let dict: [String: Any] = [
             "Adapter Type": NSNumber(value: 1),
@@ -329,12 +354,13 @@ final class ThunderboltLinkFromTests: XCTestCase {
             "Current Link Width": NSNumber(value: 0)
         ]
         let port = IOThunderboltPort.from(properties: dict)
-        XCTAssertNil(port?.currentSpeed)
-        XCTAssertEqual(port?.currentWidth?.isActive, false)
-        XCTAssertFalse(port?.hasActiveLink ?? true)
+        #expect(port?.currentSpeed == nil)
+        #expect(port?.currentWidth?.isActive == false)
+        #expect((port?.hasActiveLink ?? true) == false)
     }
 
-    func testProtocolAdapterPortHasNoLinkState() {
+    @Test("Protocol adapter port has no link state")
+    func protocolAdapterPortHasNoLinkState() {
         // PCIe adapter ports report Adapter Type but not link generation.
         // The factory should not invent a generation just because the
         // dictionary happens to contain a Link Bandwidth value.
@@ -344,25 +370,27 @@ final class ThunderboltLinkFromTests: XCTestCase {
             "Link Bandwidth": NSNumber(value: 60)
         ]
         let port = IOThunderboltPort.from(properties: dict)
-        XCTAssertEqual(port?.adapterType, .pcieDown)
-        XCTAssertNil(port?.currentSpeed)
-        XCTAssertNil(port?.currentWidth)
-        XCTAssertFalse(port?.hasActiveLink ?? true)
+        #expect(port?.adapterType == .pcieDown)
+        #expect(port?.currentSpeed == nil)
+        #expect(port?.currentWidth == nil)
+        #expect((port?.hasActiveLink ?? true) == false)
     }
 
     // MARK: - Missing fields
 
-    func testSwitchWithoutUidReturnsNil() {
+    @Test("Switch without UID returns nil")
+    func switchWithoutUidReturnsNil() {
         let model = IOThunderboltSwitch.from(
             properties: ["Vendor ID": NSNumber(value: 1)],
             className: "IOIOThunderboltSwitchType7",
             ports: []
         )
-        XCTAssertNil(model)
+        #expect(model == nil)
     }
 
-    func testPortWithoutPortNumberReturnsNil() {
+    @Test("Port without port number returns nil")
+    func portWithoutPortNumberReturnsNil() {
         let port = IOThunderboltPort.from(properties: ["Adapter Type": NSNumber(value: 1)])
-        XCTAssertNil(port)
+        #expect(port == nil)
     }
 }

@@ -1,72 +1,84 @@
-import XCTest
+import Testing
 @testable import WhatCableCore
 
 /// Unit tests for TRMTransport model.
-final class TRMTransportTests: XCTestCase {
+@Suite("TRM Transport")
+struct TRMTransportTests {
 
     // MARK: - Basic properties
 
-    func testIsRestrictedWhenStateIs2() {
+    @Test("Is restricted when state is 2")
+    func isRestrictedWhenStateIs2() {
         let t = makeTRM(state: 2, transportRestricted: nil)
-        XCTAssertTrue(t.isRestricted)
+        #expect(t.isRestricted)
     }
 
-    func testIsRestrictedWhenTransportRestrictedTrue() {
+    @Test("Is restricted when transportRestricted is true")
+    func isRestrictedWhenTransportRestrictedTrue() {
         let t = makeTRM(state: nil, transportRestricted: true)
-        XCTAssertTrue(t.isRestricted)
+        #expect(t.isRestricted)
     }
 
-    func testNotRestrictedWhenStateIs0() {
+    @Test("Not restricted when state is 0")
+    func notRestrictedWhenStateIs0() {
         let t = makeTRM(state: 0, transportRestricted: false)
-        XCTAssertFalse(t.isRestricted)
+        #expect(!t.isRestricted)
     }
 
-    func testNotRestrictedWhenAllNil() {
+    @Test("Not restricted when all nil")
+    func notRestrictedWhenAllNil() {
         let t = makeTRM(state: nil, transportRestricted: nil)
-        XCTAssertFalse(t.isRestricted)
+        #expect(!t.isRestricted)
     }
 
     // MARK: - Summary label
 
-    func testSummaryLabelWithStateDescription() {
+    @Test("Summary label with state description")
+    func summaryLabelWithStateDescription() {
         let t = makeTRM(transportType: "USB2", stateDescription: "Limited")
-        XCTAssertEqual(t.summaryLabel, "USB2: Limited")
+        #expect(t.summaryLabel == "USB2: Limited")
     }
 
-    func testSummaryLabelFallsBackToSupervised() {
+    @Test("Summary label falls back to Supervised")
+    func summaryLabelFallsBackToSupervised() {
         let t = makeTRM(transportType: "DisplayPort", stateDescription: nil, transportSupervised: true)
-        XCTAssertEqual(t.summaryLabel, "DisplayPort: Supervised")
+        #expect(t.summaryLabel == "DisplayPort: Supervised")
     }
 
-    func testSummaryLabelFallsBackToUnknown() {
+    @Test("Summary label falls back to Unknown")
+    func summaryLabelFallsBackToUnknown() {
         let t = makeTRM(transportType: "CIO", stateDescription: nil, transportSupervised: nil)
-        XCTAssertEqual(t.summaryLabel, "CIO: Unknown")
+        #expect(t.summaryLabel == "CIO: Unknown")
     }
 
     // MARK: - Equatable / Hashable
 
-    func testEquatable() {
+    @Test("Equatable")
+    func equatable() {
         let a = makeTRM(id: 1, state: 2)
         let b = makeTRM(id: 1, state: 2)
-        XCTAssertEqual(a, b)
+        #expect(a == b)
     }
 
-    func testNotEqualWhenStateDiffers() {
+    @Test("Not equal when state differs")
+    func notEqualWhenStateDiffers() {
         let a = makeTRM(id: 1, state: 0)
         let b = makeTRM(id: 1, state: 2)
-        XCTAssertNotEqual(a, b)
+        #expect(a != b)
     }
 
-    func testHashable() {
+    @Test("Hashable")
+    func hashable() {
         let a = makeTRM(id: 1, transportType: "USB2")
         let b = makeTRM(id: 2, transportType: "DisplayPort")
         let set: Set<TRMTransport> = [a, b, a]
-        XCTAssertEqual(set.count, 2)
+        #expect(set.count == 2)
     }
 
     // MARK: - Full init preserves all fields
 
-    func testFullInit() {
+    @Test("Full init preserves all fields")
+    func fullInit() {
         let t = TRMTransport(
             id: 42,
             portKey: "0/2",
@@ -84,24 +96,25 @@ final class TRMTransportTests: XCTestCase {
             profileDescription: "Ask for New Accessories",
             cacheMiss: false
         )
-        XCTAssertEqual(t.id, 42)
-        XCTAssertEqual(t.portKey, "0/2")
-        XCTAssertEqual(t.transportType, "USB2")
-        XCTAssertEqual(t.state, 2)
-        XCTAssertEqual(t.stateDescription, "Limited")
-        XCTAssertEqual(t.transportRestricted, true)
-        XCTAssertEqual(t.transportSupervised, true)
-        XCTAssertEqual(t.identificationRestricted, false)
-        XCTAssertEqual(t.deviceLocked, false)
-        XCTAssertEqual(t.relaxedPeriod, true)
-        XCTAssertEqual(t.gracePeriodReason, 4)
-        XCTAssertEqual(t.gracePeriodReasonDescription, "Device Unlocked")
-        XCTAssertEqual(t.profile, 2)
-        XCTAssertEqual(t.profileDescription, "Ask for New Accessories")
-        XCTAssertEqual(t.cacheMiss, false)
+        #expect(t.id == 42)
+        #expect(t.portKey == "0/2")
+        #expect(t.transportType == "USB2")
+        #expect(t.state == 2)
+        #expect(t.stateDescription == "Limited")
+        #expect(t.transportRestricted == true)
+        #expect(t.transportSupervised == true)
+        #expect(t.identificationRestricted == false)
+        #expect(t.deviceLocked == false)
+        #expect(t.relaxedPeriod == true)
+        #expect(t.gracePeriodReason == 4)
+        #expect(t.gracePeriodReasonDescription == "Device Unlocked")
+        #expect(t.profile == 2)
+        #expect(t.profileDescription == "Ask for New Accessories")
+        #expect(t.cacheMiss == false)
     }
 
-    func testMinimalInit() {
+    @Test("Minimal init")
+    func minimalInit() {
         let t = TRMTransport(
             id: 1,
             portKey: "0/4",
@@ -119,20 +132,21 @@ final class TRMTransportTests: XCTestCase {
             profileDescription: nil,
             cacheMiss: nil
         )
-        XCTAssertNil(t.state)
-        XCTAssertNil(t.stateDescription)
-        XCTAssertFalse(t.isRestricted)
-        XCTAssertEqual(t.transportSupervised, false)
+        #expect(t.state == nil)
+        #expect(t.stateDescription == nil)
+        #expect(!t.isRestricted)
+        #expect(t.transportSupervised == false)
     }
 
     // MARK: - CableSnapshot backward compatibility
 
-    func testCableSnapshotDefaultsToEmptyTRM() {
+    @Test("CableSnapshot defaults to empty TRM")
+    func cableSnapshotDefaultsToEmptyTRM() {
         let snapshot = CableSnapshot(
             ports: [], powerSources: [], identities: [],
             usbDevices: [], adapter: nil
         )
-        XCTAssertTrue(snapshot.trmTransports.isEmpty)
+        #expect(snapshot.trmTransports.isEmpty)
     }
 
     // MARK: - Helpers

@@ -1,56 +1,65 @@
-import XCTest
+import Testing
 @testable import WhatCableCore
 
 /// Unit tests for the USB3Transport model and its speedLabel computed property.
-final class USB3TransportTests: XCTestCase {
+@Suite("USB3 Transport")
+struct USB3TransportTests {
 
     // MARK: - speedLabel
 
-    func testGen1SpeedLabel() {
+    @Test("Gen 1 speed label")
+    func gen1SpeedLabel() {
         let t = USB3Transport(id: 1, portKey: "2/1", signaling: 1, signalingDescription: "Gen 1", dataRole: "host")
-        XCTAssertEqual(t.speedLabel, "USB 3.2 Gen 1 (5 Gbps)")
+        #expect(t.speedLabel == "USB 3.2 Gen 1 (5 Gbps)")
     }
 
-    func testGen2SpeedLabel() {
+    @Test("Gen 2 speed label")
+    func gen2SpeedLabel() {
         let t = USB3Transport(id: 2, portKey: "2/1", signaling: 2, signalingDescription: "Gen 2", dataRole: "host")
-        XCTAssertEqual(t.speedLabel, "USB 3.2 Gen 2 (10 Gbps)")
+        #expect(t.speedLabel == "USB 3.2 Gen 2 (10 Gbps)")
     }
 
-    func testUnknownSignalingFallsBackToGenericLabel() {
+    @Test("Unknown signaling falls back to generic label")
+    func unknownSignalingFallsBackToGenericLabel() {
         let t = USB3Transport(id: 3, portKey: "2/1", signaling: 5, signalingDescription: nil, dataRole: nil)
-        XCTAssertEqual(t.speedLabel, "USB 3.2 Gen 5")
+        #expect(t.speedLabel == "USB 3.2 Gen 5")
     }
 
-    func testNilSignalingReturnsNil() {
+    @Test("Nil signaling returns nil")
+    func nilSignalingReturnsNil() {
         let t = USB3Transport(id: 4, portKey: "2/1", signaling: nil, signalingDescription: nil, dataRole: nil)
-        XCTAssertNil(t.speedLabel)
+        #expect(t.speedLabel == nil)
     }
 
     // MARK: - Equatable / Hashable
 
-    func testEqualTransportsAreEqual() {
+    @Test("Equal transports are equal")
+    func equalTransportsAreEqual() {
         let a = USB3Transport(id: 10, portKey: "2/1", signaling: 1, signalingDescription: "Gen 1", dataRole: "host")
         let b = USB3Transport(id: 10, portKey: "2/1", signaling: 1, signalingDescription: "Gen 1", dataRole: "host")
-        XCTAssertEqual(a, b)
+        #expect(a == b)
     }
 
-    func testDifferentIDsAreNotEqual() {
+    @Test("Different IDs are not equal")
+    func differentIDsAreNotEqual() {
         let a = USB3Transport(id: 10, portKey: "2/1", signaling: 1, signalingDescription: "Gen 1", dataRole: "host")
         let b = USB3Transport(id: 11, portKey: "2/1", signaling: 1, signalingDescription: "Gen 1", dataRole: "host")
-        XCTAssertNotEqual(a, b)
+        #expect(a != b)
     }
 
-    func testHashableUsableInSet() {
+    @Test("Hashable usable in Set")
+    func hashableUsableInSet() {
         let a = USB3Transport(id: 10, portKey: "2/1", signaling: 1, signalingDescription: "Gen 1", dataRole: "host")
         let b = USB3Transport(id: 11, portKey: "2/2", signaling: 2, signalingDescription: "Gen 2", dataRole: "device")
         let set: Set<USB3Transport> = [a, b, a]
-        XCTAssertEqual(set.count, 2)
+        #expect(set.count == 2)
     }
 
     // MARK: - Identifiable
 
-    func testIdentifiableID() {
+    @Test("Identifiable ID")
+    func identifiableID() {
         let t = USB3Transport(id: 42, portKey: "2/3", signaling: 1, signalingDescription: nil, dataRole: nil)
-        XCTAssertEqual(t.id, 42)
+        #expect(t.id == 42)
     }
 }

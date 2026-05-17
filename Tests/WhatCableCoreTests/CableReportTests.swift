@@ -1,7 +1,9 @@
-import XCTest
+import Testing
+import Foundation
 @testable import WhatCableCore
 
-final class CableReportTests: XCTestCase {
+@Suite("Cable Report")
+struct CableReportTests {
 
     private func cableIdentity(
         vendorID: Int = 0x05AC,
@@ -32,91 +34,101 @@ final class CableReportTests: XCTestCase {
         )
     }
 
-    func testPayloadOnlyBuiltForCableEndpoints() {
-        XCTAssertNotNil(CableReport.payload(for: cableIdentity(endpoint: .sopPrime)))
-        XCTAssertNotNil(CableReport.payload(for: cableIdentity(endpoint: .sopDoublePrime)))
-        XCTAssertNil(CableReport.payload(for: cableIdentity(endpoint: .sop)))
-        XCTAssertNil(CableReport.payload(for: cableIdentity(endpoint: .unknown)))
+    @Test("Payload only built for cable endpoints")
+    func payloadOnlyBuiltForCableEndpoints() {
+        #expect(CableReport.payload(for: cableIdentity(endpoint: .sopPrime)) != nil)
+        #expect(CableReport.payload(for: cableIdentity(endpoint: .sopDoublePrime)) != nil)
+        #expect(CableReport.payload(for: cableIdentity(endpoint: .sop)) == nil)
+        #expect(CableReport.payload(for: cableIdentity(endpoint: .unknown)) == nil)
     }
 
-    func testFingerprintFormatsHexAsUppercaseFourDigits() {
+    @Test("Fingerprint formats hex as uppercase four digits")
+    func fingerprintFormatsHexAsUppercaseFourDigits() {
         let payload = CableReport.payload(for: cableIdentity(vendorID: 0x05AC, productID: 0x004C))!
-        XCTAssertEqual(payload.cable.vendorIDHex, "0x05AC")
-        XCTAssertEqual(payload.cable.productIDHex, "0x004C")
+        #expect(payload.cable.vendorIDHex == "0x05AC")
+        #expect(payload.cable.productIDHex == "0x004C")
     }
 
-    func testFingerprintLabelsUnregisteredVendor() {
+    @Test("Fingerprint labels unregistered vendor")
+    func fingerprintLabelsUnregisteredVendor() {
         let payload = CableReport.payload(for: cableIdentity(vendorID: 0xDEAD))!
-        XCTAssertEqual(payload.cable.vendorName, "Unregistered / unknown")
+        #expect(payload.cable.vendorName == "Unregistered / unknown")
     }
 
-    func testMarkdownIncludesFingerprintAndEnvironment() {
+    @Test("Markdown includes fingerprint and environment")
+    func markdownIncludesFingerprintAndEnvironment() {
         let payload = CableReport.payload(for: cableIdentity(), appVersion: "1.2.3")!
         let md = payload.markdown
-        XCTAssertTrue(md.contains("### Cable e-marker fingerprint"))
-        XCTAssertTrue(md.contains("`0x05AC`"))
-        XCTAssertTrue(md.contains("Apple"))
-        XCTAssertTrue(md.contains("### Environment"))
-        XCTAssertTrue(md.contains("WhatCable: `1.2.3`"))
+        #expect(md.contains("### Cable e-marker fingerprint"))
+        #expect(md.contains("`0x05AC`"))
+        #expect(md.contains("Apple"))
+        #expect(md.contains("### Environment"))
+        #expect(md.contains("WhatCable: `1.2.3`"))
         // No system info opt-in: should be flagged as not included.
-        XCTAssertTrue(md.contains("not included by reporter"))
+        #expect(md.contains("not included by reporter"))
     }
 
-    func testMarkdownIncludesSystemInfoWhenProvided() {
+    @Test("Markdown includes system info when provided")
+    func markdownIncludesSystemInfoWhenProvided() {
         let payload = CableReport.Payload(
             cable: CableReport.CableFingerprint(identity: cableIdentity()),
             system: CableReport.SystemInfo(macModel: "Mac15,3", macOSVersion: "14.5.0"),
             appVersion: "1.2.3"
         )
         let md = payload.markdown
-        XCTAssertTrue(md.contains("Mac: `Mac15,3`"))
-        XCTAssertTrue(md.contains("macOS: `14.5.0`"))
-        XCTAssertFalse(md.contains("not included by reporter"))
+        #expect(md.contains("Mac: `Mac15,3`"))
+        #expect(md.contains("macOS: `14.5.0`"))
+        #expect(md.contains("not included by reporter") == false)
     }
 
-    func testGitHubURLTargetsTemplateAndCarriesFingerprint() throws {
+    @Test("GitHub URL targets template and carries fingerprint")
+    func gitHubURLTargetsTemplateAndCarriesFingerprint() throws {
         let payload = CableReport.payload(for: cableIdentity())!
         let url = payload.githubURL
-        let comps = try XCTUnwrap(URLComponents(url: url, resolvingAgainstBaseURL: false))
-        XCTAssertEqual(comps.host, "github.com")
-        XCTAssertEqual(comps.path, "/darrylmorley/whatcable/issues/new")
+        let comps = try #require(URLComponents(url: url, resolvingAgainstBaseURL: false))
+        #expect(comps.host == "github.com")
+        #expect(comps.path == "/darrylmorley/whatcable/issues/new")
         let items = Dictionary(uniqueKeysWithValues:
             (comps.queryItems ?? []).map { ($0.name, $0.value ?? "") }
         )
-        XCTAssertEqual(items["template"], "cable-report.yml")
-        XCTAssertEqual(items["labels"], "cable-report")
-        XCTAssertTrue(items["title"]?.hasPrefix("[Cable Report]") == true)
-        XCTAssertTrue(items["fingerprint"]?.contains("0x05AC") == true)
+        #expect(items["template"] == "cable-report.yml")
+        #expect(items["labels"] == "cable-report")
+        #expect(items["title"]?.hasPrefix("[Cable Report]") == true)
+        #expect(items["fingerprint"]?.contains("0x05AC") == true)
     }
 
-    func testIssueTitleIncludesVendorAndSpeed() {
+    @Test("Issue title includes vendor and speed")
+    func issueTitleIncludesVendorAndSpeed() {
         let payload = CableReport.payload(for: cableIdentity())!
-        XCTAssertTrue(payload.issueTitle.contains("Apple"))
-        XCTAssertTrue(payload.issueTitle.contains("USB4"))
+        #expect(payload.issueTitle.contains("Apple"))
+        #expect(payload.issueTitle.contains("USB4"))
     }
 
-    func testFingerprintCarriesRawVDOs() {
+    @Test("Fingerprint carries raw VDOs")
+    func fingerprintCarriesRawVDOs() {
         let payload = CableReport.payload(for: cableIdentity())!
         // Fixture has 4 VDOs: ID Header, Cert Stat, Product, Cable.
-        XCTAssertEqual(payload.cable.vdos.count, 4)
+        #expect(payload.cable.vdos.count == 4)
         // VDO[0] = passive cable header (3 << 27) | 0x05AC.
-        XCTAssertEqual(payload.cable.vdos[0], (3 << 27) | UInt32(0x05AC))
+        #expect(payload.cable.vdos[0] == (3 << 27) | UInt32(0x05AC))
     }
 
-    func testMarkdownIncludesRawVDOSection() {
+    @Test("Markdown includes raw VDO section")
+    func markdownIncludesRawVDOSection() {
         let payload = CableReport.payload(for: cableIdentity())!
         let md = payload.markdown
-        XCTAssertTrue(md.contains("### Raw VDOs"))
+        #expect(md.contains("### Raw VDOs"))
         // ID Header VDO from the fixture: (3 << 27) | 0x05AC = 0x180005AC.
-        XCTAssertTrue(md.contains("`0x180005AC`"))
+        #expect(md.contains("`0x180005AC`"))
         // Role labels appear so future readers can tell which is which
         // without having to know the spec layout.
-        XCTAssertTrue(md.contains("ID Header"))
-        XCTAssertTrue(md.contains("Cable"))
-        XCTAssertTrue(md.contains("Product"))
+        #expect(md.contains("ID Header"))
+        #expect(md.contains("Cable"))
+        #expect(md.contains("Product"))
     }
 
-    func testMarkdownOmitsRawVDOSectionWhenAbsent() {
+    @Test("Markdown omits raw VDO section when absent")
+    func markdownOmitsRawVDOSectionWhenAbsent() {
         // Identity with no VDOs (e.g. a cable that didn't respond to
         // Discover Identity at all) shouldn't render an empty Raw VDOs table.
         let id = USBPDSOP(
@@ -132,12 +144,13 @@ final class CableReportTests: XCTestCase {
         )
         let payload = CableReport.payload(for: id)!
         let md = payload.markdown
-        XCTAssertFalse(md.contains("### Raw VDOs"))
+        #expect(md.contains("### Raw VDOs") == false)
     }
 
     // MARK: - USB-IF certification ID (from Cert Stat VDO)
 
-    func testUSBIFCertIDPresentWhenNonZero() {
+    @Test("USB-IF cert ID present when non-zero")
+    func usbIFCertIDPresentWhenNonZero() {
         let id = USBPDSOP(
             id: 1,
             endpoint: .sopPrime,
@@ -155,24 +168,26 @@ final class CableReportTests: XCTestCase {
             specRevision: 3
         )
         let payload = CableReport.payload(for: id)!
-        XCTAssertEqual(payload.cable.usbifCertID, 0x00012345)
+        #expect(payload.cable.usbifCertID == 0x00012345)
         let md = payload.markdown
-        XCTAssertTrue(md.contains("USB-IF certification ID"))
-        XCTAssertTrue(md.contains("0x00012345"))
+        #expect(md.contains("USB-IF certification ID"))
+        #expect(md.contains("0x00012345"))
     }
 
-    func testUSBIFCertIDAbsentWhenZero() {
+    @Test("USB-IF cert ID absent when zero")
+    func usbIFCertIDAbsentWhenZero() {
         // Calibration: Anker #60 and Caldigit #62 both ship with XID = 0.
         // We surface that as "none" rather than a trust signal.
         let payload = CableReport.payload(for: cableIdentity())!
-        XCTAssertNil(payload.cable.usbifCertID)
+        #expect(payload.cable.usbifCertID == nil)
         let md = payload.markdown
-        XCTAssertTrue(md.contains("USB-IF certification ID"))
-        XCTAssertTrue(md.contains("none (XID = 0)"))
+        #expect(md.contains("USB-IF certification ID"))
+        #expect(md.contains("none (XID = 0)"))
     }
 
-    func testUSBIFCertIDDistinguishesAbsentVDOFromZeroValue() {
-        // Identity with only an ID Header VDO — macOS didn't surface a
+    @Test("USB-IF cert ID distinguishes absent VDO from zero value")
+    func usbIFCertIDDistinguishesAbsentVDOFromZeroValue() {
+        // Identity with only an ID Header VDO -- macOS didn't surface a
         // Cert Stat. The fingerprint should record that explicitly,
         // not flatten it to "XID = 0", so calibration data stays
         // faithful to what the cable actually reported.
@@ -190,19 +205,20 @@ final class CableReportTests: XCTestCase {
             specRevision: 3
         )
         let payload = CableReport.payload(for: id)!
-        XCTAssertNil(payload.cable.usbifCertID)
+        #expect(payload.cable.usbifCertID == nil)
         let md = payload.markdown
-        XCTAssertTrue(md.contains("USB-IF certification ID"))
-        XCTAssertTrue(md.contains("not provided by this Mac"))
-        XCTAssertFalse(
-            md.contains("none (XID = 0)"),
+        #expect(md.contains("USB-IF certification ID"))
+        #expect(md.contains("not provided by this Mac"))
+        #expect(
+            md.contains("none (XID = 0)") == false,
             "Missing VDO[1] must not be rendered the same as a real zero XID"
         )
     }
 
     // MARK: - CIO Thunderbolt link context
 
-    func testMarkdownIncludesCIOSectionWhenPresent() {
+    @Test("Markdown includes CIO section when present")
+    func markdownIncludesCIOSectionWhenPresent() {
         let cio = CIOCableCapability(
             id: 1,
             portKey: "2/0",
@@ -218,27 +234,29 @@ final class CableReportTests: XCTestCase {
             cioCapability: cio
         )!
         let md = payload.markdown
-        XCTAssertTrue(md.contains("### Thunderbolt link context"))
-        XCTAssertTrue(md.contains("CableGeneration"))
-        XCTAssertTrue(md.contains("| `2` |"))
-        XCTAssertTrue(md.contains("CableSpeed"))
-        XCTAssertTrue(md.contains("| `3` |"))
-        XCTAssertTrue(md.contains("Generation"))
-        XCTAssertTrue(md.contains("AsymmetricModeSupported"))
-        XCTAssertTrue(md.contains("| Yes |"))
-        XCTAssertTrue(md.contains("LegacyAdapter"))
-        XCTAssertTrue(md.contains("| No |"))
-        XCTAssertTrue(md.contains("LinkTrainingMode"))
+        #expect(md.contains("### Thunderbolt link context"))
+        #expect(md.contains("CableGeneration"))
+        #expect(md.contains("| `2` |"))
+        #expect(md.contains("CableSpeed"))
+        #expect(md.contains("| `3` |"))
+        #expect(md.contains("Generation"))
+        #expect(md.contains("AsymmetricModeSupported"))
+        #expect(md.contains("| Yes |"))
+        #expect(md.contains("LegacyAdapter"))
+        #expect(md.contains("| No |"))
+        #expect(md.contains("LinkTrainingMode"))
     }
 
-    func testMarkdownOmitsCIOSectionWhenAbsent() {
+    @Test("Markdown omits CIO section when absent")
+    func markdownOmitsCIOSectionWhenAbsent() {
         let payload = CableReport.payload(for: cableIdentity())!
         let md = payload.markdown
-        XCTAssertFalse(md.contains("### Thunderbolt link context"))
-        XCTAssertFalse(md.contains("CableGeneration"))
+        #expect(md.contains("### Thunderbolt link context") == false)
+        #expect(md.contains("CableGeneration") == false)
     }
 
-    func testCIOSectionOmittedWhenAllFieldsNil() {
+    @Test("CIO section omitted when all fields nil")
+    func cioSectionOmittedWhenAllFieldsNil() {
         let cio = CIOCableCapability(
             id: 1,
             portKey: "2/0",
@@ -254,11 +272,14 @@ final class CableReportTests: XCTestCase {
             cioCapability: cio
         )!
         let md = payload.markdown
-        XCTAssertFalse(md.contains("### Thunderbolt link context"),
-            "All-nil CIO should not render an empty table")
+        #expect(
+            md.contains("### Thunderbolt link context") == false,
+            "All-nil CIO should not render an empty table"
+        )
     }
 
-    func testCIOSectionOmitsNilFields() {
+    @Test("CIO section omits nil fields")
+    func cioSectionOmitsNilFields() {
         // CIO with only cableSpeed set, everything else nil.
         let cio = CIOCableCapability(
             id: 1,
@@ -275,14 +296,15 @@ final class CableReportTests: XCTestCase {
             cioCapability: cio
         )!
         let md = payload.markdown
-        XCTAssertTrue(md.contains("### Thunderbolt link context"))
-        XCTAssertTrue(md.contains("CableSpeed"))
-        XCTAssertFalse(md.contains("CableGeneration"))
-        XCTAssertFalse(md.contains("AsymmetricModeSupported"))
-        XCTAssertFalse(md.contains("LinkTrainingMode"))
+        #expect(md.contains("### Thunderbolt link context"))
+        #expect(md.contains("CableSpeed"))
+        #expect(md.contains("CableGeneration") == false)
+        #expect(md.contains("AsymmetricModeSupported") == false)
+        #expect(md.contains("LinkTrainingMode") == false)
     }
 
-    func testMarkdownLabelsExtraVDOsAsOther() {
+    @Test("Markdown labels extra VDOs as Other")
+    func markdownLabelsExtraVDOsAsOther() {
         // PD response can include up to 7 VDOs (ID Header + Cert Stat +
         // Product + up to 4 Product Type VDOs). Anything past index 3 we
         // label "Other" rather than guessing.
@@ -306,8 +328,8 @@ final class CableReportTests: XCTestCase {
         )
         let payload = CableReport.payload(for: id)!
         let md = payload.markdown
-        XCTAssertTrue(md.contains("`0xDEADBEEF`"))
-        XCTAssertTrue(md.contains("`0xCAFEBABE`"))
-        XCTAssertTrue(md.contains("Other"))
+        #expect(md.contains("`0xDEADBEEF`"))
+        #expect(md.contains("`0xCAFEBABE`"))
+        #expect(md.contains("Other"))
     }
 }

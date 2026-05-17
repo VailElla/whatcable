@@ -1,98 +1,108 @@
-import XCTest
+import Testing
 @testable import WhatCableCore
 
-final class VendorDBTests: XCTestCase {
+@Suite("VendorDB")
+struct VendorDBTests {
 
     // MARK: - Names come from the bundled USB-IF list
 
-    func testKnownVendorsReturnUSBIFNames() {
+    @Test("known vendors return USB-IF names")
+    func knownVendorsReturnUSBIFNames() {
         // No curated overrides. USB-IF's published name is what we show,
         // verbatim. The legal-suffix forms are accurate and not misleading.
-        XCTAssertEqual(VendorDB.name(for: 0x05AC), "Apple")
-        XCTAssertEqual(VendorDB.name(for: 0x0BDA), "Realtek Semiconductor Corp.")
-        XCTAssertEqual(VendorDB.name(for: 0x046D), "Logitech Inc.")
-        XCTAssertEqual(VendorDB.name(for: 0x291A), "Anker Innovations Limited")
-        XCTAssertEqual(VendorDB.name(for: 0x18D1), "Google Inc.")
+        #expect(VendorDB.name(for: 0x05AC) == "Apple")
+        #expect(VendorDB.name(for: 0x0BDA) == "Realtek Semiconductor Corp.")
+        #expect(VendorDB.name(for: 0x046D) == "Logitech Inc.")
+        #expect(VendorDB.name(for: 0x291A) == "Anker Innovations Limited")
+        #expect(VendorDB.name(for: 0x18D1) == "Google Inc.")
     }
 
-    func testCableEmarkerChipVendorsResolve() {
+    @Test("cable e-marker chip vendors resolve")
+    func cableEmarkerChipVendorsResolve() {
         // E-marker silicon vendors observed in real cable reports
         // (#44, #45, #48, #49, #60, #62). USB-IF carries each of them
         // with its full legal name; we surface that as-is.
-        XCTAssertEqual(
-            VendorDB.name(for: 0x20C2),
+        #expect(
+            VendorDB.name(for: 0x20C2) ==
             "Sumitomo Electric Ind., Ltd., Optical Comm. R&D Lab"
         )
-        XCTAssertEqual(
-            VendorDB.name(for: 0x315C),
+        #expect(
+            VendorDB.name(for: 0x315C) ==
             "Chengdu Convenientpower Semiconductor Co., LTD"
         )
-        XCTAssertEqual(VendorDB.name(for: 0x2095), "CE LINK LIMITED")
-        XCTAssertEqual(VendorDB.name(for: 0x2E99), "Hynetek Semiconductor Co., Ltd")
-        XCTAssertEqual(
-            VendorDB.name(for: 0x201C),
+        #expect(VendorDB.name(for: 0x2095) == "CE LINK LIMITED")
+        #expect(VendorDB.name(for: 0x2E99) == "Hynetek Semiconductor Co., Ltd")
+        #expect(
+            VendorDB.name(for: 0x201C) ==
             "Hongkong Freeport Electronics Co., Limited"
         )
-        XCTAssertEqual(VendorDB.name(for: 0x2B1D), "Lintes Technology Co., Ltd.")
+        #expect(VendorDB.name(for: 0x2B1D) == "Lintes Technology Co., Ltd.")
     }
 
     // MARK: - Formerly-wrong curated entries now resolve correctly
 
-    func testFormerlyWrongCuratedEntriesNowReflectUSBIF() {
+    @Test("formerly wrong curated entries now reflect USB-IF")
+    func formerlyWrongCuratedEntriesNowReflectUSBIF() {
         // Before this audit several curated entries attributed VIDs to
         // the wrong companies. With the curated layer dropped, each
         // resolves via the bundled USB-IF list to the correct vendor.
         // Pin them so a future "let's add an override" can't silently
         // restore the bad data without going through review.
-        XCTAssertEqual(VendorDB.name(for: 0x2BCF), "Magtrol, Inc.")
-        XCTAssertEqual(VendorDB.name(for: 0x32AC), "Framework Computer Inc")
-        XCTAssertEqual(VendorDB.name(for: 0x103C), "AMX Corp.")
-        XCTAssertEqual(VendorDB.name(for: 0x0FFE), "ASKA Corporation")
-        XCTAssertEqual(VendorDB.name(for: 0x152E), "HLDS (Hitachi-LG Data Storage, Inc.)")
-        XCTAssertEqual(VendorDB.name(for: 0x0AF8), "Taiwan Regular Electronics Co., Ltd.")
+        #expect(VendorDB.name(for: 0x2BCF) == "Magtrol, Inc.")
+        #expect(VendorDB.name(for: 0x32AC) == "Framework Computer Inc")
+        #expect(VendorDB.name(for: 0x103C) == "AMX Corp.")
+        #expect(VendorDB.name(for: 0x0FFE) == "ASKA Corporation")
+        #expect(VendorDB.name(for: 0x152E) == "HLDS (Hitachi-LG Data Storage, Inc.)")
+        #expect(VendorDB.name(for: 0x0AF8) == "Taiwan Regular Electronics Co., Ltd.")
     }
 
     // MARK: - Obsolete vendors resolve with clean names
 
-    func testObsoleteVendorsReturnCleanNames() {
+    @Test("obsolete vendors return clean names")
+    func obsoleteVendorsReturnCleanNames() {
         // Obsolete USB-IF vendors should resolve to the company name
         // without the " - OBSOLETE" suffix that lives in the raw TSV.
-        XCTAssertEqual(VendorDB.name(for: 0x041C), "Altera Corp.")
-        XCTAssertEqual(VendorDB.name(for: 0x0CC1), "Given Imaging LTD")
-        XCTAssertNotNil(VendorDB.name(for: 0x0001)) // Fry's Electronics
+        #expect(VendorDB.name(for: 0x041C) == "Altera Corp.")
+        #expect(VendorDB.name(for: 0x0CC1) == "Given Imaging LTD")
+        #expect(VendorDB.name(for: 0x0001) != nil) // Fry's Electronics
     }
 
-    func testObsoleteVendorsAreRegistered() {
-        XCTAssertTrue(VendorDB.isRegistered(0x041C))  // Altera Corp.
-        XCTAssertTrue(VendorDB.isRegistered(0x0001))  // Fry's Electronics
+    @Test("obsolete vendors are registered")
+    func obsoleteVendorsAreRegistered() {
+        #expect(VendorDB.isRegistered(0x041C))  // Altera Corp.
+        #expect(VendorDB.isRegistered(0x0001))  // Fry's Electronics
     }
 
     // MARK: - Unregistered VIDs
 
-    func testUnregisteredVIDReturnsNil() {
-        XCTAssertNil(VendorDB.name(for: 0xDEAD))
+    @Test("unregistered VID returns nil")
+    func unregisteredVIDReturnsNil() {
+        #expect(VendorDB.name(for: 0xDEAD) == nil)
     }
 
     // MARK: - label()
 
-    func testLabelIncludesNameAndHex() {
-        XCTAssertEqual(VendorDB.label(for: 0x05AC), "Apple (0x05AC)")
-        XCTAssertEqual(
-            VendorDB.label(for: 0x0BDA),
+    @Test("label includes name and hex")
+    func labelIncludesNameAndHex() {
+        #expect(VendorDB.label(for: 0x05AC) == "Apple (0x05AC)")
+        #expect(
+            VendorDB.label(for: 0x0BDA) ==
             "Realtek Semiconductor Corp. (0x0BDA)"
         )
     }
 
-    func testLabelFallsBackToHexOnly() {
-        XCTAssertEqual(VendorDB.label(for: 0xDEAD), "0xDEAD")
-        XCTAssertEqual(VendorDB.label(for: 0xBEEF), "0xBEEF")
+    @Test("label falls back to hex only")
+    func labelFallsBackToHexOnly() {
+        #expect(VendorDB.label(for: 0xDEAD) == "0xDEAD")
+        #expect(VendorDB.label(for: 0xBEEF) == "0xBEEF")
     }
 
     // MARK: - isRegistered
 
-    func testIsRegisteredCoversBundledList() {
-        XCTAssertTrue(VendorDB.isRegistered(0x05AC))
-        XCTAssertTrue(VendorDB.isRegistered(0x291A))
-        XCTAssertFalse(VendorDB.isRegistered(0xDEAD))
+    @Test("isRegistered covers bundled list")
+    func isRegisteredCoversBundledList() {
+        #expect(VendorDB.isRegistered(0x05AC))
+        #expect(VendorDB.isRegistered(0x291A))
+        #expect(VendorDB.isRegistered(0xDEAD) == false)
     }
 }
