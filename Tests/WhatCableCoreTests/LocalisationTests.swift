@@ -2,11 +2,6 @@ import XCTest
 import Foundation
 @testable import WhatCableCore
 
-// These exercise the Apple bundle / .lproj localization mechanism
-// (String(localized:bundle:), Localizable.strings lookup). That path
-// is Apple-only by design: on Windows coreLocalized() returns the
-// literal, so there is no bundle behaviour to test here.
-#if canImport(Darwin)
 final class LocalisationTests: XCTestCase {
 
     func testStringFilesHaveManyKeys() throws {
@@ -32,4 +27,3 @@ final class LocalisationTests: XCTestCase {
         XCTAssertEqual(result, "Cable speed: USB 3.2 Gen 2 (10 Gbps)")
     }
 }
-#endif

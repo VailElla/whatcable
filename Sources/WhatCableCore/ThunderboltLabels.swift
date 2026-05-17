@@ -27,10 +27,10 @@ public enum ThunderboltLabels {
         case .tb3, .usb4Tb4, .tb5:
             guard let perLane = gen.perLaneGbps else { return nil }
             let lanes = describeLanes(width)
-            return coreLocalized("Up to \(perLane) Gb/s \(lanes)")
+            return String(localized: "Up to \(perLane) Gb/s \(lanes)", bundle: _coreLocalizedBundle)
         case .unknown(let raw):
             let hex = String(raw, radix: 16)
-            return coreLocalized("Unknown generation (raw speed code 0x\(hex))")
+            return String(localized: "Unknown generation (raw speed code 0x\(hex))", bundle: _coreLocalizedBundle)
         }
     }
 
@@ -55,7 +55,7 @@ public enum ThunderboltLabels {
         case (false, false): return "\(vendor) \(model)"
         case (false, true): return vendor
         case (true, false): return model
-        case (true, true): return coreLocalized("Unknown device")
+        case (true, true): return String(localized: "Unknown device", bundle: _coreLocalizedBundle)
         }
     }
 }

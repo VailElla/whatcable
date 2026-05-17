@@ -1,20 +1,13 @@
 import Foundation
-#if canImport(Darwin)
 import Darwin
-#elseif os(Windows)
-import ucrt
-#elseif canImport(Glibc)
-import Glibc
-#endif
 
+/// ANSI color helpers. Disabled automatically when stdout isn't a TTY
+/// (piped output, redirected to file) or when NO_COLOR is set —
+/// see https://no-color.org for the convention.
 public enum ANSI {
     public static let isEnabled: Bool = {
         if ProcessInfo.processInfo.environment["NO_COLOR"] != nil { return false }
-        #if os(Windows)
-        return _isatty(_fileno(stdout)) != 0
-        #else
         return isatty(fileno(stdout)) != 0
-        #endif
     }()
 
     public static let reset = "\u{1B}[0m"

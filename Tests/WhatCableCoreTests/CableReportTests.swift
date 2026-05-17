@@ -65,12 +65,12 @@ final class CableReportTests: XCTestCase {
     func testMarkdownIncludesSystemInfoWhenProvided() {
         let payload = CableReport.Payload(
             cable: CableReport.CableFingerprint(identity: cableIdentity()),
-            system: CableReport.SystemInfo(hardwareModel: "Mac15,3", osVersion: "14.5.0"),
+            system: CableReport.SystemInfo(macModel: "Mac15,3", macOSVersion: "14.5.0"),
             appVersion: "1.2.3"
         )
         let md = payload.markdown
-        XCTAssertTrue(md.contains("Hardware: `Mac15,3`"))
-        XCTAssertTrue(md.contains("OS: `14.5.0`"))
+        XCTAssertTrue(md.contains("Mac: `Mac15,3`"))
+        XCTAssertTrue(md.contains("macOS: `14.5.0`"))
         XCTAssertFalse(md.contains("not included by reporter"))
     }
 

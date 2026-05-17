@@ -1,9 +1,5 @@
 import Foundation
-#if canImport(SQLite3)
 import SQLite3
-#else
-import CSQLite
-#endif
 
 /// Read-only SQLite-backed lookup for vendors and known cables.
 ///

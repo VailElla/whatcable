@@ -15,7 +15,7 @@ public enum TextFormatter {
         usbDevices: [USBDevice] = []
     ) -> String {
         if ports.isEmpty {
-            return coreLocalized("No USB-C / MagSafe ports were found on this Mac.") + "\n"
+            return String(localized: "No USB-C / MagSafe ports were found on this Mac.", bundle: _coreLocalizedBundle) + "\n"
         }
 
         var out = ""
@@ -91,7 +91,7 @@ public enum TextFormatter {
 
         if let diag = ChargingDiagnostic(port: port, sources: sources, identities: identities, adapter: adapter, wattageSource: chargerWattageSource) {
             let diagColor = diag.isWarning ? ANSI.yellow : ANSI.green
-            out += "\n" + ANSI.wrap(ANSI.bold, coreLocalized("Charging: ")) + ANSI.wrap(diagColor, diag.summary) + "\n"
+            out += "\n" + ANSI.wrap(ANSI.bold, String(localized: "Charging: ", bundle: _coreLocalizedBundle)) + ANSI.wrap(diagColor, diag.summary) + "\n"
             out += "  " + ANSI.wrap(ANSI.dim, diag.detail) + "\n"
         }
 
@@ -102,7 +102,7 @@ public enum TextFormatter {
         if let cable = identities.first(where: { $0.endpoint == .sopPrime || $0.endpoint == .sopDoublePrime }) {
             let trust = CableTrustReport(identity: cable)
             if !trust.isEmpty {
-                out += "\n" + ANSI.wrap(ANSI.bold + ANSI.yellow, coreLocalized("Cable trust signals:")) + "\n"
+                out += "\n" + ANSI.wrap(ANSI.bold + ANSI.yellow, String(localized: "Cable trust signals:", bundle: _coreLocalizedBundle)) + "\n"
                 for flag in trust.flags {
                     out += "  " + ANSI.wrap(ANSI.yellow, "⚠") + " " + ANSI.wrap(ANSI.bold, flag.title) + "\n"
                     out += "    " + ANSI.wrap(ANSI.dim, flag.detail) + "\n"
@@ -114,7 +114,7 @@ public enum TextFormatter {
             if let cable = identities.first(where: {
                 $0.endpoint == .sopPrime || $0.endpoint == .sopDoublePrime
             }), let v2 = cable.activeCableVDO2 {
-                out += "\n" + ANSI.wrap(ANSI.bold, coreLocalized("Active cable (VDO 2):")) + "\n"
+                out += "\n" + ANSI.wrap(ANSI.bold, String(localized: "Active cable (VDO 2):", bundle: _coreLocalizedBundle)) + "\n"
                 out += rawRow("Physical connection", v2.physicalConnection.label)
                 out += rawRow("Active element", v2.activeElement.label)
                 out += rawRow("Optically isolated", yesNo(v2.opticallyIsolated))
@@ -131,7 +131,7 @@ public enum TextFormatter {
                 out += rawRow("Shutdown temp", tempLabel(v2.shutdownTempC))
             }
 
-            out += "\n" + ANSI.wrap(ANSI.bold, coreLocalized("Raw IOKit properties:")) + "\n"
+            out += "\n" + ANSI.wrap(ANSI.bold, String(localized: "Raw IOKit properties:", bundle: _coreLocalizedBundle)) + "\n"
             for key in port.rawProperties.keys.sorted() {
                 let value = port.rawProperties[key] ?? ""
                 out += "  " + ANSI.wrap(ANSI.gray, key) + " = \(value)\n"

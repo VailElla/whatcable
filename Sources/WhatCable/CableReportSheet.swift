@@ -1,7 +1,6 @@
 import SwiftUI
 import AppKit
 import WhatCableCore
-import WhatCableDarwinBackend
 
 /// Confirmation sheet shown before sending the user to GitHub to file a
 /// cable report. Lets them preview the exact payload that will be embedded
@@ -15,7 +14,7 @@ struct CableReportSheet: View {
     @State private var includeSystemInfo: Bool = false
 
     private var payload: CableReport.Payload? {
-        CableReport.payload(for: cableIdentity, systemInfo: includeSystemInfo ? DarwinSystemInfo.current() : nil, cioCapability: cioCapability)
+        CableReport.payload(for: cableIdentity, includeSystemInfo: includeSystemInfo, cioCapability: cioCapability)
     }
 
     var body: some View {

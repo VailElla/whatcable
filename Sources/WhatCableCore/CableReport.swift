@@ -1,4 +1,5 @@
 import Foundation
+import Darwin
 
 /// Builds the data and pre-filled GitHub issue URL behind the "Report this
 /// cable" feature. Pure data assembly. The app and the CLI both render this
@@ -78,12 +79,30 @@ public enum CableReport {
     }
 
     public struct SystemInfo {
-        public let hardwareModel: String
-        public let osVersion: String
+        public let macModel: String
+        public let macOSVersion: String
 
-        public init(hardwareModel: String, osVersion: String) {
-            self.hardwareModel = hardwareModel
-            self.osVersion = osVersion
+        public init(macModel: String, macOSVersion: String) {
+            self.macModel = macModel
+            self.macOSVersion = macOSVersion
+        }
+
+        public static func current() -> SystemInfo {
+            SystemInfo(macModel: fetchMacModel(), macOSVersion: fetchOSVersion())
+        }
+
+        private static func fetchMacModel() -> String {
+            var size = 0
+            sysctlbyname("hw.model", nil, &size, nil, 0)
+            guard size > 0 else { return "unknown" }
+            var buf = [CChar](repeating: 0, count: size)
+            sysctlbyname("hw.model", &buf, &size, nil, 0)
+            return String(cString: buf)
+        }
+
+        private static func fetchOSVersion() -> String {
+            let v = ProcessInfo.processInfo.operatingSystemVersion
+            return "\(v.majorVersion).\(v.minorVersion).\(v.patchVersion)"
         }
     }
 
@@ -91,7 +110,7 @@ public enum CableReport {
     /// identity isn't a cable endpoint (SOP' / SOP'').
     public static func payload(
         for identity: PDIdentity,
-        systemInfo: SystemInfo? = nil,
+        includeSystemInfo: Bool = false,
         appVersion: String = AppInfo.version,
         cioCapability: CIOCableCapability? = nil
     ) -> Payload? {
@@ -99,7 +118,7 @@ public enum CableReport {
         guard isCable else { return nil }
         return Payload(
             cable: CableFingerprint(identity: identity),
-            system: systemInfo,
+            system: includeSystemInfo ? SystemInfo.current() : nil,
             appVersion: appVersion,
             cioCapability: cioCapability
         )
@@ -206,10 +225,10 @@ extension CableReport.Payload {
         lines.append("")
         lines.append("- WhatCable: `\(appVersion)`")
         if let s = system {
-            lines.append("- Hardware: `\(s.hardwareModel)`")
-            lines.append("- OS: `\(s.osVersion)`")
+            lines.append("- Mac: `\(s.macModel)`")
+            lines.append("- macOS: `\(s.macOSVersion)`")
         } else {
-            lines.append("- Hardware model and OS version: not included by reporter")
+            lines.append("- Mac model and macOS version: not included by reporter")
         }
         return lines.joined(separator: "\n")
     }

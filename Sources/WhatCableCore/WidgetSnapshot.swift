@@ -111,14 +111,9 @@ extension WidgetSnapshot {
     /// matching team-prefixed App Group entitlement; no provisioning profile
     /// is required for Developer ID distribution on macOS.
     public static var sharedFileURL: URL? {
-        #if canImport(Darwin)
         FileManager.default.containerURL(
             forSecurityApplicationGroupIdentifier: appGroupID
         )?.appendingPathComponent("widgetSnapshot.json")
-        #else
-        // App Groups are Apple-only; there is no widget on Windows.
-        nil
-        #endif
     }
 }
 

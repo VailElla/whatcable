@@ -6,12 +6,6 @@ on:
   pull_request:
     branches: [main]
 
-# A new push to the same ref cancels an in-progress run, so rapid
-# successive commits don't pile up redundant full test runs.
-concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
-
 jobs:
   test:
     name: Swift tests

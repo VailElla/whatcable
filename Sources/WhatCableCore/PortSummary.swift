@@ -1,18 +1,7 @@
 import Foundation
-#if canImport(os)
 import os.log
 
 private let _portSummaryLog = Logger(subsystem: "uk.whatcable.whatcable", category: "port-summary")
-#else
-// os.Logger is Apple-only. Minimal stand-in so the portable core can
-// still emit this diagnostic on non-Apple platforms.
-private struct _PortSummaryLogger {
-    func warning(_ message: String) {
-        FileHandle.standardError.write(Data((message + "\n").utf8))
-    }
-}
-private let _portSummaryLog = _PortSummaryLogger()
-#endif
 
 /// Plain-English interpretation of a USBCPort's raw IOKit data.
 public struct PortSummary {
@@ -85,8 +74,8 @@ extension PortSummary {
 
         if !connected {
             self.status = .empty
-            self.headline = coreLocalized("Nothing connected")
-            self.subtitle = coreLocalized("Plug a cable into \(portLabel) to see what it can do.")
+            self.headline = String(localized: "Nothing connected", bundle: _coreLocalizedBundle)
+            self.subtitle = String(localized: "Plug a cable into \(portLabel) to see what it can do.", bundle: _coreLocalizedBundle)
             self.bullets = []
             return
         }
@@ -121,7 +110,7 @@ extension PortSummary {
             // "active" line so older paths still work.
             let tbBullets = thunderboltBullets(for: port, switches: thunderboltSwitches)
             if tbBullets.isEmpty {
-                bullets.append(coreLocalized("Thunderbolt / USB4 link active"))
+                bullets.append(String(localized: "Thunderbolt / USB4 link active", bundle: _coreLocalizedBundle))
             } else {
                 bullets.append(contentsOf: tbBullets)
             }
@@ -146,17 +135,17 @@ extension PortSummary {
             if let label = deviceSpeedLabel ?? transportLabel {
                 bullets.append(label)
             } else {
-                bullets.append(coreLocalized("SuperSpeed USB (5 Gbps or faster)"))
+                bullets.append(String(localized: "SuperSpeed USB (5 Gbps or faster)", bundle: _coreLocalizedBundle))
             }
         } else if hasUSB2 {
-            bullets.append(coreLocalized("USB 2.0 only (480 Mbps), no high-speed data"))
+            bullets.append(String(localized: "USB 2.0 only (480 Mbps), no high-speed data", bundle: _coreLocalizedBundle))
         }
 
         if hasDP {
             if let dpConfig = port.dpLaneConfig, dpConfig.isActive {
-                bullets.append(coreLocalized("Carrying DisplayPort video (\(dpConfig.label))"))
+                bullets.append(String(localized: "Carrying DisplayPort video (\(dpConfig.label))", bundle: _coreLocalizedBundle))
             } else {
-                bullets.append(coreLocalized("Carrying DisplayPort video"))
+                bullets.append(String(localized: "Carrying DisplayPort video", bundle: _coreLocalizedBundle))
             }
         }
 
@@ -166,15 +155,15 @@ extension PortSummary {
             let kind = header.ufpProductType != .undefined ? header.ufpProductType.label : header.dfpProductType.label
             let vendor = VendorDB.label(for: partner.vendorID)
             if let pdRev = partner.pdRevisionLabel {
-                bullets.append(coreLocalized("Connected device: \(kind), \(vendor) (\(pdRev))"))
+                bullets.append(String(localized: "Connected device: \(kind), \(vendor) (\(pdRev))", bundle: _coreLocalizedBundle))
             } else {
-                bullets.append(coreLocalized("Connected device: \(kind), \(vendor)"))
+                bullets.append(String(localized: "Connected device: \(kind), \(vendor)", bundle: _coreLocalizedBundle))
             }
         } else if let portNum = port.portNumber,
                   let fed = federatedIdentities.first(where: { $0.portIndex == portNum }),
                   fed.hasDevice {
             let vendor = VendorDB.label(for: fed.vendorID)
-            bullets.append(coreLocalized("Connected device: \(vendor)"))
+            bullets.append(String(localized: "Connected device: \(vendor)", bundle: _coreLocalizedBundle))
         }
 
         // ------------------------------------------------------------
@@ -203,12 +192,12 @@ extension PortSummary {
         let hasPayload = !active.isEmpty || hasPartner
 
         if hasEmarker {
-            bullets.append(coreLocalized("Cable has an e-marker chip (advertises its capabilities)"))
+            bullets.append(String(localized: "Cable has an e-marker chip (advertises its capabilities)", bundle: _coreLocalizedBundle))
         } else if hasPayload && !isMagSafe {
             if pdCapable {
-                bullets.append(coreLocalized("No e-marker detected. The cable may have one, but macOS only checks above 3A."))
+                bullets.append(String(localized: "No e-marker detected. The cable may have one, but macOS only checks above 3A.", bundle: _coreLocalizedBundle))
             } else {
-                bullets.append(coreLocalized("This port can't read cable details (USB-only port, no Power Delivery)"))
+                bullets.append(String(localized: "This port can't read cable details (USB-only port, no Power Delivery)", bundle: _coreLocalizedBundle))
             }
         }
 
@@ -218,25 +207,25 @@ extension PortSummary {
         })
         if let cable = cableEmarker, let cv = cable.cableVDO {
             let speedLabel = cv.speed.label
-            bullets.append(coreLocalized("Cable speed: \(speedLabel)"))
+            bullets.append(String(localized: "Cable speed: \(speedLabel)", bundle: _coreLocalizedBundle))
             let currentLabel = cv.current.label
             let maxVolts = cv.maxVolts
             let maxWatts = cv.maxWatts
-            bullets.append(coreLocalized("Cable rated for \(currentLabel) at up to \(maxVolts)V (~\(maxWatts)W)"))
+            bullets.append(String(localized: "Cable rated for \(currentLabel) at up to \(maxVolts)V (~\(maxWatts)W)", bundle: _coreLocalizedBundle))
             if cv.cableType == .active {
                 if let v2 = cable.activeCableVDO2 {
                     let medium = v2.physicalConnection.label.lowercased()
                     let element = v2.activeElement.label.lowercased()
-                    bullets.append(coreLocalized("Active \(medium) cable, \(element)"))
+                    bullets.append(String(localized: "Active \(medium) cable, \(element)", bundle: _coreLocalizedBundle))
                     if v2.physicalConnection == .optical {
                         if v2.opticallyIsolated {
-                            bullets.append(coreLocalized("Optical fibres are electrically isolated end-to-end"))
+                            bullets.append(String(localized: "Optical fibres are electrically isolated end-to-end", bundle: _coreLocalizedBundle))
                         } else {
-                            bullets.append(coreLocalized("Optical cable, not electrically isolated (carries copper alongside the fibres)"))
+                            bullets.append(String(localized: "Optical cable, not electrically isolated (carries copper alongside the fibres)", bundle: _coreLocalizedBundle))
                         }
                     }
                 } else {
-                    bullets.append(coreLocalized("Active cable (contains signal-conditioning electronics)"))
+                    bullets.append(String(localized: "Active cable (contains signal-conditioning electronics)", bundle: _coreLocalizedBundle))
                 }
             } else if cv.cableType == .passive && hasTB {
                 if let cio = cioCapability,
@@ -245,12 +234,12 @@ extension PortSummary {
                     // CIO controller confirms the cable's TB capability.
                     // Show the confirmed speed and a short explanation of
                     // why the e-marker says "passive".
-                    bullets.append(coreLocalized("Controller confirms Thunderbolt cable (\(label))"))
-                    bullets.append(coreLocalized("E-marker reports passive. This is normal for Thunderbolt cables where the active electronics handle Thunderbolt, not USB."))
+                    bullets.append(String(localized: "Controller confirms Thunderbolt cable (\(label))", bundle: _coreLocalizedBundle))
+                    bullets.append(String(localized: "E-marker reports passive. This is normal for Thunderbolt cables where the active electronics handle Thunderbolt, not USB.", bundle: _coreLocalizedBundle))
                 } else {
                     // No CIO data (or unrecognised speed code): keep the
                     // existing educational fallback.
-                    bullets.append(coreLocalized("E-marker reports passive (no USB signal conditioning). Thunderbolt is negotiated separately by the controller."))
+                    bullets.append(String(localized: "E-marker reports passive (no USB signal conditioning). Thunderbolt is negotiated separately by the controller.", bundle: _coreLocalizedBundle))
                 }
             }
         }
@@ -258,17 +247,17 @@ extension PortSummary {
         // Port-level optical flag. Independent of the e-marker's claim;
         // kept on its own line for now so users can see both signals.
         if port.opticalCable == true {
-            bullets.append(coreLocalized("Optical cable"))
+            bullets.append(String(localized: "Optical cable", bundle: _coreLocalizedBundle))
         }
 
         // Cable e-marker vendor (SOP'): who made the cable.
         if let cable = cableEmarker, cable.vendorID != 0 {
             let vendor = VendorDB.label(for: cable.vendorID)
-            bullets.append(coreLocalized("Cable made by \(vendor)"))
+            bullets.append(String(localized: "Cable made by \(vendor)", bundle: _coreLocalizedBundle))
         } else if let cable = cableEmarker {
             let vdo = cable.vdos.count > 3 ? cable.vdos[3] : 0
             if let known = CableDB.curatedCable(vid: cable.vendorID, pid: cable.productID, cableVDO: vdo) {
-                bullets.append(coreLocalized("Cable identified as \(known.brand)"))
+                bullets.append(String(localized: "Cable identified as \(known.brand)", bundle: _coreLocalizedBundle))
             }
         }
 
@@ -280,21 +269,21 @@ extension PortSummary {
         if let chargingSource {
             switch chargerWattageSource {
             case .portNegotiated(let w) where w > 0:
-                bullets.append(coreLocalized("Charger advertises up to \(w)W"))
+                bullets.append(String(localized: "Charger advertises up to \(w)W", bundle: _coreLocalizedBundle))
             case .systemAdapterFallback(let w):
-                bullets.append(coreLocalized("System reports charger at \(w)W"))
+                bullets.append(String(localized: "System reports charger at \(w)W", bundle: _coreLocalizedBundle))
             default:
                 let maxW = Int((Double(chargingSource.maxPowerMW) / 1000).rounded())
                 let hasOptions = !chargingSource.options.isEmpty
                 if hasOptions && maxW > 0 {
-                    bullets.append(coreLocalized("Charger advertises up to \(maxW)W"))
+                    bullets.append(String(localized: "Charger advertises up to \(maxW)W", bundle: _coreLocalizedBundle))
                 }
             }
             if let win = chargingSource.winning {
                 let volts = win.voltsLabel
                 let amps = win.ampsLabel
                 let watts = win.wattsLabel
-                bullets.append(coreLocalized("Currently negotiated: \(volts) @ \(amps) (\(watts))"))
+                bullets.append(String(localized: "Currently negotiated: \(volts) @ \(amps) (\(watts))", bundle: _coreLocalizedBundle))
             }
         }
 
@@ -318,65 +307,65 @@ extension PortSummary {
                   let cableW = cableEmarker?.cableVDO?.maxWatts,
                   cableW > 0,
                   cableW < chargerW else { return "" }
-            return coreLocalized(" · \(cableW)W cable")
+            return String(localized: " · \(cableW)W cable", bundle: _coreLocalizedBundle)
         }()
 
         if hasTB {
             self.status = .thunderboltCable
             if let w = chargerW {
-                self.headline = coreLocalized("Thunderbolt / USB4 · \(w)W charger") + cableLimitSuffix
+                self.headline = String(localized: "Thunderbolt / USB4 · \(w)W charger", bundle: _coreLocalizedBundle) + cableLimitSuffix
             } else {
-                self.headline = coreLocalized("Thunderbolt / USB4") + cableLimitSuffix
+                self.headline = String(localized: "Thunderbolt / USB4", bundle: _coreLocalizedBundle) + cableLimitSuffix
             }
             self.subtitle = subtitleForCapabilities(usb3: true, dp: hasDP, emarker: hasEmarker)
         } else if hasUSB3 && hasDP {
             self.status = .displayCable
             if let w = chargerW {
-                self.headline = coreLocalized("USB-C with video · \(w)W charger") + cableLimitSuffix
+                self.headline = String(localized: "USB-C with video · \(w)W charger", bundle: _coreLocalizedBundle) + cableLimitSuffix
             } else {
-                self.headline = coreLocalized("USB-C with video") + cableLimitSuffix
+                self.headline = String(localized: "USB-C with video", bundle: _coreLocalizedBundle) + cableLimitSuffix
             }
-            self.subtitle = coreLocalized("Carrying both data and DisplayPort video.")
+            self.subtitle = String(localized: "Carrying both data and DisplayPort video.", bundle: _coreLocalizedBundle)
         } else if hasDP {
             self.status = .displayCable
             if let w = chargerW {
-                self.headline = coreLocalized("Display connected · \(w)W charger") + cableLimitSuffix
+                self.headline = String(localized: "Display connected · \(w)W charger", bundle: _coreLocalizedBundle) + cableLimitSuffix
             } else {
-                self.headline = coreLocalized("Display connected") + cableLimitSuffix
+                self.headline = String(localized: "Display connected", bundle: _coreLocalizedBundle) + cableLimitSuffix
             }
-            self.subtitle = coreLocalized("DisplayPort video over USB-C alt mode.")
+            self.subtitle = String(localized: "DisplayPort video over USB-C alt mode.", bundle: _coreLocalizedBundle)
         } else if hasUSB3 {
             self.status = .dataDevice
             if let w = chargerW {
-                self.headline = coreLocalized("USB device · \(w)W charger") + cableLimitSuffix
+                self.headline = String(localized: "USB device · \(w)W charger", bundle: _coreLocalizedBundle) + cableLimitSuffix
             } else {
-                self.headline = coreLocalized("USB device") + cableLimitSuffix
+                self.headline = String(localized: "USB device", bundle: _coreLocalizedBundle) + cableLimitSuffix
             }
-            self.subtitle = coreLocalized("SuperSpeed data link is active.")
+            self.subtitle = String(localized: "SuperSpeed data link is active.", bundle: _coreLocalizedBundle)
         } else if hasUSB2 && !hasUSB3 {
             self.status = .dataDevice
             if let w = chargerW {
-                self.headline = coreLocalized("Slow USB device or charge-only cable · \(w)W charger") + cableLimitSuffix
+                self.headline = String(localized: "Slow USB device or charge-only cable · \(w)W charger", bundle: _coreLocalizedBundle) + cableLimitSuffix
             } else {
-                self.headline = coreLocalized("Slow USB device or charge-only cable") + cableLimitSuffix
+                self.headline = String(localized: "Slow USB device or charge-only cable", bundle: _coreLocalizedBundle) + cableLimitSuffix
             }
-            self.subtitle = coreLocalized("Only USB 2.0 is active. If you expected high speed, the cable may not support it.")
+            self.subtitle = String(localized: "Only USB 2.0 is active. If you expected high speed, the cable may not support it.", bundle: _coreLocalizedBundle)
         } else if chargingSource != nil {
             self.status = .charging
             if let w = chargerW {
-                self.headline = coreLocalized("Charging · \(w)W charger") + cableLimitSuffix
+                self.headline = String(localized: "Charging · \(w)W charger", bundle: _coreLocalizedBundle) + cableLimitSuffix
             } else {
-                self.headline = coreLocalized("Charging") + cableLimitSuffix
+                self.headline = String(localized: "Charging", bundle: _coreLocalizedBundle) + cableLimitSuffix
             }
-            self.subtitle = coreLocalized("Power is flowing. No data connection.")
+            self.subtitle = String(localized: "Power is flowing. No data connection.", bundle: _coreLocalizedBundle)
         } else if active.isEmpty && supported.contains("USB2") {
             self.status = .charging
-            self.headline = coreLocalized("Charging only")
-            self.subtitle = coreLocalized("Power is flowing but no data link is established.")
+            self.headline = String(localized: "Charging only", bundle: _coreLocalizedBundle)
+            self.subtitle = String(localized: "Power is flowing but no data link is established.", bundle: _coreLocalizedBundle)
         } else {
             self.status = .unknown
-            self.headline = coreLocalized("Connected")
-            self.subtitle = coreLocalized("Try a higher-wattage charger to identify the cable.")
+            self.headline = String(localized: "Connected", bundle: _coreLocalizedBundle)
+            self.subtitle = String(localized: "Try a higher-wattage charger to identify the cable.", bundle: _coreLocalizedBundle)
         }
 
         self.bullets = bullets
@@ -408,7 +397,7 @@ private func thunderboltBullets(
         // label is e.g. "Up to 20 Gb/s × 2" — replace the leading "Up"
         // with "up" for the bullet phrasing without lowercasing units.
         let linkSpeed = label.replacingOccurrences(of: "Up to", with: "up to")
-        bullets.append(coreLocalized("Linked at \(linkSpeed)"))
+        bullets.append(String(localized: "Linked at \(linkSpeed)", bundle: _coreLocalizedBundle))
     }
 
     // Connected-device line. Only meaningful when there's at least one
@@ -419,9 +408,9 @@ private func thunderboltBullets(
         let hops = downstream.count
         let path = names.joined(separator: " → ")
         if hops == 1 {
-            bullets.append(coreLocalized("Connected to \(path)"))
+            bullets.append(String(localized: "Connected to \(path)", bundle: _coreLocalizedBundle))
         } else {
-            bullets.append(coreLocalized("Connected via \(hops) hops: \(path)"))
+            bullets.append(String(localized: "Connected via \(hops) hops: \(path)", bundle: _coreLocalizedBundle))
         }
     }
 
@@ -457,15 +446,15 @@ private func stepDownLabel(host: ThunderboltPort, lastLeg: ThunderboltPort) -> S
     if hostLabel == lastLabel { return nil }
     let h = hostLabel.replacingOccurrences(of: "Up to", with: "up to")
     let l = lastLabel.replacingOccurrences(of: "Up to", with: "up to")
-    return coreLocalized("Last leg drops from \(h) to \(l)")
+    return String(localized: "Last leg drops from \(h) to \(l)", bundle: _coreLocalizedBundle)
 }
 
 private func subtitleForCapabilities(usb3: Bool, dp: Bool, emarker: Bool) -> String {
     var parts: [String] = []
-    if usb3 { parts.append(coreLocalized("high-speed data")) }
-    if dp { parts.append(coreLocalized("video")) }
-    if emarker { parts.append(coreLocalized("smart cable")) }
-    if parts.isEmpty { return coreLocalized("Connected.") }
+    if usb3 { parts.append(String(localized: "high-speed data", bundle: _coreLocalizedBundle)) }
+    if dp { parts.append(String(localized: "video", bundle: _coreLocalizedBundle)) }
+    if emarker { parts.append(String(localized: "smart cable", bundle: _coreLocalizedBundle)) }
+    if parts.isEmpty { return String(localized: "Connected.", bundle: _coreLocalizedBundle) }
     let capabilities = parts.joined(separator: ", ")
-    return coreLocalized("Supports \(capabilities).")
+    return String(localized: "Supports \(capabilities).", bundle: _coreLocalizedBundle)
 }

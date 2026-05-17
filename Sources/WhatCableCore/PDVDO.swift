@@ -19,14 +19,14 @@ public enum PDVDO {
 
         public var label: String {
             switch self {
-            case .undefined: return coreLocalized("Unspecified")
-            case .pdusbHub: return coreLocalized("USB Hub")
-            case .pdusbPeripheral: return coreLocalized("USB Peripheral")
-            case .passiveCable: return coreLocalized("Passive cable")
-            case .activeCable: return coreLocalized("Active cable")
-            case .ama: return coreLocalized("Alternate Mode Adapter")
-            case .vpd: return coreLocalized("VCONN-powered device")
-            case .other: return coreLocalized("Other")
+            case .undefined: return String(localized: "Unspecified", bundle: _coreLocalizedBundle)
+            case .pdusbHub: return String(localized: "USB Hub", bundle: _coreLocalizedBundle)
+            case .pdusbPeripheral: return String(localized: "USB Peripheral", bundle: _coreLocalizedBundle)
+            case .passiveCable: return String(localized: "Passive cable", bundle: _coreLocalizedBundle)
+            case .activeCable: return String(localized: "Active cable", bundle: _coreLocalizedBundle)
+            case .ama: return String(localized: "Alternate Mode Adapter", bundle: _coreLocalizedBundle)
+            case .vpd: return String(localized: "VCONN-powered device", bundle: _coreLocalizedBundle)
+            case .other: return String(localized: "Other", bundle: _coreLocalizedBundle)
             }
         }
     }
@@ -64,11 +64,11 @@ public enum PDVDO {
 
         public var label: String {
             switch self {
-            case .usb20: return coreLocalized("USB 2.0 (480 Mbps)")
-            case .usb32Gen1: return coreLocalized("USB 3.2 Gen 1 (5 Gbps)")
-            case .usb32Gen2: return coreLocalized("USB 3.2 Gen 2 (10 Gbps)")
-            case .usb4Gen3: return coreLocalized("USB4 Gen 3 (40 Gbps, Thunderbolt 4 class)")
-            case .usb4Gen4: return coreLocalized("USB4 Gen 4 (80 Gbps, Thunderbolt 5 class)")
+            case .usb20: return String(localized: "USB 2.0 (480 Mbps)", bundle: _coreLocalizedBundle)
+            case .usb32Gen1: return String(localized: "USB 3.2 Gen 1 (5 Gbps)", bundle: _coreLocalizedBundle)
+            case .usb32Gen2: return String(localized: "USB 3.2 Gen 2 (10 Gbps)", bundle: _coreLocalizedBundle)
+            case .usb4Gen3: return String(localized: "USB4 Gen 3 (40 Gbps, Thunderbolt 4 class)", bundle: _coreLocalizedBundle)
+            case .usb4Gen4: return String(localized: "USB4 Gen 4 (80 Gbps, Thunderbolt 5 class)", bundle: _coreLocalizedBundle)
             }
         }
 
@@ -98,9 +98,9 @@ public enum PDVDO {
 
         public var label: String {
             switch self {
-            case .usbDefault: return coreLocalized("USB default")
-            case .threeAmp: return coreLocalized("3 A")
-            case .fiveAmp: return coreLocalized("5 A")
+            case .usbDefault: return String(localized: "USB default", bundle: _coreLocalizedBundle)
+            case .threeAmp: return String(localized: "3 A", bundle: _coreLocalizedBundle)
+            case .fiveAmp: return String(localized: "5 A", bundle: _coreLocalizedBundle)
             }
         }
     }
@@ -306,8 +306,8 @@ public enum PDVDO {
 
         public var label: String {
             switch self {
-            case .copper: return coreLocalized("Copper")
-            case .optical: return coreLocalized("Optical")
+            case .copper: return String(localized: "Copper", bundle: _coreLocalizedBundle)
+            case .optical: return String(localized: "Optical", bundle: _coreLocalizedBundle)
             }
         }
     }
@@ -322,8 +322,8 @@ public enum PDVDO {
 
         public var label: String {
             switch self {
-            case .redriver: return coreLocalized("Re-driver")
-            case .retimer: return coreLocalized("Re-timer")
+            case .redriver: return String(localized: "Re-driver", bundle: _coreLocalizedBundle)
+            case .retimer: return String(localized: "Re-timer", bundle: _coreLocalizedBundle)
             }
         }
     }
@@ -343,14 +343,14 @@ public enum PDVDO {
 
         public var label: String {
             switch self {
-            case .greaterThan10mW: return coreLocalized("> 10 mW")
-            case .fiveTo10mW: return coreLocalized("5-10 mW")
-            case .oneTo5mW: return coreLocalized("1-5 mW")
-            case .halfTo1mW: return coreLocalized("0.5-1 mW")
-            case .fifthToHalfmW: return coreLocalized("0.2-0.5 mW")
-            case .fiftyTo200uW: return coreLocalized("50-200 µW")
-            case .lessThan50uW: return coreLocalized("< 50 µW")
-            case .reserved: return coreLocalized("Reserved")
+            case .greaterThan10mW: return String(localized: "> 10 mW", bundle: _coreLocalizedBundle)
+            case .fiveTo10mW: return String(localized: "5-10 mW", bundle: _coreLocalizedBundle)
+            case .oneTo5mW: return String(localized: "1-5 mW", bundle: _coreLocalizedBundle)
+            case .halfTo1mW: return String(localized: "0.5-1 mW", bundle: _coreLocalizedBundle)
+            case .fifthToHalfmW: return String(localized: "0.2-0.5 mW", bundle: _coreLocalizedBundle)
+            case .fiftyTo200uW: return String(localized: "50-200 µW", bundle: _coreLocalizedBundle)
+            case .lessThan50uW: return String(localized: "< 50 µW", bundle: _coreLocalizedBundle)
+            case .reserved: return String(localized: "Reserved", bundle: _coreLocalizedBundle)
             }
         }
     }

@@ -242,7 +242,7 @@ private func printCableReports(identities: [PDIdentity], cioCapabilities: [CIOCa
         let cio = cioCapabilities.first { $0.portKey == identity.portKey }
         guard let payload = CableReport.payload(
             for: identity,
-            systemInfo: DarwinSystemInfo.current(),
+            includeSystemInfo: true,
             cioCapability: cio
         ) else { continue }
         print(payload.markdown)

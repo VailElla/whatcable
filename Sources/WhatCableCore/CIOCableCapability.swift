@@ -61,7 +61,7 @@ public struct CIOCableCapability: Identifiable, Hashable, Sendable {
     /// numbers into user-facing text.
     public static func speedLabel(for cableSpeed: Int) -> String? {
         switch cableSpeed {
-        case 3: return coreLocalized("40 Gbps capable")
+        case 3: return String(localized: "40 Gbps capable", bundle: _coreLocalizedBundle)
         default: return nil
         }
     }
