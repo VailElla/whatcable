@@ -222,25 +222,36 @@ func importUSBIDsVendors() -> (inserted: Int, skipped: Int) {
 
 let knownCablesMD = "\(repoRoot)/data/known-cables.md"
 
+/// Parsed cable row from the markdown table, before DB insert.
+private struct CableRow {
+    let vid: Int
+    let pid: Int
+    let cableVDO: Int
+    let brand: String
+    let speed: String
+    let power: String
+    let type: String
+    let xid: String
+    let issueURL: String
+}
+
+private struct CableRowKey: Hashable {
+    let vid: Int
+    let pid: Int
+    let cableVDO: Int
+}
+
 func importKnownCables() -> Int {
     guard let text = try? String(contentsOfFile: knownCablesMD, encoding: .utf8) else {
         fputs("warn: could not read \(knownCablesMD), skipping cables\n", stderr)
         return 0
     }
 
-    let insertSQL = """
-        INSERT OR REPLACE INTO cables (vid, pid, cable_vdo, brand, speed, power, type, xid, issue_url)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-        """
-    var stmt: OpaquePointer?
-    guard sqlite3_prepare_v2(db, insertSQL, -1, &stmt, nil) == SQLITE_OK else {
-        fputs("warn: prepare failed for cable insert\n", stderr)
-        return 0
-    }
-
-    runSQL("BEGIN TRANSACTION")
-    var count = 0
-
+    // Pass 1: parse all valid markdown rows into a flat list. We
+    // group by (vid, pid, cable_vdo) below before inserting, because
+    // INSERT OR REPLACE used to silently drop rows when a fingerprint
+    // was shared by multiple reports (see issue #161 secondary finding).
+    var parsed: [CableRow] = []
     var inTable = false
     for line in text.components(separatedBy: "\n") {
         if line.hasPrefix("## Table") { inTable = true; continue }
@@ -275,19 +286,84 @@ func importKnownCables() -> Int {
             issueURL = ""
         }
 
+        parsed.append(CableRow(
+            vid: vid, pid: pid, cableVDO: cableVDO,
+            brand: brand, speed: speed, power: power, type: type,
+            xid: xid, issueURL: issueURL
+        ))
+    }
+
+    // Pass 2: group by fingerprint. Multiple reports of the same
+    // (vid, pid, cable_vdo) are merged into one DB row with brand
+    // strings joined by "; " and issue URLs joined by ", ". This
+    // keeps the markdown one-row-per-issue (so the sync script stays
+    // simple) while producing one honest DB row per fingerprint.
+    //
+    // The all-zero key (0, 0, 0) is dropped entirely: it carries no
+    // identifying bits, CableDB.curatedCable refuses it at lookup
+    // time, and writing it to the DB only wastes a slot.
+    var grouped: [CableRowKey: [CableRow]] = [:]
+    var insertOrder: [CableRowKey] = []
+    for row in parsed {
+        let key = CableRowKey(vid: row.vid, pid: row.pid, cableVDO: row.cableVDO)
+        if grouped[key] == nil { insertOrder.append(key) }
+        grouped[key, default: []].append(row)
+    }
+
+    let insertSQL = """
+        INSERT INTO cables (vid, pid, cable_vdo, brand, speed, power, type, xid, issue_url)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """
+    var stmt: OpaquePointer?
+    guard sqlite3_prepare_v2(db, insertSQL, -1, &stmt, nil) == SQLITE_OK else {
+        fputs("warn: prepare failed for cable insert\n", stderr)
+        return 0
+    }
+
+    runSQL("BEGIN TRANSACTION")
+    var count = 0
+    var mergedGroups = 0
+    var skippedAllZero = 0
+
+    for key in insertOrder {
+        let rows = grouped[key]!
+        if key.vid == 0 && key.pid == 0 && key.cableVDO == 0 {
+            skippedAllZero += rows.count
+            continue
+        }
+
+        let row: CableRow
+        if rows.count == 1 {
+            row = rows[0]
+        } else {
+            let mergedBrand = rows.map { $0.brand }.joined(separator: "; ")
+            let mergedURLs = rows.map { $0.issueURL }.joined(separator: ", ")
+            let first = rows[0]
+            row = CableRow(
+                vid: key.vid, pid: key.pid, cableVDO: key.cableVDO,
+                brand: mergedBrand, speed: first.speed, power: first.power,
+                type: first.type, xid: first.xid, issueURL: mergedURLs
+            )
+            mergedGroups += 1
+            let vidStr = String(format: "0x%04X", key.vid)
+            let pidStr = String(format: "0x%04X", key.pid)
+            let vdoStr = String(format: "0x%08X", key.cableVDO)
+            print("note: merged \(rows.count) reports on (\(vidStr), \(pidStr), \(vdoStr)) -> \(mergedBrand)")
+        }
+
         sqlite3_reset(stmt)
-        sqlite3_bind_int(stmt, 1, Int32(vid))
-        sqlite3_bind_int(stmt, 2, Int32(pid))
-        sqlite3_bind_int(stmt, 3, Int32(bitPattern: UInt32(cableVDO)))
-        sqlite3_bind_text(stmt, 4, (brand as NSString).utf8String, -1, nil)
-        sqlite3_bind_text(stmt, 5, (speed as NSString).utf8String, -1, nil)
-        sqlite3_bind_text(stmt, 6, (power as NSString).utf8String, -1, nil)
-        sqlite3_bind_text(stmt, 7, (type as NSString).utf8String, -1, nil)
-        sqlite3_bind_text(stmt, 8, (xid as NSString).utf8String, -1, nil)
-        sqlite3_bind_text(stmt, 9, (issueURL as NSString).utf8String, -1, nil)
+        sqlite3_bind_int(stmt, 1, Int32(row.vid))
+        sqlite3_bind_int(stmt, 2, Int32(row.pid))
+        sqlite3_bind_int(stmt, 3, Int32(bitPattern: UInt32(row.cableVDO)))
+        sqlite3_bind_text(stmt, 4, (row.brand as NSString).utf8String, -1, nil)
+        sqlite3_bind_text(stmt, 5, (row.speed as NSString).utf8String, -1, nil)
+        sqlite3_bind_text(stmt, 6, (row.power as NSString).utf8String, -1, nil)
+        sqlite3_bind_text(stmt, 7, (row.type as NSString).utf8String, -1, nil)
+        sqlite3_bind_text(stmt, 8, (row.xid as NSString).utf8String, -1, nil)
+        sqlite3_bind_text(stmt, 9, (row.issueURL as NSString).utf8String, -1, nil)
 
         if sqlite3_step(stmt) != SQLITE_DONE {
-            fputs("warn: failed to insert cable VID=\(vid) PID=\(pid): \(String(cString: sqlite3_errmsg(db)))\n", stderr)
+            fputs("warn: failed to insert cable VID=\(row.vid) PID=\(row.pid): \(String(cString: sqlite3_errmsg(db)))\n", stderr)
         } else {
             count += 1
         }
@@ -295,6 +371,13 @@ func importKnownCables() -> Int {
 
     runSQL("COMMIT")
     sqlite3_finalize(stmt)
+
+    if mergedGroups > 0 {
+        print("Merged \(mergedGroups) fingerprint group(s) with multiple reports")
+    }
+    if skippedAllZero > 0 {
+        print("Skipped \(skippedAllZero) all-zero-fingerprint markdown row(s) (cannot identify a cable)")
+    }
     return count
 }
 

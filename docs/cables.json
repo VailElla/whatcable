@@ -1,23 +1,9 @@
 [
   {
-    "brand" : "Anker USB-C cable, model not provided (e-marker present, no PD Discover Identity response)",
-    "cableVDO" : "",
-    "issueNum" : "#170",
-    "issueURL" : "https:\/\/github.com\/darrylmorley\/whatcable\/issues\/170",
-    "pid" : "0x0000",
-    "power" : "(not advertised)",
-    "registered" : true,
-    "speed" : "(none advertised)",
-    "type" : "passive",
-    "vendor" : "(zeroed)",
-    "vid" : "0x0000",
-    "xid" : "none"
-  },
-  {
-    "brand" : "INIU 100W USB-C cable (VID\/PID zeroed)",
+    "brand" : "Dockcase 100 W 10 Gbps 0.5 m (VID\/PID zeroed); INIU 100W USB-C cable (VID\/PID zeroed)",
     "cableVDO" : "0x00082042",
     "issueNum" : "#134",
-    "issueURL" : "https:\/\/github.com\/darrylmorley\/whatcable\/issues\/134",
+    "issueURL" : "https:\/\/github.com\/darrylmorley\/whatcable\/issues\/92, https:\/\/github.com\/darrylmorley\/whatcable\/issues\/134",
     "pid" : "0x0000",
     "power" : "5 A \/ 20 V (100 W)",
     "registered" : true,
@@ -84,10 +70,10 @@
     "xid" : "none"
   },
   {
-    "brand" : "Vorodcip generic USB-C cable, Amazon Italy (VID\/PID zeroed)",
+    "brand" : "vorodcip generic USB-C cable, Amazon Japan (VID\/PID zeroed); Vorodcip generic USB-C cable, Amazon Italy (VID\/PID zeroed)",
     "cableVDO" : "0x000A6642",
     "issueNum" : "#132",
-    "issueURL" : "https:\/\/github.com\/darrylmorley\/whatcable\/issues\/132",
+    "issueURL" : "https:\/\/github.com\/darrylmorley\/whatcable\/issues\/91, https:\/\/github.com\/darrylmorley\/whatcable\/issues\/132",
     "pid" : "0x0000",
     "power" : "5 A \/ 50 V (250 W)",
     "registered" : true,
@@ -112,10 +98,10 @@
     "xid" : "none"
   },
   {
-    "brand" : "CalDigit TB5 cable, Amazon",
+    "brand" : "CalDigit TS5 Plus bundled TB5 cable; CalDigit TB5 cable, Amazon",
     "cableVDO" : "0x110A2644",
     "issueNum" : "#90",
-    "issueURL" : "https:\/\/github.com\/darrylmorley\/whatcable\/issues\/90",
+    "issueURL" : "https:\/\/github.com\/darrylmorley\/whatcable\/issues\/89, https:\/\/github.com\/darrylmorley\/whatcable\/issues\/90",
     "pid" : "0x4003",
     "power" : "5 A \/ 50 V (250 W)",
     "registered" : false,
@@ -182,10 +168,10 @@
     "xid" : "none"
   },
   {
-    "brand" : "Apple Thunderbolt 5 cable 1 m (model A3189)",
+    "brand" : "Apple Thunderbolt 5 cable 1 m; Apple Thunderbolt 5 cable 1 m (model A3189)",
     "cableVDO" : "0x110A2644",
     "issueNum" : "#131",
-    "issueURL" : "https:\/\/github.com\/darrylmorley\/whatcable\/issues\/131",
+    "issueURL" : "https:\/\/github.com\/darrylmorley\/whatcable\/issues\/93, https:\/\/github.com\/darrylmorley\/whatcable\/issues\/131",
     "pid" : "0x720A",
     "power" : "5 A \/ 50 V (250 W)",
     "registered" : true,
@@ -378,10 +364,10 @@
     "xid" : "none"
   },
   {
-    "brand" : "CUKTECH PB200N powerbank built-in cable",
+    "brand" : "Baseus Pudding Series 100 W 1.2 m; CUKTECH PB200N powerbank built-in cable",
     "cableVDO" : "0x00082040",
     "issueNum" : "#168",
-    "issueURL" : "https:\/\/github.com\/darrylmorley\/whatcable\/issues\/168",
+    "issueURL" : "https:\/\/github.com\/darrylmorley\/whatcable\/issues\/167, https:\/\/github.com\/darrylmorley\/whatcable\/issues\/168",
     "pid" : "0x0000",
     "power" : "5 A \/ 20 V (100 W)",
     "registered" : true,
