@@ -4,7 +4,7 @@
 {%- set docTitle = documentTitle or (site.name + ': ' + (title or site.tagline)) -%}
 {%- set canonicalUrl = site.url + (page.url | cleanUrl) -%}
 {%- set metaDescription = description or summary or site.description -%}
-{%- set ogDescription = description or summary or site.shortDescription -%}
+{%- set ogDescription = socialDescription or description or summary or site.shortDescription -%}
 <title>{{ docTitle }}</title>
 <meta name="description" content="{{ metaDescription }}">
 {% if robots %}<meta name="robots" content="{{ robots }}">{% endif %}

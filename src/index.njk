@@ -2,6 +2,7 @@
 layout: base.njk
 documentTitle: "WhatCable: Know what your USB-C cable can really do"
 description: "Why is my MacBook charging slowly? WhatCable shows USB-C cable speed, charging power, and e-marker data in plain English. Free Mac app for Apple Silicon."
+socialDescription: "Why is my MacBook charging slowly? WhatCable shows USB-C cable speed, charging power, and e-marker data in plain English. Featured in Lifehacker, Boing Boing, and MakeUseOf."
 ogImage: "https://www.whatcable.uk/screenshot.webp"
 extraHead: |
   <script type="application/ld+json">
@@ -17,7 +18,7 @@ extraHead: |
     ],
     "description": "Why is my MacBook charging slowly? WhatCable shows USB-C cable speed, charging power, and e-marker data in plain English. Free Mac app for Apple Silicon.",
     "url": "https://www.whatcable.uk",
-    "downloadUrl": "https://github.com/darrylmorley/whatcable/releases/latest",
+    "downloadUrl": "https://github.com/darrylmorley/whatcable/releases/latest/download/WhatCable.zip",
     "softwareVersion": "0.12.1",
     "author": { "@type": "Person", "name": "Darryl Morley", "url": "https://github.com/darrylmorley" },
     "license": "https://opensource.org/licenses/MIT"
@@ -126,6 +127,54 @@ extraHead: |
       max-width: 460px;
       border-radius: 14px;
       box-shadow: var(--shadow-lg);
+    }
+
+    .home .quotes-strip {
+      padding: 56px 0 48px;
+    }
+    .home .quotes-strip .section-tag {
+      display: block;
+      text-align: center;
+      margin-bottom: 28px;
+    }
+    .home .quotes-strip .quotes-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 20px;
+      max-width: 920px;
+      margin: 0 auto;
+    }
+    .home .quotes-strip .pull-quote {
+      padding: 32px 30px;
+      border-radius: 14px;
+      background: var(--accent-soft);
+      border: 1px solid rgba(12, 140, 166, 0.22);
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      margin: 0;
+    }
+    .home .quotes-strip .pull-quote .quote {
+      font-size: clamp(20px, 1.9vw, 24px);
+      line-height: 1.35;
+      font-weight: 700;
+      color: var(--ink);
+      letter-spacing: -0.012em;
+      margin: 0;
+    }
+    .home .quotes-strip .pull-quote .quote::before { content: "\201C"; }
+    .home .quotes-strip .pull-quote .quote::after { content: "\201D"; }
+    .home .quotes-strip .pull-quote .attribution {
+      font-size: 13px;
+      color: var(--accent-strong);
+      font-weight: 600;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+    }
+    @media (max-width: 720px) {
+      .home .quotes-strip { padding: 40px 0 32px; }
+      .home .quotes-strip .quotes-grid { grid-template-columns: 1fr; }
+      .home .quotes-strip .pull-quote { padding: 26px 24px; }
     }
 
     .home .press { padding: 20px 0 12px; border-bottom: 1px solid var(--line-soft); }
@@ -421,8 +470,7 @@ extraHead: |
 
     .home .faq-section { border-top: 1px solid var(--line); }
     .home .faq-list { max-width: 720px; }
-    .home .faq-item { padding: 24px 0; border-bottom: 1px solid var(--line); }
-    .home .faq-item:first-child { border-top: 1px solid var(--line); }
+    .home .faq-item { padding: 22px 26px; }
     .home .faq-item h3 { font-size: 16px; font-weight: 600; margin-bottom: 8px; }
     .home .faq-item p { color: var(--ink-soft); font-size: 15px; line-height: 1.6; }
 
@@ -554,7 +602,7 @@ extraHead: |
         charges slow or refuses to drive your display.
       </p>
       <div class="actions">
-        <a class="button primary" href="{{ site.downloadUrl }}">
+        <a class="button primary" href="{{ site.downloadUrl }}" download>
           Download for macOS
           <svg class="arrow" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 5l7 7-7 7"/></svg>
         </a>
@@ -741,6 +789,22 @@ extraHead: |
   </div>
 </section>
 
+<section class="quotes-strip" aria-label="What reviewers said">
+  <div class="wrap-wide">
+    <span class="section-tag">Reviews</span>
+    <div class="quotes-grid">
+      {% for q in press.quotes %}
+        {% if q.attribution == "MakeUseOf" %}
+          <figure class="pull-quote">
+            <blockquote class="quote">{{ q.text }}</blockquote>
+            <figcaption class="attribution">{{ q.attribution }}</figcaption>
+          </figure>
+        {% endif %}
+      {% endfor %}
+    </div>
+  </div>
+</section>
+
 <section class="pro-teaser">
   <div class="wrap-wide">
     <div class="pro-teaser-inner">
@@ -824,7 +888,7 @@ brew install --cask whatcable</pre>
           Direct download
         </div>
         <p style="color: rgba(255,255,255,0.7); font-size: 14.5px; margin-bottom: 18px;">Grab the latest <code style="background: rgba(255,255,255,0.08); padding: 1px 6px; border-radius: 4px; font-size: 13px;">.zip</code> from GitHub Releases. Drag <strong style="color: #fff;">WhatCable.app</strong> into Applications.</p>
-        <a class="button primary" href="{{ site.downloadUrl }}">Get the latest release</a>
+        <a class="button primary" href="{{ site.downloadUrl }}" download>Get the latest release</a>
       </div>
     </div>
   </div>
