@@ -46,6 +46,14 @@ collections:
     fields:
       - { label: "Title", name: "title", widget: "string" }
       - { label: "Slug", name: "slug", widget: "string", hint: "Lowercase, hyphen-separated. Used in the URL and filename." }
+      - label: "Publish date"
+        name: "date"
+        widget: "datetime"
+        default: "{{now}}"
+        date_format: "YYYY-MM-DD"
+        time_format: false
+        format: "YYYY-MM-DD"
+        hint: "Date the post goes live. Used in the URL and shown on the post page."
       - { label: "Summary", name: "summary", widget: "string", hint: "One sentence shown in post lists and the RSS feed." }
       - label: "Category"
         name: "category"
