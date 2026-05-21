@@ -37,7 +37,14 @@ public struct CIOCableCapability: Identifiable, Hashable, Sendable {
     /// TB3, TB4, and TB5 (TB5 included), with occasional 3. Do not
     /// derive any label from it.
     public let generation: Int?
-    /// Whether the cable/link supports asymmetric mode (120/40 Gbps).
+    /// Static port-capability advertisement from `PORT_CS_18.CSA`
+    /// (per the Linux thunderbolt driver's `usb4_port_asym_supported`).
+    /// It says "this lane adapter type advertises asymmetric capability,"
+    /// not "this Mac will actually negotiate asymmetric mode." Apple
+    /// Silicon sets the bit across the family, including on Type5
+    /// (TB4-only) hosts that cannot run the Gen 4 link speeds asymmetric
+    /// mode needs. Surface as "Port advertises asymmetric capability"
+    /// rather than "Host supports asymmetric mode."
     public let asymmetricModeSupported: Bool?
     /// Raw CIO flag. Observed `false` on every sampled connection,
     /// including a real TB3 dock (M1 Max + ThinkPad TB3). The earlier
