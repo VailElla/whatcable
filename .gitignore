@@ -41,3 +41,4 @@ BLOG.md
 # the custom media library, but Decap still requires media_folder set. This
 # folder should never receive real files; ignore it just in case.
 src/blog/uploads/
+AGENTS.md
