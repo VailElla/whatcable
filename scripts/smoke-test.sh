@@ -217,6 +217,18 @@ PLIST
 
 printf "APPL????" > "${CONTENTS_DIR}/PkgInfo"
 
+# Strip macOS metadata sidecars before signing. AppleDouble files (._*)
+# and .DS_Store can be created at any time by the OS when something
+# touches a bundle directory (Finder browse, certain launch paths, even
+# `open` during the smoke test step). If they exist at sign time they
+# get sealed into the manifest; if they appear AFTER sign and before
+# the final zip they are caught by `codesign --verify --strict` as
+# "a sealed resource is missing or invalid". Stripping every time keeps
+# the bundle clean regardless of what touched it.
+echo "==> Stripping macOS metadata sidecars (._* and .DS_Store)"
+find "${APP_DIR}" -name "._*" -delete 2>/dev/null || true
+find "${APP_DIR}" -name ".DS_Store" -delete 2>/dev/null || true
+
 if [[ -n "${DEVELOPER_ID}" ]]; then
     echo "==> Signing CLI binary (inner) with Developer ID + hardened runtime"
     codesign --force --options runtime --timestamp \
@@ -312,9 +324,36 @@ if [[ -n "${DEVELOPER_ID}" && -n "${NOTARY_PROFILE}" ]]; then
     echo "==> Stapling notarisation ticket"
     xcrun stapler staple "${APP_DIR}"
 
+    # Strip again just before the final zip. macOS may have created
+    # AppleDouble or .DS_Store files while the bundle sat on disk
+    # during notarisation / stapling. Any file added between sign and
+    # zip would fail `codesign --verify --deep --strict` downstream
+    # (which is what the in-app updater runs before installing).
+    echo "==> Stripping macOS metadata sidecars (post-staple)"
+    find "${APP_DIR}" -name "._*" -delete 2>/dev/null || true
+    find "${APP_DIR}" -name ".DS_Store" -delete 2>/dev/null || true
+
     echo "==> Re-creating zip with stapled ticket"
     rm -f "${DIST_DIR}/${APP_NAME}.zip"
     ( cd "${DIST_DIR}" && ditto -c -k --keepParent "${APP_NAME}.app" "${APP_NAME}.zip" )
+
+    # Belt-and-braces: extract the final zip into a scratch directory
+    # and run `codesign --verify --deep --strict`. This catches the
+    # exact failure mode the in-app updater hits (sealed-resource
+    # mismatch from cruft that was zipped but not signed). Failing
+    # here aborts the script before publishing a broken release.
+    echo "==> Verifying signed bundle in final zip"
+    _VERIFY_DIR=$(mktemp -d)
+    ditto -x -k "${DIST_DIR}/${APP_NAME}.zip" "${_VERIFY_DIR}"
+    if codesign --verify --deep --strict --verbose=2 "${_VERIFY_DIR}/${APP_NAME}.app" 2>&1 | sed 's/^/    /'; then
+        echo "    Signed bundle in zip verifies clean."
+    else
+        echo "ERROR: codesign --verify --deep --strict failed on the final zip." >&2
+        echo "       This is the failure mode the in-app updater would hit." >&2
+        rm -rf "${_VERIFY_DIR}"
+        exit 1
+    fi
+    rm -rf "${_VERIFY_DIR}"
 
     echo "==> Verifying Gatekeeper acceptance"
     spctl --assess --type execute --verbose "${APP_DIR}" 2>&1 | sed 's/^/    /'
