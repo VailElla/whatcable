@@ -273,6 +273,27 @@ else
         --sign - "${APP_DIR}"
 fi
 
+# --- CLI-only artifact for the whatcable-cli Homebrew formula ----------
+# Stage a standalone zip containing the signed CLI binary plus the SPM
+# resource bundle (USB-IF vendor list, cable DB). Bundle.module looks for
+# the bundle next to the binary, so they have to ship together for the
+# CLI to work when installed outside the .app.
+echo "==> Staging CLI-only zip"
+CLI_STAGING_DIR="${DIST_DIR}/whatcable-cli"
+rm -rf "${CLI_STAGING_DIR}"
+mkdir -p "${CLI_STAGING_DIR}"
+cp "${HELPERS_DIR}/${CLI_BIN_NAME}" "${CLI_STAGING_DIR}/${CLI_BIN_NAME}"
+if [[ -d "${RESOURCES_DIR}/${SPM_BUNDLE_NAME}" ]]; then
+    cp -R "${RESOURCES_DIR}/${SPM_BUNDLE_NAME}" "${CLI_STAGING_DIR}/${SPM_BUNDLE_NAME}"
+fi
+find "${CLI_STAGING_DIR}" -name "._*" -delete 2>/dev/null || true
+find "${CLI_STAGING_DIR}" -name ".DS_Store" -delete 2>/dev/null || true
+
+CLI_ZIP="${DIST_DIR}/whatcable-cli-${VERSION}.zip"
+rm -f "${CLI_ZIP}"
+( cd "${DIST_DIR}" && ditto -c -k --keepParent "whatcable-cli" "whatcable-cli-${VERSION}.zip" )
+echo "    Created ${CLI_ZIP}"
+
 echo "==> Verifying signature"
 codesign --verify --deep --strict --verbose=2 "${APP_DIR}" 2>&1 | sed 's/^/    /'
 
@@ -357,14 +378,47 @@ if [[ -n "${DEVELOPER_ID}" && -n "${NOTARY_PROFILE}" ]]; then
 
     echo "==> Verifying Gatekeeper acceptance"
     spctl --assess --type execute --verbose "${APP_DIR}" 2>&1 | sed 's/^/    /'
+
+    echo "==> Submitting CLI-only zip to Apple notarisation"
+    # Bare CLI binaries can't be stapled (stapling is for .app / .pkg / .dmg),
+    # so notarisation lives on Apple's servers and Gatekeeper checks online
+    # at first launch. Acceptable for a Homebrew install path where users
+    # will have network connectivity.
+    xcrun notarytool submit "${CLI_ZIP}" \
+        --keychain-profile "${NOTARY_PROFILE}" \
+        --wait
 elif [[ -n "${DEVELOPER_ID}" ]]; then
     echo "==> NOTARY_PROFILE not set — skipping notarisation"
     echo "    Set it in .env once you've run:"
     echo "      xcrun notarytool store-credentials \"WhatCable-notary\" --apple-id ... --team-id ... --password ..."
 fi
 
+echo "==> Smoke-testing standalone CLI zip"
+# Extract the CLI zip to a scratch directory and exercise both --version
+# and --json. The --json path is the important one: it hits VendorDB and
+# the cable DB, so a broken resource-bundle lookup outside the .app
+# would fail here rather than in the wild on a user's machine.
+_CLI_VERIFY=$(mktemp -d)
+ditto -x -k "${CLI_ZIP}" "${_CLI_VERIFY}"
+STANDALONE_CLI="${_CLI_VERIFY}/whatcable-cli/${CLI_BIN_NAME}"
+STANDALONE_VERSION=$("${STANDALONE_CLI}" --version 2>&1 | tr -d '[:space:]')
+if [[ "${STANDALONE_VERSION}" != "${VERSION}" ]]; then
+    echo "    ERROR: standalone CLI --version reported '${STANDALONE_VERSION}', expected '${VERSION}'." >&2
+    rm -rf "${_CLI_VERIFY}"
+    exit 1
+fi
+if ! "${STANDALONE_CLI}" --json >/dev/null 2>&1; then
+    echo "    ERROR: standalone CLI --json exited non-zero. The SPM resource bundle" >&2
+    echo "    may not be found alongside the binary when installed outside the .app." >&2
+    rm -rf "${_CLI_VERIFY}"
+    exit 1
+fi
+echo "    Standalone CLI runs cleanly"
+rm -rf "${_CLI_VERIFY}"
+
 echo
 echo "Done."
-echo "  App:  ${APP_DIR}"
-echo "  CLI:  ${HELPERS_DIR}/${CLI_BIN_NAME} (inside the bundle)"
-echo "  Zip:  ${DIST_DIR}/${APP_NAME}.zip"
+echo "  App:     ${APP_DIR}"
+echo "  CLI:     ${HELPERS_DIR}/${CLI_BIN_NAME} (inside the bundle)"
+echo "  App zip: ${DIST_DIR}/${APP_NAME}.zip"
+echo "  CLI zip: ${CLI_ZIP}"
