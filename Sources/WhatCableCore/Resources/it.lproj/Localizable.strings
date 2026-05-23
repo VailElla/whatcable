@@ -306,7 +306,7 @@
 
 /* Pro plugin strings missing from prior export */
 "Enter Licence Key…" = "Inserisci chiave di licenza…";
-"Negotiated PD contract. This Mac doesn't report live per-port draw, so this is the agreed maximum, not a live measurement." = "Contratto PD negoziato. Questo Mac non riporta il consumo in tempo reale per porta, quindi questo è il massimo concordato, non una misurazione dal vivo.";
+"Negotiated PD contract maximum. Live draw is shown in the System Power Input chart below." = "Massimo del contratto PD negoziato. Il consumo in tempo reale è mostrato nel grafico Ingresso di alimentazione di sistema qui sotto.";
 "No power data for this port right now." = "Nessun dato di alimentazione per questa porta al momento.";
 "Upgrade to WhatCable Pro" = "Passa a WhatCable Pro";
 "not reported in this state" = "non riportato in questo stato";
