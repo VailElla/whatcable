@@ -1,50 +1,43 @@
 import Foundation
 
-/// Cable capability data from Apple's CIO (Thunderbolt) transport controller.
+/// Cable/link data from Apple's CIO (Thunderbolt) transport controller.
 ///
 /// These properties come from `IOPortTransportStateCIO`, which appears
-/// dynamically when a Thunderbolt link is active. They represent the TB
-/// controller's own assessment of the cable, independent of the USB-PD
-/// e-marker. This matters because some active TB4 cables (e.g. CalDigit
-/// 2M) report "passive" in their e-marker while the CIO controller
-/// correctly identifies their TB capability.
+/// dynamically when a Thunderbolt link is active. Most fields in
+/// `PORT_CS_18` are cable-state values populated per-connection from
+/// VDM exchange during link bring-up, not static port capabilities.
 ///
-/// `cableSpeed` is the genuine cable-capability signal and is now
-/// confirmed across TB3, TB4, and TB5 from real CIO probes (see
-/// `research/cio-value-mappings.md` for the data points). The other
-/// integer fields (`cableGeneration`, `generation`) do NOT track the
-/// Thunderbolt generation: probe data shows them varying per port
-/// within a single machine, including across identical TB4 links.
-/// Their meaning is unknown. They are stored raw and not used to
-/// derive any user-facing label.
+/// `cableSpeed` is confirmed across TB3, TB4, and TB5 (see
+/// `research/cio-value-mappings.md`). `asymmetricModeSupported` is
+/// a cable property (Cable Asymmetric Support from PORT_CS_18.CSA).
+/// The integer fields (`cableGeneration`, `generation`) are stored
+/// raw; their meaning is not yet confirmed.
 public struct CIOCableCapability: Identifiable, Hashable, Sendable {
     public let id: UInt64
     /// Port correlation key matching `PowerSource.portKey`.
     public let portKey: String
 
-    /// Raw CIO value of unknown meaning. NOT a Thunderbolt generation
-    /// counter: one M4 machine reported 1, 2, 2 across three TB4 CIO
-    /// entries, and value 1 also appears on TB4 links (M4/M5/M3 Max/
-    /// M1 Max), not only TB3. Do not derive any label from it.
+    /// Likely cable Gen 4 capability from `PORT_CS_18.CG4` (bit 21),
+    /// populated via VDM during link bring-up. Working hypothesis:
+    /// 1 = cable is Gen 3 only, 2 = cable supports Gen 4. Consistent
+    /// with all 27 data points but not yet confirmed by controlled
+    /// cable swap. Do not derive any user-facing label from it yet.
     public let cableGeneration: Int?
-    /// Cable speed capability from the CIO controller. The one CIO
-    /// field that genuinely tracks the cable, not the downstream
-    /// device. Confirmed: 2 = TB3 / 20 Gbps, 3 = TB4 / 40 Gbps,
-    /// 4 = TB5 / 80 Gbps.
+    /// Negotiated link generation from `LANE_ADP_CS_1.CURRENT_SPEED`.
+    /// Confirmed: 2 = 20 Gbps (TB3), 3 = 40 Gbps (TB4), 4 = 80 Gbps
+    /// (TB5). Reflects the lowest common denominator of host, cable,
+    /// and downstream device.
     public let cableSpeed: Int?
     /// Raw CIO value of unknown meaning. NOT a USB4 Gen number and
     /// not a legacy-vs-native flag: probe data is mostly 2 across
     /// TB3, TB4, and TB5 (TB5 included), with occasional 3. Do not
     /// derive any label from it.
     public let generation: Int?
-    /// Static port-capability advertisement from `PORT_CS_18.CSA`
-    /// (per the Linux thunderbolt driver's `usb4_port_asym_supported`).
-    /// It says "this lane adapter type advertises asymmetric capability,"
-    /// not "this Mac will actually negotiate asymmetric mode." Apple
-    /// Silicon sets the bit across the family, including on Type5
-    /// (TB4-only) hosts that cannot run the Gen 4 link speeds asymmetric
-    /// mode needs. Surface as "Port advertises asymmetric capability"
-    /// rather than "Host supports asymmetric mode."
+    /// Cable asymmetric-mode capability from `PORT_CS_18.CSA` (bit 22).
+    /// This is a cable-state field populated per-connection from VDM
+    /// exchange during link bring-up, not a static port capability.
+    /// Different cables on the same port produce different values.
+    /// Surface as "Cable supports asymmetric mode."
     public let asymmetricModeSupported: Bool?
     /// Raw CIO flag. Observed `false` on every sampled connection,
     /// including a real TB3 dock (M1 Max + ThinkPad TB3). The earlier

@@ -470,11 +470,11 @@ extension DataLinkDiagnostic {
         }
     }
 
-    /// CIO controller cable-speed code to Gbps. Only the confirmed codes
-    /// are mapped (3 = TB4 / 40, 4 = TB5 / 80). TB3 is unsampled, so an
-    /// unknown code returns nil rather than a guess.
+    /// CIO controller cable-speed code to Gbps. Confirmed codes:
+    /// 2 = TB3 / 20, 3 = TB4 / 40, 4 = TB5 / 80.
     static func cioCableGbps(_ code: Int?) -> Double? {
         switch code {
+        case 2: return 20
         case 3: return 40
         case 4: return 80
         default: return nil
