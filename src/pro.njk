@@ -679,21 +679,47 @@ extraHead: |
 
 {% raw %}
 <script>
+  const buyButtons = [
+    document.getElementById("buy-hero"),
+    document.getElementById("buy-pricing"),
+    document.getElementById("buy-cta"),
+  ];
+
+  let checkoutInFlight = false;
+
   async function startCheckout() {
+    if (checkoutInFlight) return;
+    checkoutInFlight = true;
+    buyButtons.forEach(b => { b.disabled = true; b.style.opacity = "0.6"; });
+
     try {
       const res = await fetch("https://whatcable.uk/api/checkout", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
       });
+
+      if (!res.ok) {
+        const msg = res.status === 429
+          ? "Too many requests. Please wait a moment and try again."
+          : "Something went wrong. Please try again.";
+        alert(msg);
+        return;
+      }
+
       const { url } = await res.json();
-      if (url) window.location.href = url;
-    } catch (e) {
+      if (url) {
+        window.location.href = url;
+        return;
+      }
       alert("Something went wrong. Please try again.");
+    } catch {
+      alert("Could not reach the checkout server. Please check your connection and try again.");
+    } finally {
+      checkoutInFlight = false;
+      buyButtons.forEach(b => { b.disabled = false; b.style.opacity = ""; });
     }
   }
 
-  document.getElementById("buy-hero").addEventListener("click", startCheckout);
-  document.getElementById("buy-pricing").addEventListener("click", startCheckout);
-  document.getElementById("buy-cta").addEventListener("click", startCheckout);
+  buyButtons.forEach(b => b.addEventListener("click", startCheckout));
 </script>
 {% endraw %}
