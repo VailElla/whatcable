@@ -405,3 +405,7 @@
 
 /* Display dimension: branch device. */
 "Your %@ is reached through a USB-C to %@ adapter that reports as %@, currently carrying about %@ (%@), short of the monitor's top mode (%@, about %@). With an adapter in the chain, the adapter's own limit may be the cap rather than the cable. A native DisplayPort connection, or a higher-spec adapter, would tell you which." = "您的 %@ 是透過 USB-C 轉 %@ 轉接器連接，該轉接器回報為 %@。目前約承載 %@（%@），尚未達到顯示器的最高模式（%@，約需 %@）。在有轉接器的情況下，限制因素可能是轉接器本身，而非線材。改用原生 DisplayPort 連接，或使用規格更高的轉接器，有助於判斷原因。";
+
+/* Billboard device (display dimension). */
+"Billboard device present" = "偵測到 Billboard 裝置";
+"A Billboard device is present on this port. That usually appears when an Alt Mode like DisplayPort was set up but didn't fully come up. Your display is below its best mode, so a re-plug, a different cable, or a different adapter may bring it up. Some docks show a Billboard device normally, so this isn't always a fault." = "此連接埠偵測到 Billboard 裝置。這通常表示 DisplayPort 等 Alt Mode 雖已開始設定，但未能完全啟用。您的顯示器目前未達最佳模式，重新插拔、改用其它線材，或更換轉接器可能有助於恢復正常。有些 Dock 本來就會顯示 Billboard 裝置，因此這不一定代表故障。";
