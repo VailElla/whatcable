@@ -32,6 +32,15 @@ struct EDIDInfoTests {
         "662156aa51001e30468f33001d4e3100001e6a5e00a0a0a02950302035001d4e3100" +
         "001e226870a0d0a02950302035001d4e3100001a00000000000081"
 
+    /// Full 384-byte EDID (base block + two CTA-861 extensions) of an LG
+    /// UltraFine 4K (manufacturer GSM = LG, sink "22MD4K"), captured live from
+    /// an Apple M3 Max over a *tunnelled* DisplayPort link via Test Kit probe
+    /// 33 on 2026-05-30. Native DisplayPort, no adapter. The second real
+    /// monitor golden sample alongside the G34w, and the first from a 4K panel.
+    /// Verbatim from `research/dumps/displayport/2026-05-30_m3max_lg-ultrafine.md`.
+    static let lgUltraFineHex =
+        "00ffffffffffff001e6d7b5b00000000041d0104b5351e78803e31ae5047ac270c50542000000101010101010101010101010101010150d000a0f0703e803020630c0d272100001a000000ff0000000000000000000000000000000000fd00303c1e873c010a202020202020000000fc004c4720556c74726146696e650a027a701279000001000c8e126e0a0010000950784e772900106c370bdf4a3f44a19fc3f816f25e900d03003cbb9c00041f0d4f0007801f006107350000000700a25b0004ff094f0007801f009f05280000000700133400047f074f0007801f0037041e0000000700000000000000000000000000000000000000000000000000c390701279000003003c4fd00084ff0e9f002f801f006f083d003500020093ad0004ff0e9f002f801f006f083d003500020025680004ff0e9f002f801f006f083d0035000200000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000008f90"
+
     static func hexBytes(_ hex: String) -> [UInt8] {
         var out: [UInt8] = []
         var i = hex.startIndex
@@ -114,6 +123,20 @@ struct EDIDInfoTests {
         #expect(edid.monitorName == "LEN G34w-10")
         #expect(edid.versionMajor == 1)
         #expect(edid.versionMinor == 3)
+    }
+
+    // MARK: - Second real monitor: LG UltraFine 4K (live, tunnelled DP)
+
+    @Test("Parses the live LG UltraFine 4K EDID (base block + CTA extensions)")
+    func parsesLGUltraFine() throws {
+        let edid = try #require(EDIDInfo(Data(Self.hexBytes(Self.lgUltraFineHex))))
+        #expect(edid.monitorName == "LG UltraFine")
+        #expect(edid.preferredWidth == 3840)
+        #expect(edid.preferredHeight == 2160)
+        // 0xFD range-limits ceiling: 60 Hz, 600 MHz max pixel clock. The CTA
+        // extensions carry only lower modes, so the ceiling is unchanged.
+        #expect(edid.maxRefreshHz == 60)
+        #expect(edid.maxPixelClockHz == 600_000_000)
     }
 
     @Test("Rejects a blob with a bad header")

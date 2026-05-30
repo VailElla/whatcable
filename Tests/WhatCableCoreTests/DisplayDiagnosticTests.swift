@@ -250,6 +250,26 @@ struct DisplayDiagnosticTests {
         #expect(DisplayDiagnostic.perLaneGbps(fromDescription: nil) == nil)
     }
 
+    // MARK: - Live sample: LG UltraFine 4K over a tunnelled DP link
+
+    @Test("Live LG UltraFine 4K on tunnelled 4-lane HBR2: fine, cable exonerated")
+    func liveLGUltraFineTunnelled() throws {
+        // Real capture (M3 Max, Test Kit probe 33, 2026-05-30): a native-DP LG
+        // UltraFine 4K reached over a Thunderbolt/USB4 tunnel at 4 lanes HBR2.
+        // End to end from the real EDID bytes: 600 MHz x 24bpp = 14.4 Gbps
+        // needed, 4 x 5.4 x 0.8 = 17.3 delivered, so the link carries the top
+        // mode. The first live tunnelled sample, so it also exercises the
+        // tunnelled cable-exoneration path that only synthetic tests hit before.
+        let edid = Data(EDIDInfoTests.hexBytes(EDIDInfoTests.lgUltraFineHex))
+        let diag = try #require(
+            DisplayDiagnostic(dp: makeDP(lanes: 4, tunneled: true, edidData: edid))
+        )
+        #expect(diag.bottleneck == .fine)
+        #expect(diag.cableAssessment == .unlikelyTheCable)
+        #expect(diag.facts.monitorName == "LG UltraFine")
+        #expect(diag.facts.lanes == 4)
+    }
+
     // MARK: - Billboard-device note (gated on a degraded link)
 
     @Test("Billboard note fires only with a below-best-mode link present")
