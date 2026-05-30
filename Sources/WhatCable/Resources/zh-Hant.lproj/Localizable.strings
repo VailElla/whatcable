@@ -109,3 +109,6 @@
 "Opens as a regular window with a Dock icon, like most apps." = "像大多數應用程式一樣，以一般視窗開啟並顯示 Dock 圖示。";
 "Get Started" = "開始使用";
 "You can change this any time in Settings." = "你可以隨時在設定中更改。";
+
+/* Billboard device (display dimension). */
+"Billboard device present" = "偵測到 Billboard 裝置";
