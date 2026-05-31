@@ -3,6 +3,7 @@ import AppKit
 import Combine
 import os.log
 import WhatCableCore
+import WhatCableDarwinBackend
 import WhatCableAppKit
 import WhatCablePlugins
 

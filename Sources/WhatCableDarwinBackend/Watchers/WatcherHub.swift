@@ -1,19 +1,23 @@
 import Foundation
 import Combine
-import WhatCableDarwinBackend
 
+/// Single owner of the app's IOKit watchers. Lives in the backend (not the app
+/// target) so both the menu bar app and the Pro plugin can share one set of
+/// watchers instead of each constructing its own. Builds the watchers once,
+/// starts them together, polls every second, and fires a burst of refreshes on
+/// plug/unplug.
 @MainActor
-final class WatcherHub {
-    static let shared = WatcherHub()
+public final class WatcherHub {
+    public static let shared = WatcherHub()
 
-    let portWatcher    = AppleHPMInterfaceWatcher()
-    let deviceWatcher  = USBWatcher()
-    let powerWatcher   = PowerSourceWatcher()
-    let pdWatcher      = USBPDSOPWatcher()
-    let tbWatcher      = IOIOThunderboltSwitchWatcher()
-    let usb3Watcher    = USB3TransportWatcher()
-    let trmWatcher     = TRMTransportWatcher()
-    let displayWatcher = DisplayPortTransportWatcher()
+    public let portWatcher    = AppleHPMInterfaceWatcher()
+    public let deviceWatcher  = USBWatcher()
+    public let powerWatcher   = PowerSourceWatcher()
+    public let pdWatcher      = USBPDSOPWatcher()
+    public let tbWatcher      = IOIOThunderboltSwitchWatcher()
+    public let usb3Watcher    = USB3TransportWatcher()
+    public let trmWatcher     = TRMTransportWatcher()
+    public let displayWatcher = DisplayPortTransportWatcher()
 
     private var isStarted = false
     private var pollTask: Task<Void, Never>?
@@ -23,7 +27,7 @@ final class WatcherHub {
 
     private init() {}
 
-    func start() {
+    public func start() {
         guard !isStarted else { return }
         isStarted = true
 
@@ -40,7 +44,7 @@ final class WatcherHub {
         setupBurstTriggers()
     }
 
-    func refreshAll() {
+    public func refreshAll() {
         isRefreshing = true
         defer { isRefreshing = false }
         portWatcher.refresh()
