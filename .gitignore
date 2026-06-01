@@ -49,8 +49,12 @@ AGENTS.md
 # Internal architectural decision log
 DECISIONS.md
 
-# Customer test-kit probe raw dumps. These are a redundant copy of the
-# WHATCABLE_PROBE_DATA KV store (re-fetchable by machine_hash:probe key).
-# Only the distilled artifacts are tracked: per-folder inspection.md and the
-# top-level rollups (index.md, assessment.md, skipped.md, candidate-cables-*.md).
+# Customer test-kit probe raw dumps. The bulk probes are a redundant copy of
+# the WHATCABLE_PROBE_DATA KV store (re-fetchable by machine_hash:probe key),
+# so they are not tracked. EXCEPTION: 01_walk_pd_tree.json is kept tracked for
+# every folder, because DataLinkDiagnosticProbeSweepTests reads it as a test
+# fixture (and it is the gate input + cable fingerprint source). The other 12
+# probes are tracked only for CIO folders (kept on disk for /whatcable-mine-cio).
+# Distilled artifacts (inspection.md + the top-level rollups) are always tracked.
 research/customer-probes/*/*.json
+!research/customer-probes/*/01_walk_pd_tree.json
