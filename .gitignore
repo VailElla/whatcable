@@ -57,3 +57,7 @@ DECISIONS.md
 # Distilled artifacts (inspection.md + the top-level rollups) are always tracked.
 research/customer-probes/*/*.json
 !research/customer-probes/*/01_walk_pd_tree.json
+
+# Python bytecode (from research/build scripts like inspect-probe.py)
+__pycache__/
+*.pyc
