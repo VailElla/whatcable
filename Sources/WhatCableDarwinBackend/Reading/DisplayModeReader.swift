@@ -29,13 +29,25 @@ public enum DisplayModeReader {
         /// `CGDisplaySerialNumber`: often 0 on Apple Silicon, so used only as a
         /// tiebreaker, never as a primary match key.
         public let serialNumber: UInt32?
+        /// `CGDisplayIsBuiltin`: the internal laptop panel. Excluded from
+        /// matching, since a DisplayPort transport node is always an external
+        /// USB-C / DP connection.
+        public let isBuiltin: Bool
+        /// The current on-screen mode.
         public let mode: DisplayCurrentMode
+        /// The display's native top mode (highest resolution, at its best
+        /// refresh) from `CGDisplayCopyAllDisplayModes`. The authoritative top
+        /// mode, EDID-free. nil when the mode list is unavailable, so we never
+        /// fabricate a top mode the OS didn't give us.
+        public let maxMode: DisplayCurrentMode?
 
-        public init(vendorNumber: UInt32?, modelNumber: UInt32?, serialNumber: UInt32?, mode: DisplayCurrentMode) {
+        public init(vendorNumber: UInt32?, modelNumber: UInt32?, serialNumber: UInt32?, isBuiltin: Bool = false, mode: DisplayCurrentMode, maxMode: DisplayCurrentMode?) {
             self.vendorNumber = vendorNumber
             self.modelNumber = modelNumber
             self.serialNumber = serialNumber
+            self.isBuiltin = isBuiltin
             self.mode = mode
+            self.maxMode = maxMode
         }
     }
 
@@ -66,8 +78,10 @@ public enum DisplayModeReader {
         ports.map { port in
             guard port.currentMode == nil, let monitor = port.monitor else { return port }
 
+            // A DisplayPort transport node is always an external connection, so
+            // the internal panel is never a candidate.
             let candidates = displays.filter { display in
-                identityMatches(monitor: monitor, display: display)
+                !display.isBuiltin && identityMatches(monitor: monitor, display: display)
             }
 
             // Exactly one candidate: attach. Otherwise fail closed.
@@ -76,9 +90,9 @@ public enum DisplayModeReader {
                 // Tiebreak two identical displays by serial, if the node has one.
                 let bySerial = candidates.filter { $0.serialNumber == UInt32(truncatingIfNeeded: monitorSerial) }
                 guard bySerial.count == 1 else { return port }
-                return attach(bySerial[0].mode, to: port)
+                return attach(bySerial[0], to: port)
             }
-            return attach(candidates[0].mode, to: port)
+            return attach(candidates[0], to: port)
         }
     }
 
@@ -103,12 +117,14 @@ public enum DisplayModeReader {
         return true
     }
 
-    /// Attach a live mode to a node, but only when the refresh is usable.
-    /// CoreGraphics has returned 0 Hz for some modes; with no trustworthy
-    /// refresh there is no current-mode data to carry, so leave the node as-is.
-    private static func attach(_ mode: DisplayCurrentMode, to port: IOPortTransportStateDisplayPort) -> IOPortTransportStateDisplayPort {
-        guard mode.refreshHz > 0 else { return port }
-        return port.with(currentMode: mode)
+    /// Attach a matched display's modes to a node, but only when the current
+    /// refresh is usable. CoreGraphics has returned 0 Hz for some modes; with no
+    /// trustworthy refresh there is no current-mode data to carry, so leave the
+    /// node as-is. The max mode is carried only when it too has a usable refresh.
+    private static func attach(_ display: ResolvedDisplay, to port: IOPortTransportStateDisplayPort) -> IOPortTransportStateDisplayPort {
+        guard display.mode.refreshHz > 0 else { return port }
+        let maxMode = (display.maxMode?.refreshHz ?? 0) > 0 ? display.maxMode : nil
+        return port.with(currentMode: display.mode, maxMode: maxMode)
     }
 
     /// Decode `CGDisplayVendorNumber` (a packed EDID manufacturer id) into its
@@ -140,28 +156,50 @@ public enum DisplayModeReader {
 
         return ids.compactMap { id -> ResolvedDisplay? in
             guard let cgMode = CGDisplayCopyDisplayMode(id) else { return nil }
-            // Physical pixels, NOT points: a Retina 5K display is 5120 x 2880
-            // here but only 2560 x 1440 via the point-based getters. Using the
-            // point variants would re-create issue #249 under a new code path.
-            let mode = DisplayCurrentMode(
-                width: cgMode.pixelWidth,
-                height: cgMode.pixelHeight,
-                refreshHz: cgMode.refreshRate
-            )
+            let mode = mode(from: cgMode)
             return ResolvedDisplay(
                 vendorNumber: CGDisplayVendorNumber(id),
                 modelNumber: CGDisplayModelNumber(id),
                 serialNumber: CGDisplaySerialNumber(id),
-                mode: mode
+                isBuiltin: CGDisplayIsBuiltin(id) != 0,
+                mode: mode,
+                maxMode: nativeTopMode(of: id)
             )
         }
+    }
+
+    /// Convert a CoreGraphics mode to our model in physical pixels, NOT points:
+    /// a Retina 5K display is 5120 x 2880 here but only 2560 x 1440 via the
+    /// point-based getters. Using the point variants would re-create issue #249.
+    private static func mode(from cgMode: CGDisplayMode) -> DisplayCurrentMode {
+        DisplayCurrentMode(
+            width: cgMode.pixelWidth,
+            height: cgMode.pixelHeight,
+            refreshHz: cgMode.refreshRate
+        )
+    }
+
+    /// The display's native top mode from `CGDisplayCopyAllDisplayModes`: the
+    /// highest-resolution mode (by pixel area), and at that resolution the
+    /// highest refresh. This is the EDID-free native mode: macOS reports the
+    /// real one here even for 5K/6K displays whose EDID can't describe it.
+    ///
+    /// Resolution first, not throughput: a lower-resolution, higher-refresh mode
+    /// can win on pixels-per-second (e.g. 4K120 beats 5K60), which would mislabel
+    /// a 5K panel's native size. nil when the mode list is unavailable, so we
+    /// never fabricate a top mode.
+    private static func nativeTopMode(of id: CGDirectDisplayID) -> DisplayCurrentMode? {
+        guard let cfModes = CGDisplayCopyAllDisplayModes(id, nil) as? [CGDisplayMode] else { return nil }
+        return cfModes
+            .map(mode(from:))
+            .max { ($0.width * $0.height, $0.refreshHz) < ($1.width * $1.height, $1.refreshHz) }
     }
 }
 
 extension IOPortTransportStateDisplayPort {
-    /// Copy this node with a `currentMode` attached. Kept local to the backend
-    /// because only the CoreGraphics matcher sets it.
-    fileprivate func with(currentMode: DisplayCurrentMode) -> IOPortTransportStateDisplayPort {
+    /// Copy this node with the matched CoreGraphics modes attached. Kept local
+    /// to the backend because only the CoreGraphics matcher sets them.
+    fileprivate func with(currentMode: DisplayCurrentMode, maxMode: DisplayCurrentMode?) -> IOPortTransportStateDisplayPort {
         IOPortTransportStateDisplayPort(
             link: link, monitor: monitor, dfpType: dfpType,
             branchDeviceId: branchDeviceId, branchDeviceOUI: branchDeviceOUI,
@@ -181,7 +219,7 @@ extension IOPortTransportStateDisplayPort {
             parentBuiltInPortTypeDescription: parentBuiltInPortTypeDescription,
             parentBuiltInPortNumber: parentBuiltInPortNumber,
             edidChanged: edidChanged, nominalSignalingFrequenciesHz: nominalSignalingFrequenciesHz,
-            index: index, currentMode: currentMode
+            index: index, currentMode: currentMode, maxMode: maxMode
         )
     }
 }

@@ -18,10 +18,12 @@ struct DisplayModeReaderTests {
         )
     }
 
-    private func resolved(vendor: UInt32?, model: UInt32?, serial: UInt32? = nil, w: Int = 3840, h: Int = 2160, hz: Double = 240) -> DisplayModeReader.ResolvedDisplay {
-        DisplayModeReader.ResolvedDisplay(
+    private func resolved(vendor: UInt32?, model: UInt32?, serial: UInt32? = nil, isBuiltin: Bool = false, w: Int = 3840, h: Int = 2160, hz: Double = 240, maxHz: Double? = nil) -> DisplayModeReader.ResolvedDisplay {
+        let mode = DisplayCurrentMode(width: w, height: h, refreshHz: hz)
+        let maxMode = DisplayCurrentMode(width: w, height: h, refreshHz: maxHz ?? hz)
+        return DisplayModeReader.ResolvedDisplay(
             vendorNumber: vendor, modelNumber: model, serialNumber: serial,
-            mode: DisplayCurrentMode(width: w, height: h, refreshHz: hz)
+            isBuiltin: isBuiltin, mode: mode, maxMode: maxMode
         )
     }
 
@@ -34,12 +36,50 @@ struct DisplayModeReaderTests {
         #expect(DisplayModeReader.pnpCode(fromPackedVendor: 0xFFFF) == nil)
     }
 
-    @Test("A clean single match attaches the live mode")
+    @Test("A clean single match attaches the live mode and the max mode")
     func cleanMatch() {
         let ports = [dpNode(productId: 12821, vendor: "GBT")]
-        let displays = [resolved(vendor: 0x1C54, model: 12821)]
+        let displays = [resolved(vendor: 0x1C54, model: 12821, hz: 120, maxHz: 240)]
         let out = DisplayModeReader.match(ports: ports, displays: displays)
-        #expect(out[0].currentMode == DisplayCurrentMode(width: 3840, height: 2160, refreshHz: 240))
+        #expect(out[0].currentMode == DisplayCurrentMode(width: 3840, height: 2160, refreshHz: 120))
+        #expect(out[0].maxMode == DisplayCurrentMode(width: 3840, height: 2160, refreshHz: 240))
+    }
+
+    @Test("The built-in panel is never matched to a DisplayPort node")
+    func builtinExcluded() {
+        // Even with an identity that would otherwise match, a built-in display
+        // is excluded: a DP transport node is always an external connection.
+        let ports = [dpNode(productId: 12821, vendor: "GBT")]
+        let displays = [resolved(vendor: 0x1C54, model: 12821, isBuiltin: true)]
+        let out = DisplayModeReader.match(ports: ports, displays: displays)
+        #expect(out[0].currentMode == nil)
+        #expect(out[0].maxMode == nil)
+    }
+
+    @Test("A nil max mode (mode list unavailable) still attaches the live mode, maxMode stays nil")
+    func nilMaxModeStillAttachesLive() {
+        // When CoreGraphics can't supply the mode list, the verdict must fall
+        // back to the EDID reference, never to the live mode compared to itself.
+        let ports = [dpNode(productId: 12821, vendor: "GBT")]
+        let displays = [
+            DisplayModeReader.ResolvedDisplay(
+                vendorNumber: 0x1C54, modelNumber: 12821, serialNumber: nil,
+                mode: DisplayCurrentMode(width: 3840, height: 2160, refreshHz: 60),
+                maxMode: nil
+            )
+        ]
+        let out = DisplayModeReader.match(ports: ports, displays: displays)
+        #expect(out[0].currentMode?.refreshHz == 60)
+        #expect(out[0].maxMode == nil)
+    }
+
+    @Test("A max mode with a 0 Hz refresh is dropped, the live mode still attaches")
+    func zeroRefreshMaxModeDropped() {
+        let ports = [dpNode(productId: 12821, vendor: "GBT")]
+        let displays = [resolved(vendor: 0x1C54, model: 12821, hz: 60, maxHz: 0)]
+        let out = DisplayModeReader.match(ports: ports, displays: displays)
+        #expect(out[0].currentMode?.refreshHz == 60)
+        #expect(out[0].maxMode == nil)
     }
 
     @Test("Wrong product id does not match, leaves currentMode nil")

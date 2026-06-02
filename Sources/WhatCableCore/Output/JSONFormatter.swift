@@ -632,6 +632,8 @@ private struct DisplayDTO: Codable {
     /// The live on-screen mode from CoreGraphics, when matched. The true
     /// resolution even for 5K/6K displays whose EDID can't describe it.
     let currentMode: CurrentModeDTO?
+    /// The display's highest mode from CoreGraphics, EDID-free.
+    let maxMode: CurrentModeDTO?
 
     init(diagnostic: DisplayDiagnostic) {
         self.summary = diagnostic.summary
@@ -658,6 +660,7 @@ private struct DisplayDTO: Codable {
         self.sinkType = facts.sinkType
         self.branchDevice = facts.branchDevice
         self.currentMode = facts.currentMode.map(CurrentModeDTO.init)
+        self.maxMode = facts.maxMode.map(CurrentModeDTO.init)
     }
 }
 

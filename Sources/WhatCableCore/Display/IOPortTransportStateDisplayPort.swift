@@ -97,6 +97,12 @@ public struct IOPortTransportStateDisplayPort: Codable, Sendable, Equatable {
     /// Windows backend, in tests, and whenever the match is missing or
     /// ambiguous, so every consumer treats its absence as "no extra data".
     public let currentMode: DisplayCurrentMode?
+    /// The display's native top mode as macOS reports it (from
+    /// `CGDisplayCopyAllDisplayModes`): highest resolution, at its best refresh.
+    /// The authoritative top mode that does not depend on parsing the EDID, so
+    /// it is correct even for 5K/6K displays whose EDID can't describe their
+    /// native mode. Same nil contract as `currentMode`.
+    public let maxMode: DisplayCurrentMode?
 
     public init(
         link: DisplayPortLink,
@@ -131,7 +137,8 @@ public struct IOPortTransportStateDisplayPort: Codable, Sendable, Equatable {
         edidChanged: Bool = false,
         nominalSignalingFrequenciesHz: [Int] = [],
         index: Int = 0,
-        currentMode: DisplayCurrentMode? = nil
+        currentMode: DisplayCurrentMode? = nil,
+        maxMode: DisplayCurrentMode? = nil
     ) {
         self.link = link
         self.monitor = monitor
@@ -166,6 +173,7 @@ public struct IOPortTransportStateDisplayPort: Codable, Sendable, Equatable {
         self.nominalSignalingFrequenciesHz = nominalSignalingFrequenciesHz
         self.index = index
         self.currentMode = currentMode
+        self.maxMode = maxMode
     }
 }
 

@@ -26,7 +26,8 @@ struct DisplayDiagnosticTests {
         dfpType: String? = nil,
         branchDeviceId: String? = nil,
         edidData: Data? = nil,
-        currentMode: DisplayCurrentMode? = nil
+        currentMode: DisplayCurrentMode? = nil,
+        maxMode: DisplayCurrentMode? = nil
     ) -> IOPortTransportStateDisplayPort {
         IOPortTransportStateDisplayPort(
             link: DisplayPortLink(
@@ -46,7 +47,8 @@ struct DisplayDiagnosticTests {
             },
             dfpType: dfpType,
             branchDeviceId: branchDeviceId,
-            currentMode: currentMode
+            currentMode: currentMode,
+            maxMode: maxMode
         )
     }
 
@@ -458,6 +460,59 @@ struct DisplayDiagnosticTests {
         let diag = try #require(DisplayDiagnostic(dp: dp))
         #expect(diag.bottleneck == .fine)
         #expect(diag.detail.contains("3840 x 2160 @ 240Hz"))
+    }
+
+    // MARK: - CoreGraphics max mode as the authoritative top-mode reference
+
+    /// An EDID whose range-limits descriptor is absent, so its only idea of the
+    /// "top mode" is the 60Hz preferred mode, understating a 240Hz panel. The
+    /// high max pixel clock forces the link short of the uncompressed top so the
+    /// compression branch (where the at-top-mode check runs) is reached.
+    private let understatedEdid = EDIDInfo(
+        monitorName: "Understated 4K",
+        versionMajor: 1, versionMinor: 4,
+        preferredWidth: 3840, preferredHeight: 2160, preferredRefreshHz: 60,
+        preferredPixelClockHz: 533_000_000,
+        maxRefreshHz: nil, maxPixelClockHz: 2_340_000_000
+    )
+
+    @Test("With no CG max mode, an understated EDID top falsely confirms a 120Hz mode")
+    func understatedEdidWithoutMaxModeOverconfirms() throws {
+        // The EDID thinks the top mode is 60Hz, so a 120Hz live mode clears it
+        // and (wrongly, but this is the EDID-only fallback) reads as full quality.
+        let live = DisplayCurrentMode(width: 3840, height: 2160, refreshHz: 120)
+        let dp = makeDP(lanes: 4, maxLanes: 4, rateDesc: "8.1 Gbps (HBR3)", currentMode: live)
+        let diag = try #require(DisplayDiagnostic(dp: dp, edid: understatedEdid))
+        #expect(diag.bottleneck == .fine)
+    }
+
+    @Test("The CG max mode corrects it: 120Hz below a true 240Hz top stays compressionPlausible")
+    func cgMaxModeTightensTopReference() throws {
+        // Same understated EDID and same 120Hz live mode, but now CoreGraphics
+        // supplies the real 240Hz top. 120 < 240, so it is genuinely not at the
+        // top mode and we must not confirm full quality.
+        let live = DisplayCurrentMode(width: 3840, height: 2160, refreshHz: 120)
+        let top = DisplayCurrentMode(width: 3840, height: 2160, refreshHz: 240)
+        let dp = makeDP(lanes: 4, maxLanes: 4, rateDesc: "8.1 Gbps (HBR3)", currentMode: live, maxMode: top)
+        let diag = try #require(DisplayDiagnostic(dp: dp, edid: understatedEdid))
+        #expect(diag.bottleneck == .compressionPlausible)
+    }
+
+    @Test("At the CG max mode, the verdict confirms full quality")
+    func atCgMaxModeConfirmsFine() throws {
+        let top = DisplayCurrentMode(width: 3840, height: 2160, refreshHz: 240)
+        let dp = makeDP(lanes: 4, maxLanes: 4, rateDesc: "8.1 Gbps (HBR3)", currentMode: top, maxMode: top)
+        let diag = try #require(DisplayDiagnostic(dp: dp, edid: understatedEdid))
+        #expect(diag.bottleneck == .fine)
+    }
+
+    @Test("The CG max mode is carried in the facts for the capability label")
+    func maxModeSurfacesInFacts() throws {
+        let top = DisplayCurrentMode(width: 5120, height: 2880, refreshHz: 60)
+        let dp = makeDP(lanes: 4, maxLanes: 4, rateDesc: "8.1 Gbps (HBR3)", tunneled: true, currentMode: top, maxMode: top)
+        let diag = try #require(DisplayDiagnostic(dp: dp, edid: fo32))
+        #expect(diag.facts.maxMode?.width == 5120)
+        #expect(diag.facts.maxMode?.height == 2880)
     }
 
     @Test("No Billboard note when the link is at the ceiling (can't claim below best mode)")
