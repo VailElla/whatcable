@@ -531,6 +531,17 @@ struct PortCard: View {
                     .padding(.leading, 48)
             }
 
+            // Trust signals sit with the other top-of-card callouts (charging,
+            // link speed, display) rather than below the bullets, so the cable
+            // verdict is read alongside the link-speed verdict.
+            if let cable = cableEmarker {
+                let trust = CableTrustReport(identity: cable, partner: cablePartner)
+                if !trust.isEmpty {
+                    TrustFlagsCard(flags: trust.flags)
+                        .padding(.leading, 48)
+                }
+            }
+
             // Name only, no diagnosis: a Billboard device is often benign, so
             // the inline card just names it. Any inference about a failed Alt
             // Mode lives only in the Pro Display Diagnostics screen, gated on a
@@ -546,7 +557,13 @@ struct PortCard: View {
             }
 
             if !summary.bullets.isEmpty {
+                // "Cable details" subheading + the extra top gap mark the break
+                // between the callout verdicts above and the plain spec facts
+                // below, mirroring the "Connected devices" subheading.
                 VStack(alignment: .leading, spacing: 4) {
+                    Text(String(localized: "Cable details", bundle: _appLocalizedBundle))
+                        .scaledFont(.subheadline, weight: .semibold)
+                        .foregroundStyle(.secondary)
                     ForEach(summary.bullets, id: \.self) { bullet in
                         HStack(alignment: .top, spacing: 6) {
                             Text(verbatim: "•").foregroundStyle(.secondary)
@@ -556,6 +573,7 @@ struct PortCard: View {
                     }
                 }
                 .padding(.leading, 48)
+                .padding(.top, 4)
             }
 
             if !devices.isEmpty {
@@ -582,13 +600,9 @@ struct PortCard: View {
                     .padding(.top, 4)
             }
 
+            // Trust card is rendered up with the callouts above; only the
+            // report action stays at the bottom of the card.
             if let cable = cableEmarker {
-                let trust = CableTrustReport(identity: cable, partner: cablePartner)
-                if !trust.isEmpty {
-                    TrustFlagsCard(flags: trust.flags)
-                        .padding(.leading, 48)
-                }
-
                 HStack {
                     Spacer()
                     Button {
@@ -623,25 +637,75 @@ struct PortCard: View {
 
 }
 
+/// Visual weight of a top-of-card callout, by severity. Warnings get a filled
+/// box so they stand out; positive, info, and neutral notes are lighter (no
+/// fill) so the eye lands on problems first within the callout group.
+enum CalloutRole {
+    case warning    // a problem worth the user's attention
+    case positive   // reassurance: everything is fine
+    case info       // an informational note, no problem
+    case neutral    // could not determine, no verdict
+
+    var accent: Color {
+        switch self {
+        case .warning: return .orange
+        case .positive: return .green
+        case .info: return .blue
+        case .neutral: return .secondary
+        }
+    }
+
+    var isWarning: Bool { self == .warning }
+}
+
+extension View {
+    /// Shared chrome for every callout (diagnostic banners + trust card) so
+    /// the group reads as one family: a tinted, rounded fill keyed to the
+    /// callout's accent colour.
+    func calloutChrome(role: CalloutRole) -> some View {
+        self
+            .padding(10)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(role.accent.opacity(0.1), in: RoundedRectangle(cornerRadius: 8))
+    }
+}
+
+/// One consistent callout for a single verdict (charging, link speed, display).
+/// All four top-of-card callouts share this chrome and anatomy: a coloured
+/// icon, a bold summary, and a secondary detail line.
+struct CalloutBanner: View {
+    let role: CalloutRole
+    let icon: String
+    let title: String
+    let detail: String
+
+    var body: some View {
+        HStack(alignment: .top, spacing: 8) {
+            Image(systemName: icon)
+                .foregroundStyle(role.accent)
+                .scaledFont(.callout)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title).scaledFont(.callout, weight: .bold)
+                Text(detail)
+                    .scaledFont(.caption)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            Spacer(minLength: 0)
+        }
+        .calloutChrome(role: role)
+    }
+}
+
 struct DiagnosticBanner: View {
     let diagnostic: ChargingDiagnostic
 
     var body: some View {
-        HStack(alignment: .top, spacing: 8) {
-            Image(systemName: diagnostic.icon)
-                .foregroundStyle(diagnostic.isWarning ? Color.orange : Color.green)
-                .scaledFont(.callout)
-            VStack(alignment: .leading, spacing: 2) {
-                Text(diagnostic.summary).scaledFont(.callout, weight: .bold)
-                Text(diagnostic.detail).scaledFont(.caption).foregroundStyle(.secondary)
-            }
-            Spacer()
-        }
-        .padding(10)
-        .background(
-            (diagnostic.isWarning ? Color.orange : Color.green)
-                .opacity(0.1),
-            in: RoundedRectangle(cornerRadius: 8)
+        CalloutBanner(
+            role: diagnostic.isWarning ? .warning : .positive,
+            icon: diagnostic.icon,
+            title: diagnostic.summary,
+            detail: diagnostic.detail
         )
     }
 }
@@ -650,21 +714,11 @@ struct DataLinkBanner: View {
     let diagnostic: DataLinkDiagnostic
 
     var body: some View {
-        HStack(alignment: .top, spacing: 8) {
-            Image(systemName: diagnostic.icon)
-                .foregroundStyle(diagnostic.isWarning ? Color.orange : Color.green)
-                .scaledFont(.callout)
-            VStack(alignment: .leading, spacing: 2) {
-                Text(diagnostic.summary).scaledFont(.callout, weight: .bold)
-                Text(diagnostic.detail).scaledFont(.caption).foregroundStyle(.secondary)
-            }
-            Spacer()
-        }
-        .padding(10)
-        .background(
-            (diagnostic.isWarning ? Color.orange : Color.green)
-                .opacity(0.1),
-            in: RoundedRectangle(cornerRadius: 8)
+        CalloutBanner(
+            role: diagnostic.isWarning ? .warning : .positive,
+            icon: diagnostic.icon,
+            title: diagnostic.summary,
+            detail: diagnostic.detail
         )
     }
 }
@@ -672,11 +726,11 @@ struct DataLinkBanner: View {
 struct DisplayBanner: View {
     let diagnostic: DisplayDiagnostic
 
-    private var accent: Color {
+    private var role: CalloutRole {
         switch diagnostic.bottleneck {
-        case .fine: return .green
-        case .belowMonitorMax, .adapterLimit: return .orange
-        case .unknownMode, .compressionPlausible: return .secondary
+        case .fine: return .positive
+        case .belowMonitorMax, .adapterLimit: return .warning
+        case .unknownMode, .compressionPlausible: return .neutral
         }
     }
 
@@ -691,18 +745,7 @@ struct DisplayBanner: View {
     }
 
     var body: some View {
-        HStack(alignment: .top, spacing: 8) {
-            Image(systemName: icon)
-                .foregroundStyle(accent)
-                .scaledFont(.callout)
-            VStack(alignment: .leading, spacing: 2) {
-                Text(diagnostic.summary).scaledFont(.callout, weight: .bold)
-                Text(diagnostic.detail).scaledFont(.caption).foregroundStyle(.secondary)
-            }
-            Spacer()
-        }
-        .padding(10)
-        .background(accent.opacity(0.1), in: RoundedRectangle(cornerRadius: 8))
+        CalloutBanner(role: role, icon: icon, title: diagnostic.summary, detail: diagnostic.detail)
     }
 }
 
@@ -948,7 +991,10 @@ private struct TrustFlagsCard: View {
         flags.contains { $0.severity == .warning }
     }
 
-    private var accent: Color { hasWarning ? .orange : .blue }
+    // Shares the callout family's chrome (see CalloutRole / calloutChrome):
+    // a real warning fills the box; a softened note reads as a calm, unfilled
+    // info note, so a false-positive does not look like an alarm.
+    private var role: CalloutRole { hasWarning ? .warning : .info }
 
     private var headerIcon: String {
         hasWarning ? "exclamationmark.triangle.fill" : "info.circle.fill"
@@ -961,26 +1007,26 @@ private struct TrustFlagsCard: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            HStack(spacing: 6) {
-                Image(systemName: headerIcon)
-                    .foregroundStyle(accent)
+        HStack(alignment: .top, spacing: 8) {
+            Image(systemName: headerIcon)
+                .foregroundStyle(role.accent)
+                .scaledFont(.callout)
+            VStack(alignment: .leading, spacing: 4) {
                 Text(headerText)
                     .scaledFont(.caption, weight: .bold)
                     .foregroundStyle(.secondary)
-            }
-            ForEach(flags, id: \.code) { flag in
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(flag.title).scaledFont(.callout, weight: .bold)
-                    Text(flag.detail)
-                        .scaledFont(.caption)
-                        .foregroundStyle(.secondary)
-                        .fixedSize(horizontal: false, vertical: true)
+                ForEach(flags, id: \.code) { flag in
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(flag.title).scaledFont(.callout, weight: .bold)
+                        Text(flag.detail)
+                            .scaledFont(.caption)
+                            .foregroundStyle(.secondary)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
                 }
             }
+            Spacer(minLength: 0)
         }
-        .padding(8)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(accent.opacity(0.12), in: RoundedRectangle(cornerRadius: 8))
+        .calloutChrome(role: role)
     }
 }
