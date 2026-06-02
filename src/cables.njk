@@ -110,29 +110,6 @@ extraHead: |
   }
 }
 </script>
-<script type="application/ld+json">
-{
-  "@context": "https://schema.org",
-  "@type": "CollectionPage",
-  "name": "USB-C Cable Database",
-  "url": "https://www.whatcable.uk/cables",
-  "description": "A searchable database of USB-C cables with real e-marker fingerprints reported by WhatCable users.",
-  "dateModified": {{ cabledb.updated | isoDate | dump | safe }},
-  "about": ["USB-C", "USB4", "Thunderbolt", "USB Power Delivery"],
-  "isPartOf": {
-    "@type": "WebSite",
-    "name": "WhatCable",
-    "url": "https://www.whatcable.uk"
-  },
-  "mainEntity": {
-    "@type": "ItemList",
-    "name": "Reported USB-C cables",
-    "numberOfItems": {{ cabledb.count }},
-    "itemListOrder": "https://schema.org/ItemListOrderAscending",
-    "itemListElement": {{ cabledb.itemList | dump | safe }}
-  }
-}
-</script>
 <div class="cables-page">
 <main>
   <div class="wrap-cables">

@@ -42,24 +42,4 @@ export default {
   list,
   count: list.length,
   updated: readUpdated(),
-  // Pre-built ItemList entries for JSON-LD. Each item links back to
-  // the GitHub issue (canonical source) until per-cable pages exist.
-  itemList: list.map((c, i) => ({
-    "@type": "ListItem",
-    position: i + 1,
-    item: {
-      "@type": "Product",
-      name: String(c.brand || "").split(";")[0].trim(),
-      identifier: c.issueNum,
-      url: c.issueURL,
-      brand: c.vendor || undefined,
-      additionalProperty: [
-        c.vid && { "@type": "PropertyValue", name: "USB-IF VID", value: c.vid },
-        c.pid && { "@type": "PropertyValue", name: "USB-IF PID", value: c.pid },
-        c.speed && { "@type": "PropertyValue", name: "Speed", value: c.speed },
-        c.power && { "@type": "PropertyValue", name: "Power", value: c.power },
-        c.type && { "@type": "PropertyValue", name: "Cable type", value: c.type },
-      ].filter(Boolean),
-    },
-  })),
 };
