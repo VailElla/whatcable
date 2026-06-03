@@ -2,14 +2,18 @@
 
 // Sync data/known-cables.md from closed `cable-report` issues.
 //
-// Pulls every closed issue tagged `cable-report` via `gh`, parses the
-// e-marker fingerprint table out of each body, looks up canonical USB-IF
-// vendor names from the bundled TSV, and rewrites the table block in
-// data/known-cables.md.
+// Incremental by design: it lists closed `cable-report` issues via `gh`,
+// then APPENDS a row only for cables not already in the table. Rows we
+// already have are left untouched (no re-parse, no re-render, no rewrite),
+// so hand-edited "Brand / model context" cells and ordering are preserved.
 //
-// Hand-edited "Brand / model context" cells are preserved by issue
-// number. Newly-added rows get "(needs review)" as a placeholder so
-// you know to fill them in by hand.
+// A report is skipped when either its issue number is already recorded, or
+// its cable fingerprint (VID + PID + Cable VDO, the same key the database
+// uses) already appears in the table. The fingerprint check means a cable
+// re-reported under a new issue number (a duplicate) is not added again.
+//
+// New rows are appended at the end with "(needs review)" in the Brand /
+// model context column, so you know to fill them in by hand.
 //
 // Run from the repo root:
 //   swift scripts/sync-cable-reports.swift
@@ -223,15 +227,24 @@ func humanisePower(_ raw: String) -> String {
     return "\(raw[amps]) A / \(raw[volts]) V (\(watts) W)"
 }
 
-// MARK: - Existing-context extraction
+// MARK: - Existing-row extraction
 
-/// Read the current data/known-cables.md and return a map of
-/// `issue_number → "Brand / model context"` from the existing table,
-/// so re-syncing preserves hand-edited notes.
-func loadExistingContexts() -> [Int: String] {
-    guard let md = try? String(contentsOf: mdURL, encoding: .utf8) else { return [:] }
+/// Cable identity key: VID + PID + Cable VDO. Mirrors the database's
+/// `(vid, pid, cable_vdo)` primary key, so "already in the table" means the
+/// same thing here as it does in whatcable.db.
+func fingerprintKey(vid: Int, pid: Int, vdo: UInt32) -> String {
+    "\(vid):\(pid):\(vdo)"
+}
+
+/// Walk the existing data/known-cables.md table once and collect what we
+/// already have: the set of issue numbers recorded, and the set of cable
+/// fingerprints present. A report matching either is skipped, so a re-sync
+/// only appends genuinely new cables and never rewrites existing rows.
+func loadExisting() -> (issues: Set<Int>, fingerprints: Set<String>) {
+    guard let md = try? String(contentsOf: mdURL, encoding: .utf8) else { return ([], []) }
     let lines = md.components(separatedBy: "\n")
-    var out: [Int: String] = [:]
+    var issues: Set<Int> = []
+    var fingerprints: Set<String> = []
 
     var inTable = false
     for line in lines {
@@ -243,9 +256,15 @@ func loadExistingContexts() -> [Int: String] {
         // Data rows have a code span like `0xABCD` in column 1 (the VID).
         // Header row has plain text "VID" there. We use that as the
         // discriminator so we skip the header without a name match.
-        // Column count is 10 (with Cable VDO) or 9 (legacy without it).
+        // Column count is 10 (context | VID | PID | VDO | vendor | xid |
+        // speed | power | type | source) or 9 (legacy rows without the VDO
+        // column). On legacy rows column 3 is the vendor name, which has no
+        // 0x literal, so the VDO reads as 0, matching renderRow's empty cell.
         guard parts.count >= 9, parts[1].hasPrefix("`0x") else { continue }
-        let context = parts[0]
+        let vid = extractHex(parts[1]) ?? 0
+        let pid = extractHex(parts[2]) ?? 0
+        let vdo: UInt32 = parts.count >= 10 ? UInt32(extractHex(parts[3]) ?? 0) : 0
+        fingerprints.insert(fingerprintKey(vid: vid, pid: pid, vdo: vdo))
         let source = parts[parts.count - 1]
         // Source cell is "[#NN](url)"; pull out NN.
         let re = try! NSRegularExpression(pattern: "#(\\d+)")
@@ -254,10 +273,10 @@ func loadExistingContexts() -> [Int: String] {
            m.numberOfRanges >= 2,
            let r = Range(m.range(at: 1), in: source),
            let n = Int(String(source[r])) {
-            out[n] = context
+            issues.insert(n)
         }
     }
-    return out
+    return (issues, fingerprints)
 }
 
 // MARK: - Row rendering
@@ -283,7 +302,11 @@ func renderRow(_ report: Report, context: String, vendors: [Int: String]) -> Str
 
 // MARK: - Update markdown
 
-func rewriteMarkdown(rows: [String]) {
+/// Append new rows after the last existing data row, leaving every existing
+/// row byte-for-byte intact. We never regenerate rows we already have, so
+/// hand edits and ordering are preserved. No-op when there is nothing new.
+func appendRows(_ rows: [String]) {
+    if rows.isEmpty { return }
     guard let md = try? String(contentsOf: mdURL, encoding: .utf8) else {
         fputs("error: could not read \(mdURL.path)\n", Darwin.stderr)
         exit(6)
@@ -304,11 +327,12 @@ func rewriteMarkdown(rows: [String]) {
         exit(7)
     }
 
-    // Walk forward past data rows.
+    // Walk forward past the existing data rows to the end of the table block.
     var endIdx = h + 2
     while endIdx < lines.count, lines[endIdx].hasPrefix("|") { endIdx += 1 }
 
-    var newLines = Array(lines[..<(h + 2)])  // up to and including separator
+    // Keep header + separator + all existing rows, then insert the new rows.
+    var newLines = Array(lines[..<endIdx])
     newLines.append(contentsOf: rows)
     newLines.append(contentsOf: lines[endIdx...])
 
@@ -324,17 +348,31 @@ func rewriteMarkdown(rows: [String]) {
 
 let vendors = loadVendors()
 let issues = runGh()
-let existingContexts = loadExistingContexts()
+let existing = loadExisting()
 
-var reports: [Report] = []
+// Collect only cables we do not already have. Skip a report if its issue is
+// already recorded, or if its fingerprint already appears in the table (a
+// duplicate cable re-reported under a new issue number). Dedup within this
+// batch too, so two new issues for the same cable add one row.
+var seenFingerprints = existing.fingerprints
+var newReports: [Report] = []
 for issue in issues {
     guard let n = issue["number"] as? Int,
           let body = issue["body"] as? String else { continue }
-    if let r = parse(body: body, issueNumber: n) { reports.append(r) }
+    if existing.issues.contains(n) { continue }
+    guard let r = parse(body: body, issueNumber: n) else { continue }
+    let key = fingerprintKey(vid: r.vid, pid: r.pid, vdo: r.cableVDO)
+    if seenFingerprints.contains(key) {
+        fputs("skip: issue #\(n): cable already in the list (same VID/PID/VDO)\n", Darwin.stderr)
+        continue
+    }
+    seenFingerprints.insert(key)
+    newReports.append(r)
 }
 
-// Sort: VID ascending, zeroed last, then by issue number ascending.
-reports.sort { a, b in
+// Sort the new rows: VID ascending, zeroed last, then by issue number.
+// Existing rows are never reordered.
+newReports.sort { a, b in
     let aZero = a.vid == 0
     let bZero = b.vid == 0
     if aZero != bZero { return !aZero }  // non-zero first
@@ -342,15 +380,13 @@ reports.sort { a, b in
     return a.issueNumber < b.issueNumber
 }
 
-var newCount = 0
-let rendered = reports.map { report -> String in
-    let context = existingContexts[report.issueNumber] ?? {
-        newCount += 1
-        return needsReview
-    }()
-    return renderRow(report, context: context, vendors: vendors)
-}
+let rendered = newReports.map { renderRow($0, context: needsReview, vendors: vendors) }
+appendRows(rendered)
 
-rewriteMarkdown(rows: rendered)
-print("synced \(reports.count) reports (\(newCount) new, needs hand-edit on '\(needsReview)' rows)")
-print("now run: swift scripts/render-known-cables.swift")
+if newReports.isEmpty {
+    print("nothing new to add; the table is already up to date")
+} else {
+    let nums = newReports.map { "#\($0.issueNumber)" }.joined(separator: ", ")
+    print("appended \(newReports.count) new cable(s): \(nums)")
+    print("fill the '\(needsReview)' rows by hand, then run: swift scripts/build-cable-db.swift && swift scripts/render-known-cables.swift")
+}
