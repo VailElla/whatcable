@@ -185,7 +185,7 @@
 "Display Output" = "Videoutgang";
 "Enabled" = "Aktivert";
 "Enter your licence key to unlock pro features." = "Skriv inn lisensnøkkelen din for å låse opp Pro-funksjoner.";
-"Estimating cable resistance..." = "Estimerer kabelmotstand...";
+"Estimating cable resistance…" = "Estimerer kabelmotstand…";
 "Event Log" = "Hendelseslogg";
 "FET enable failures" = "FET-aktiveringsfeil";
 "FET status" = "FET-status";
@@ -201,7 +201,7 @@
 "Invalid licence key. Check the key and try again." = "Ugyldig lisensnøkkel. Sjekk nøkkelen og prøv igjen.";
 "Lanes" = "Baner";
 "Legacy USB 2.0 data lines (D+/D-) detected a partner. Separate from the CC-based PD connection." = "Eldre USB 2.0-datalinjer (D+/D-) oppdaget en partner. Uavhengig av den CC-baserte PD-tilkoblingen.";
-"Licence..." = "Lisens...";
+"Licence…" = "Lisens…";
 "Licensed to: %@" = "Lisensiert til: %@";
 "Link rate" = "Linkhastighet";
 "Liquid Detection" = "Væskedeteksjon";
@@ -316,7 +316,7 @@
 "Enter Licence Key…" = "Skriv inn lisensnøkkel…";
 "This is the most the charger and your Mac agreed to, not a live reading. Your Mac reports the live figure only as a system total, shown in the System Power Input chart below." = "Dette er det meste laderen og Macen ble enige om, ikke en sanntidsmåling. Macen rapporterer sanntidsverdien bare som en systemtotal, vist i diagrammet «Systemstrøminngang» nedenfor.";
 "No power data for this port right now." = "Ingen strømdata for denne porten akkurat nå.";
-"Waiting for power telemetry from macOS..." = "Venter på strømtelemetri fra macOS...";
+"Waiting for power telemetry from macOS…" = "Venter på strømtelemetri fra macOS…";
 "Upgrade to WhatCable Pro" = "Oppgrader til WhatCable Pro";
 "not reported in this state" = "ikke rapportert i denne tilstanden";
 
