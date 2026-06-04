@@ -444,3 +444,5 @@
 "Per-Port Metering Unavailable" = "无法使用每端口计量";
 "This Mac reports overall power below, but not per-port readings." = "此 Mac 在下方显示总功率，但不提供每端口的读数。";
 "Per-port metering isn't available on this Mac." = "此 Mac 不支持每端口计量。";
+"macOS can be slow to report per-port power, sometimes up to a minute." = "macOS 报告每个端口的功率可能较慢，有时最多需要一分钟。";
+"Display connected. No power is being sent out this port. Incoming power shows in System Power Input below." = "已连接显示器。此端口未输出电力。输入的电力显示在下方的“系统电源输入”中。";

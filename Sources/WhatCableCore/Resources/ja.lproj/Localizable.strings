@@ -445,3 +445,5 @@
 "Per-Port Metering Unavailable" = "ポートごとの計測は利用できません";
 "This Mac reports overall power below, but not per-port readings." = "この Mac は下に合計電力を表示しますが、ポートごとの値は表示しません。";
 "Per-port metering isn't available on this Mac." = "この Mac ではポートごとの計測は利用できません。";
+"macOS can be slow to report per-port power, sometimes up to a minute." = "macOS がポートごとの電力を報告するまで、最大で1分ほどかかることがあります。";
+"Display connected. No power is being sent out this port. Incoming power shows in System Power Input below." = "ディスプレイが接続されています。このポートからは給電されていません。入力される電力は下の「システム電源入力」に表示されます。";

@@ -443,3 +443,5 @@
 "Per-Port Metering Unavailable" = "Misurazione per porta non disponibile";
 "This Mac reports overall power below, but not per-port readings." = "Questo Mac riporta la potenza totale qui sotto, ma non le letture per porta.";
 "Per-port metering isn't available on this Mac." = "La misurazione per porta non è disponibile su questo Mac.";
+"macOS can be slow to report per-port power, sometimes up to a minute." = "macOS può essere lento nel segnalare la potenza per porta, a volte fino a un minuto.";
+"Display connected. No power is being sent out this port. Incoming power shows in System Power Input below." = "Display collegato. Da questa porta non viene erogata alimentazione. L'alimentazione in ingresso è mostrata sotto in «Ingresso alimentazione sistema».";
