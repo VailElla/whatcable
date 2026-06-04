@@ -35,6 +35,7 @@ final class TestKitRunner: ObservableObject {
         "32_smart_battery_full_keys",
         "33_displayport_capability",
         "34_smc_power_keys",
+        "35_hpm_port_uuid",
     ]
 
     private init() {}

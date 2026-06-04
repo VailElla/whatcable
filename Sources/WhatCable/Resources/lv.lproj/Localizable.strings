@@ -85,7 +85,7 @@
 "Raw IOKit registry properties for each USB-C port, the model and capabilities of any connected display (its EDID, with the serial number removed), your macOS version, and chip type. This is the same data visible in System Information." = "Raw IOKit registry properties for each USB-C port, the model and capabilities of any connected display (its EDID, with the serial number removed), your macOS version, and chip type. This is the same data visible in System Information.";
 "What happens" = "Kas notiek";
 "What is collected" = "Kas tiek ievākts";
-"WhatCable runs 14 IOKit probes that read raw USB-C and Thunderbolt data from your Mac's port controller registers. The results are sent to a secure server to help improve cable and port detection." = "WhatCable veic 14 IOKit zondējumus, kas nolasa neapstrādātus USB-C un Thunderbolt datus no jūsu Mac porta kontrollera reģistriem. Rezultāti tiek nosūtīti uz drošu serveri, lai palīdzētu uzlabot kabeļu un portu noteikšanu.";
+"WhatCable runs 16 IOKit probes that read raw USB-C and Thunderbolt data from your Mac's port controller registers. The results are sent to a secure server to help improve cable and port detection." = "WhatCable veic 16 IOKit zondējumus, kas nolasa neapstrādātus USB-C un Thunderbolt datus no jūsu Mac porta kontrollera reģistriem. Rezultāti tiek nosūtīti uz drošu serveri, lai palīdzētu uzlabot kabeļu un portu noteikšanu.";
 "Your machine's hardware UUID is hashed with SHA-256 before sending. No names, accounts, serial numbers, or personal data are collected or stored." = "Jūsu iekārtas aparatūras UUID tiek jaukts ar SHA-256 pirms nosūtīšanas. Netiek ievākti vai glabāti vārdi, konti, sērijas numuri vai personas dati.";
 
 /* Negotiation diagnostics + Pro UX (PR #55) */
