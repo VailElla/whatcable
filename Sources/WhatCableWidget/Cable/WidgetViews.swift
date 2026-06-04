@@ -310,39 +310,49 @@ struct PillCluster: View {
 
 // MARK: - Unified port row (used by medium + large)
 
-/// One row shared across sizes: a status accent bar, a small icon, a short
-/// title with optional muted detail, and the right-aligned pill column.
-/// Mirrors the Calendar widget's event rows (accent bar + title + right time).
+/// One row shared across sizes: a status accent bar, then a content column.
+/// The top line carries the icon, a short title, and the right-aligned pill
+/// column; the muted detail drops onto its own full-width line below the pills
+/// so the badges can't squeeze it (issue #279). Mirrors the Calendar widget's
+/// event rows (accent bar + title + right-side chip).
 struct PortRow: View {
     let port: WidgetSnapshot.PortEntry
     var showDetail: Bool = true
     var compact: Bool = false
+    /// How many lines the detail may use. Small/medium have the vertical room
+    /// to wrap to 2; large caps at 1 so 6 ports never overflow the fixed box.
+    var detailLineLimit: Int = 1
 
     var body: some View {
-        HStack(spacing: WidgetMetrics.s) {
+        HStack(alignment: .top, spacing: WidgetMetrics.s) {
             RoundedRectangle(cornerRadius: 1.5)
                 .fill(port.status.color)
                 .frame(width: 3)
 
-            StatusIcon(name: port.iconName, color: port.status.color, live: port.status.isLive, font: .callout)
-                .frame(width: 22)
-
             VStack(alignment: .leading, spacing: WidgetMetrics.xxs) {
-                Text(port.title)
-                    .font(.callout)
-                    .fontWeight(.semibold)
-                    .lineLimit(1)
+                HStack(spacing: WidgetMetrics.s) {
+                    StatusIcon(name: port.iconName, color: port.status.color, live: port.status.isLive, font: .callout)
+                        .frame(width: 22)
+
+                    Text(port.title)
+                        .font(.callout)
+                        .fontWeight(.semibold)
+                        .lineLimit(1)
+
+                    Spacer(minLength: WidgetMetrics.s)
+
+                    PillCluster(port: port, compact: compact)
+                }
+
                 if showDetail, let detail = port.rowDetail {
                     Text(detail)
                         .font(.caption)
                         .foregroundStyle(.secondary)
-                        .lineLimit(1)
+                        .lineLimit(detailLineLimit)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .frame(maxWidth: .infinity, alignment: .leading)
                 }
             }
-
-            Spacer(minLength: WidgetMetrics.s)
-
-            PillCluster(port: port, compact: compact)
         }
     }
 }
@@ -368,17 +378,21 @@ struct SmallWidgetView: View {
                         StatusIcon(name: port.iconName, color: port.status.color, live: port.status.isLive, font: .title3)
                         Text(port.title)
                             .font(.headline)
-                            .lineLimit(1)
+                            .lineLimit(2)
+                            .fixedSize(horizontal: false, vertical: true)
                         Spacer(minLength: 0)
                     }
                     if port.hasMetrics {
                         PillCluster(port: port, wrap: true)
                     }
                     if let detail = port.rowDetail {
+                        // The small widget shows one port and has plenty of
+                        // vertical room, so let the detail wrap freely instead
+                        // of truncating to a couple of lines (issue #279).
                         Text(detail)
                             .font(.caption)
                             .foregroundStyle(.secondary)
-                            .lineLimit(2)
+                            .fixedSize(horizontal: false, vertical: true)
                     }
                 }
             }
@@ -400,9 +414,10 @@ struct MediumWidgetView: View {
         VStack(alignment: .leading, spacing: WidgetMetrics.s) {
             WidgetHeader(title: "WhatCable")
             VStack(spacing: WidgetMetrics.s) {
-                // Show the detail line only when there's room (1-2 ports).
+                // Show the detail line only when there's room (1-2 ports),
+                // and let it wrap to 2 lines since the box has the height.
                 ForEach(shown) { port in
-                    PortRow(port: port, showDetail: shown.count <= 2)
+                    PortRow(port: port, showDetail: shown.count <= 2, detailLineLimit: 2)
                 }
                 if overflow > 0 {
                     OverflowRow(count: overflow)
