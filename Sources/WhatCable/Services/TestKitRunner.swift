@@ -36,6 +36,7 @@ final class TestKitRunner: ObservableObject {
         "33_displayport_capability",
         "34_smc_power_keys",
         "35_hpm_port_uuid",
+        "36_xhci_port_map",
     ]
 
     private init() {}

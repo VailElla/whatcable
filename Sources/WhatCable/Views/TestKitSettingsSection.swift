@@ -88,7 +88,7 @@ struct TestKitConsentView: View {
                 infoRow(
                     icon: "cpu",
                     title: String(localized: "What happens", bundle: _appLocalizedBundle),
-                    detail: String(localized: "WhatCable runs 16 IOKit probes that read raw USB-C and Thunderbolt data from your Mac's port controller registers. The results are sent to a secure server to help improve cable and port detection.", bundle: _appLocalizedBundle)
+                    detail: String(localized: "WhatCable runs 17 IOKit probes that read raw USB-C and Thunderbolt data from your Mac's port controller registers. The results are sent to a secure server to help improve cable and port detection.", bundle: _appLocalizedBundle)
                 )
 
                 infoRow(
