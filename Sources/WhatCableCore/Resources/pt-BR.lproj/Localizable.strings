@@ -355,6 +355,7 @@
 "Device" = "Dispositivo";
 "Negotiated" = "Negociado";
 "Charger" = "Carregador";
+"AC Power" = "Energia CA";
 "bottleneck" = "gargalo";
 "Cable signals disagree" = "Os sinais do cabo divergem";
 "an unknown speed" = "uma velocidade desconhecida";

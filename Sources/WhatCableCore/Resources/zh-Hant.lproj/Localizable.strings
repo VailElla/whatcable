@@ -354,6 +354,7 @@
 "Device" = "裝置";
 "Negotiated" = "已協商";
 "Charger" = "充電器";
+"AC Power" = "交流電源";
 "bottleneck" = "瓶頸";
 "Cable signals disagree" = "線材訊號不一致";
 "an unknown speed" = "未知速度";

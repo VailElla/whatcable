@@ -354,6 +354,7 @@
 "Device" = "Dispositivo";
 "Negotiated" = "Negoziato";
 "Charger" = "Caricatore";
+"AC Power" = "Alimentazione CA";
 "bottleneck" = "collo di bottiglia";
 "Cable signals disagree" = "I segnali del cavo non corrispondono";
 "an unknown speed" = "una velocità sconosciuta";

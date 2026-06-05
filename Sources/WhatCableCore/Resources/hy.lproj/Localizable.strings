@@ -355,6 +355,7 @@
 "Device" = "Device";
 "Negotiated" = "Negotiated";
 "Charger" = "Լիցքավորիչ";
+"AC Power" = "Ցանցային սնուցում";
 "bottleneck" = "bottleneck";
 "Cable signals disagree" = "Cable signals disagree";
 "an unknown speed" = "an unknown speed";

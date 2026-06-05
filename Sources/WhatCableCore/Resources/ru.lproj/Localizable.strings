@@ -356,6 +356,7 @@
 "Device" = "Устройство";
 "Negotiated" = "Согласовано";
 "Charger" = "Зарядное устройство";
+"AC Power" = "Сетевое питание";
 "bottleneck" = "узкое место";
 "Cable signals disagree" = "Сигналы кабеля расходятся";
 "an unknown speed" = "неизвестная скорость";

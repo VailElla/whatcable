@@ -356,6 +356,7 @@
 "Device" = "Device";
 "Negotiated" = "Negotiated";
 "Charger" = "充電器";
+"AC Power" = "AC電源";
 "bottleneck" = "bottleneck";
 "Cable signals disagree" = "Cable signals disagree";
 "an unknown speed" = "an unknown speed";

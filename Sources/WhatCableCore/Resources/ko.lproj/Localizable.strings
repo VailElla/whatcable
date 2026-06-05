@@ -356,6 +356,7 @@
 "Device" = "기기";
 "Negotiated" = "협상값";
 "Charger" = "충전기";
+"AC Power" = "AC 전원";
 "bottleneck" = "병목";
 "Cable signals disagree" = "케이블 신호가 일치하지 않음";
 "an unknown speed" = "알 수 없는 속도";

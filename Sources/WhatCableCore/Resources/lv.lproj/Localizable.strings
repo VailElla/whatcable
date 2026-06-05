@@ -354,6 +354,7 @@
 "Device" = "Ierīce";
 "Negotiated" = "Saskaņots";
 "Charger" = "Lādētājs";
+"AC Power" = "Maiņstrāva";
 "bottleneck" = "šaurā vieta";
 "Cable signals disagree" = "Kabeļa signāli nesakrīt";
 "an unknown speed" = "nezināms ātrums";

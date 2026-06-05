@@ -355,6 +355,7 @@
 "Device" = "设备";
 "Negotiated" = "已协商";
 "Charger" = "充电器";
+"AC Power" = "交流电源";
 "bottleneck" = "瓶颈";
 "Cable signals disagree" = "线缆信号不一致";
 "an unknown speed" = "未知速度";
