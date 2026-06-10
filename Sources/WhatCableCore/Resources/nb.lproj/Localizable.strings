@@ -419,6 +419,9 @@
 "Display may be using compression to reach its top mode" = "Skjermen bruker kanskje komprimering for å nå sitt beste modus";
 "Your %@ can run %@, which uncompressed would need about %@. This link is already running every lane at a high rate, carrying about %@ (%@). Many high-resolution displays use compression (DSC) to fit their top mode through a link like this, so the link rate alone can't tell whether you're already at your best mode. If the picture looks right, it most likely is." = "%@-en din kan kjøre %@, som ukomprimert ville trengt omtrent %@. Denne forbindelsen bruker allerede alle baner med høy hastighet og overfører omtrent %@ (%@). Mange skjermer med høy oppløsning bruker komprimering (DSC) for å få sitt beste modus gjennom en slik forbindelse, så forbindelseshastigheten alene kan ikke fortelle om du allerede er i ditt beste modus. Hvis bildet ser riktig ut, er det mest sannsynlig det.";
 
+/* Display dimension: confirmed full quality via CoreGraphics live mode (issue #246 Option B). */
+"Your %@ is running its top mode (%@), and the link is carrying it. Many high-resolution displays use compression (DSC) to fit a mode like this through the link, so the link rate alone can't show it; your display is at full quality." = "%@-en din kjører i sitt beste modus (%@) og forbindelsen bærer det. Mange skjermer med høy oppløsning bruker komprimering (DSC) for å få et slikt modus gjennom forbindelsen; forbindelseshastigheten alene kan ikke vise dette. Skjermen din er i full kvalitet.";
+
 /* Power Monitor system power source indicator. */
 "Battery" = "Batteri";
 "Source" = "Kilde";

@@ -418,6 +418,9 @@
 "Display may be using compression to reach its top mode" = "顯示器可能透過壓縮來達到最高模式";
 "Your %@ can run %@, which uncompressed would need about %@. This link is already running every lane at a high rate, carrying about %@ (%@). Many high-resolution displays use compression (DSC) to fit their top mode through a link like this, so the link rate alone can't tell whether you're already at your best mode. If the picture looks right, it most likely is." = "您的 %@ 可支援 %@，若不使用壓縮約需 %@。目前連線已讓所有通道以高速運作，承載約 %@（%@）。許多高解析度顯示器會使用影像串流壓縮（DSC），讓最高模式能透過這類連線傳輸，因此僅憑連線速率無法判斷是否已達到最佳模式。若畫面顯示正常，那麼很可能已經達到最佳模式。";
 
+/* Display dimension: confirmed full quality via CoreGraphics live mode (issue #246 Option B). */
+"Your %@ is running its top mode (%@), and the link is carrying it. Many high-resolution displays use compression (DSC) to fit a mode like this through the link, so the link rate alone can't show it; your display is at full quality." = "您的 %@ 正以最高模式（%@）運作，連線正在傳輸它。許多高解析度顯示器使用影像串流壓縮（DSC）讓這類模式能夠透過連線傳輸；僅憑連線速率無法顯示此情況。您的顯示器正以完整畫質運作。";
+
 /* Power Monitor system power source indicator. */
 "Battery" = "電池";
 "Source" = "電源";

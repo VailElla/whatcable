@@ -418,6 +418,9 @@
 "Display may be using compression to reach its top mode" = "Дисплей може використовувати стиснення для досягнення найкращого режиму";
 "Your %@ can run %@, which uncompressed would need about %@. This link is already running every lane at a high rate, carrying about %@ (%@). Many high-resolution displays use compression (DSC) to fit their top mode through a link like this, so the link rate alone can't tell whether you're already at your best mode. If the picture looks right, it most likely is." = "Ваш %@ може працювати в режимі %@, для якого без стиснення потрібно приблизно %@. Цей канал вже передає всі лінії на високій швидкості, забезпечуючи приблизно %@ (%@). Багато дисплеїв з високою роздільною здатністю використовують стиснення (DSC) для досягнення найкращого режиму через такий канал, тому швидкість каналу сама по собі не може визначити, чи ви вже в найкращому режимі. Якщо зображення виглядає правильно, швидше за все, так і є.";
 
+/* Display dimension: confirmed full quality via CoreGraphics live mode (issue #246 Option B). */
+"Your %@ is running its top mode (%@), and the link is carrying it. Many high-resolution displays use compression (DSC) to fit a mode like this through the link, so the link rate alone can't show it; your display is at full quality." = "Ваш %@ працює в найкращому режимі (%@) і канал передає його. Багато дисплеїв з високою роздільною здатністю використовують стиснення (DSC) для передачі такого режиму через канал; швидкість каналу сама по собі не може це показати. Ваш дисплей працює в повній якості.";
+
 /* Power Monitor system power source indicator. */
 "Battery" = "Акумулятор";
 "Source" = "Джерело";

@@ -418,6 +418,9 @@
 "Display may be using compression to reach its top mode" = "디스플레이가 최고 모드를 내기 위해 압축을 사용하고 있을 수 있어요";
 "Your %@ can run %@, which uncompressed would need about %@. This link is already running every lane at a high rate, carrying about %@ (%@). Many high-resolution displays use compression (DSC) to fit their top mode through a link like this, so the link rate alone can't tell whether you're already at your best mode. If the picture looks right, it most likely is." = "%@은(는) %@로 작동할 수 있지만, 압축하지 않으면 약 %@가 필요해요. 이 링크는 이미 모든 레인을 높은 속도로 사용하여 약 %@(%@)을(를) 전송하고 있어요. 많은 고해상도 디스플레이는 이런 링크로 최고 모드를 전달하기 위해 압축(DSC)을 사용하므로, 링크 속도만으로는 이미 최고 모드인지 알 수 없어요. 화면이 제대로 보인다면 대부분 최고 모드일 거예요.";
 
+/* Display dimension: confirmed full quality via CoreGraphics live mode (issue #246 Option B). */
+"Your %@ is running its top mode (%@), and the link is carrying it. Many high-resolution displays use compression (DSC) to fit a mode like this through the link, so the link rate alone can't show it; your display is at full quality." = "%@이(가) 최고 모드(%@)로 작동하고 있으며 링크가 이를 전송하고 있어요. 많은 고해상도 디스플레이는 이런 링크로 이런 모드를 전달하기 위해 압축(DSC)을 사용하므로, 링크 속도만으로는 알 수 없어요. 디스플레이는 최고 화질로 작동하고 있어요.";
+
 /* Power Monitor system power source indicator. */
 "Battery" = "배터리";
 "Source" = "전원";

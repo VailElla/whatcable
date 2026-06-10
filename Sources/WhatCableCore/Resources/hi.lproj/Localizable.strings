@@ -418,6 +418,9 @@
 "Display may be using compression to reach its top mode" = "डिस्प्ले अपने सर्वोच्च मोड तक पहुँचने के लिए संपीड़न का उपयोग कर रहा हो सकता है";
 "Your %@ can run %@, which uncompressed would need about %@. This link is already running every lane at a high rate, carrying about %@ (%@). Many high-resolution displays use compression (DSC) to fit their top mode through a link like this, so the link rate alone can't tell whether you're already at your best mode. If the picture looks right, it most likely is." = "आपका %@ %@ तक चल सकता है, जिसे बिना संपीड़न के लगभग %@ की आवश्यकता होगी. यह लिंक पहले से ही हर लेन को उच्च दर पर चला रहा है और लगभग %@ (%@) ले जा रहा है. कई उच्च-रिज़ॉल्यूशन डिस्प्ले अपने सर्वोच्च मोड को ऐसे लिंक से गुज़ारने के लिए संपीड़न (DSC) का उपयोग करते हैं, इसलिए केवल लिंक दर से यह नहीं पता चलता कि आप पहले से ही अपने सर्वोत्तम मोड पर हैं या नहीं. अगर तस्वीर सही दिखती है, तो सबसे अधिक संभावना है कि वह सही है.";
 
+/* Display dimension: confirmed full quality via CoreGraphics live mode (issue #246 Option B). */
+"Your %@ is running its top mode (%@), and the link is carrying it. Many high-resolution displays use compression (DSC) to fit a mode like this through the link, so the link rate alone can't show it; your display is at full quality." = "आपका %@ अपने सर्वोच्च मोड (%@) पर चल रहा है और लिंक इसे ले जा रहा है. कई उच्च-रिज़ॉल्यूशन डिस्प्ले इस तरह के मोड को लिंक से गुज़ारने के लिए संपीड़न (DSC) का उपयोग करते हैं; केवल लिंक दर इसे दिखाने में सक्षम नहीं है. आपका डिस्प्ले पूर्ण गुणवत्ता पर है.";
+
 /* Power Monitor system power source indicator. */
 "Battery" = "बैटरी";
 "Source" = "स्रोत";

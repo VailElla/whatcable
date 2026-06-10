@@ -420,6 +420,9 @@
 "Display may be using compression to reach its top mode" = "ディスプレイは最高モードを実現するために圧縮を使用している可能性があります";
 "Your %@ can run %@, which uncompressed would need about %@. This link is already running every lane at a high rate, carrying about %@ (%@). Many high-resolution displays use compression (DSC) to fit their top mode through a link like this, so the link rate alone can't tell whether you're already at your best mode. If the picture looks right, it most likely is." = "%@は%@で動作できますが、非圧縮では約%@が必要です。このリンクはすでにすべてのレーンを高速で使用しており、約%@（%@）を伝送しています。多くの高解像度ディスプレイは、このようなリンクで最高モードを通すために圧縮（DSC）を使用します。そのため、リンク速度だけでは、すでに最高モードになっているかどうかは判断できません。映像が正しく見えていれば、おそらく最高モードです。";
 
+/* Display dimension: confirmed full quality via CoreGraphics live mode (issue #246 Option B). */
+"Your %@ is running its top mode (%@), and the link is carrying it. Many high-resolution displays use compression (DSC) to fit a mode like this through the link, so the link rate alone can't show it; your display is at full quality." = "%@は最高モード（%@）で動作しており、リンクはそれを伝送しています。多くの高解像度ディスプレイは、このようなモードをリンクで通すために圧縮（DSC）を使用します。リンク速度だけではそれを示すことができません。ディスプレイは最高画質で動作しています。";
+
 /* Power Monitor system power source indicator. */
 "Battery" = "バッテリー";
 "Source" = "電源";

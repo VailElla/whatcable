@@ -418,6 +418,9 @@
 "Display may be using compression to reach its top mode" = "Iespējams, displejs izmanto saspiešanu, lai sasniegtu savu maksimālo režīmu";
 "Your %@ can run %@, which uncompressed would need about %@. This link is already running every lane at a high rate, carrying about %@ (%@). Many high-resolution displays use compression (DSC) to fit their top mode through a link like this, so the link rate alone can't tell whether you're already at your best mode. If the picture looks right, it most likely is." = "Tavs %@ var darboties ar %@, kam nesaspiestā veidā būtu nepieciešami aptuveni %@. Šis savienojums jau izmanto visas līnijas ar augstu ātrumu un pārraida aptuveni %@ (%@). Daudzi augstas izšķirtspējas displeji izmanto saspiešanu (DSC), lai izvadītu savu maksimālo režīmu caur šādu savienojumu, tāpēc tikai pēc savienojuma ātruma vien nevar noteikt, vai jau esi savā labākajā režīmā. Ja attēls izskatās pareizs, tas, visticamāk, tāds arī ir.";
 
+/* Display dimension: confirmed full quality via CoreGraphics live mode (issue #246 Option B). */
+"Your %@ is running its top mode (%@), and the link is carrying it. Many high-resolution displays use compression (DSC) to fit a mode like this through the link, so the link rate alone can't show it; your display is at full quality." = "Tavs %@ darbojas savā maksimālajā režīmā (%@) un savienojums to pārraida. Daudzi augstas izšķirtspējas displeji izmanto saspiešanu (DSC), lai šādu režīmu pārraidītu caur savienojumu; savienojuma ātrums vien to nevar parādīt. Tavs displejs darbojas pilnā kvalitātē.";
+
 /* Power Monitor system power source indicator. */
 "Battery" = "Akumulators";
 "Source" = "Avots";

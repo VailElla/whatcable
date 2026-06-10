@@ -419,6 +419,9 @@
 "Display may be using compression to reach its top mode" = "Հնարավոր է՝ էկրանն օգտագործում է սեղմում՝ իր լավագույն ռեժիմին հասնելու համար";
 "Your %@ can run %@, which uncompressed would need about %@. This link is already running every lane at a high rate, carrying about %@ (%@). Many high-resolution displays use compression (DSC) to fit their top mode through a link like this, so the link rate alone can't tell whether you're already at your best mode. If the picture looks right, it most likely is." = "Ձեր %@-ը կարող է աշխատել %@, որն առանց սեղմման կպահանջեր մոտ %@: Այս կապն արդեն օգտագործում է բոլոր գծերը բարձր արագությամբ՝ փոխանցելով մոտ %@ (%@): Շատ բարձր լուծաչափի էկրաններ օգտագործում են սեղմում (DSC)՝ իրենց լավագույն ռեժիմն այսպիսի կապով անցկացնելու համար, ուստի միայն կապի արագությունից հնարավոր չէ իմանալ՝ արդեն լավագույն ռեժիմում եք, թե ոչ: Եթե պատկերը ճիշտ տեսք ունի, ապա ամենայն հավանականությամբ այդպես է:";
 
+/* Display dimension: confirmed full quality via CoreGraphics live mode (issue #246 Option B). */
+"Your %@ is running its top mode (%@), and the link is carrying it. Many high-resolution displays use compression (DSC) to fit a mode like this through the link, so the link rate alone can't show it; your display is at full quality." = "Ձեր %@-ն աշխատում է իր լավագույն ռեժիմով (%@), և կապն այն փոխանցում է: Շատ բարձր լուծաչափի էկրաններ օգտագործում են սեղմում (DSC)՝ նման ռեժիմն այս կապով անցկացնելու համար. կապի արագությունն ինքնին այդ մասին ոչինչ չի ցույց տա: Ձեր էկրանն աշխատում է լիարժեք որակով:";
+
 /* Power Monitor system power source indicator. */
 "Battery" = "Մարտկոց";
 "Source" = "Աղբյուր";

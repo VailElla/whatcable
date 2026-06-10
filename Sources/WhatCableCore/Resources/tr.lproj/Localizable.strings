@@ -418,6 +418,9 @@
 "Display may be using compression to reach its top mode" = "Ekran en yüksek moduna ulaşmak için sıkıştırma kullanıyor olabilir";
 "Your %@ can run %@, which uncompressed would need about %@. This link is already running every lane at a high rate, carrying about %@ (%@). Many high-resolution displays use compression (DSC) to fit their top mode through a link like this, so the link rate alone can't tell whether you're already at your best mode. If the picture looks right, it most likely is." = "%1$@'nız %2$@'yı çalıştırabilir; sıkıştırmasız yaklaşık %3$@ gerekirdi. Bu bağlantı her şeridi yüksek hızda çalıştırıyor; yaklaşık %4$@ (%5$@) taşıyor. Yüksek çözünürlüklü pek çok ekran, en yüksek modunu böyle bir bağlantıya sığdırmak için sıkıştırma (DSC) kullanır; bu nedenle bağlantı hızı tek başına en iyi modda olup olmadığınızı söyleyemez. Görüntü doğru görünüyorsa büyük ihtimalle öyledir.";
 
+/* Display dimension: confirmed full quality via CoreGraphics live mode (issue #246 Option B). */
+"Your %@ is running its top mode (%@), and the link is carrying it. Many high-resolution displays use compression (DSC) to fit a mode like this through the link, so the link rate alone can't show it; your display is at full quality." = "%1$@'nız en yüksek modunda (%2$@) çalışıyor ve bağlantı bunu taşıyor. Yüksek çözünürlüklü pek çok ekran, böyle bir modu bağlantı üzerinden iletmek için sıkıştırma (DSC) kullanır; bağlantı hızı tek başına bunu gösteremez. Ekranınız tam kalitede çalışıyor.";
+
 /* Power Monitor system power source indicator. */
 "Battery" = "Pil";
 "Source" = "Kaynak";
