@@ -204,7 +204,11 @@ public enum AdapterType: Hashable {
 /// One Thunderbolt switch in the fabric. Could be a host root (Depth=0)
 /// or a downstream device's internal switch (Depth>0).
 public struct IOThunderboltSwitch: Identifiable, Hashable {
-    public let id: Int64                    // UID (signed Int64; can be negative)
+    /// Hardware UID (signed Int64; can be negative). A stable per-device
+    /// identifier: internal join key ONLY. Never serialise it into JSON,
+    /// --raw, or any user-facing output; use a per-snapshot array index
+    /// instead (see `IOThunderboltSwitchDTO`).
+    public let id: Int64
     public let className: String            // raw IOKit class
     public let vendorID: Int
     public let vendorName: String

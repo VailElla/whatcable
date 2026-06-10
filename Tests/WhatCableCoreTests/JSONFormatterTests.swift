@@ -539,7 +539,10 @@ struct JSONFormatterTests {
         #expect(switches.count == 1)
 
         let sw = switches[0]
-        #expect(sw["uid"] as? Int64 == 408750268121704800)
+        // The hardware UID is a stable machine identifier and must never
+        // appear in JSON output; switches are referenced by array index.
+        #expect(sw["uid"] == nil)
+        #expect(sw["index"] as? Int == 0)
         #expect(sw["depth"] as? Int == 0)
         #expect(sw["modelName"] as? String == "iOS")
 
@@ -551,6 +554,54 @@ struct JSONFormatterTests {
         #expect(port["generation"] as? String == "usb4Tb4")
         #expect(port["perLaneGbps"] as? Int == 20)
         #expect(port["txLanes"] as? Int == 2)
+    }
+
+    /// A daisy-chained dock's switch must reference its parent by array
+    /// index, and no raw hardware UID may appear anywhere in the switch
+    /// objects (the UID is a stable machine identifier; privacy rule).
+    @Test("Daisy-chained switch references parent by index, no UID encoded")
+    func daisyChainedSwitchReferencesParentByIndex() throws {
+        let host = IOThunderboltSwitch(
+            id: 408750268121704800,
+            className: "IOIOThunderboltSwitchType5",
+            vendorID: 1452, vendorName: "Apple Inc.", modelName: "iOS",
+            routerID: 0, depth: 0, routeString: 0,
+            upstreamPortNumber: 7, maxPortNumber: 8,
+            supportedSpeed: SupportedSpeedMask(rawValue: 12),
+            ports: [],
+            parentSwitchUID: nil
+        )
+        let dock = IOThunderboltSwitch(
+            id: -5188146770730811392,
+            className: "IOThunderboltSwitchIntel",
+            vendorID: 0x8086, vendorName: "Intel", modelName: "JHL8440",
+            routerID: 1, depth: 1, routeString: 1,
+            upstreamPortNumber: 1, maxPortNumber: 4,
+            supportedSpeed: SupportedSpeedMask(rawValue: 12),
+            ports: [],
+            parentSwitchUID: host.id
+        )
+
+        let json = try JSONFormatter.render(
+            ports: [makePort()], sources: [], identities: [], showRaw: false,
+            thunderboltSwitches: [host, dock]
+        )
+        let obj = parse(json)
+        let switches = obj["thunderboltSwitches"] as? [[String: Any]] ?? []
+        #expect(switches.count == 2)
+        let hostDTO = switches[0]
+        let dockDTO = switches[1]
+        #expect(hostDTO["index"] as? Int == 0)
+        #expect(dockDTO["index"] as? Int == 1)
+        #expect(dockDTO["parentSwitchIndex"] as? Int == 0)
+        for sw in switches {
+            #expect(sw["uid"] == nil)
+            #expect(sw["parentSwitchUID"] == nil)
+        }
+        // Belt and braces: neither raw UID may appear anywhere in the
+        // rendered output, in any field, under any name.
+        #expect(!json.contains("408750268121704800"))
+        #expect(!json.contains("5188146770730811392"))
     }
 
     /// TB5 was confirmed against a real M5 Pro + UGreen JHL9580 dock
@@ -796,8 +847,8 @@ struct JSONFormatterTests {
         #expect(dto["hvcMenu"] as? [[String: Any]] == nil)
     }
 
-    @Test("Port DTO carries IOThunderboltSwitch UID reference")
-    func portDtoCarriesIOThunderboltSwitchUidReference() throws {
+    @Test("Port DTO carries IOThunderboltSwitch index reference")
+    func portDtoCarriesIOThunderboltSwitchIndexReference() throws {
         let host = IOThunderboltSwitch(
             id: 12345,
             className: "IOIOThunderboltSwitchType5",
@@ -823,18 +874,21 @@ struct JSONFormatterTests {
         )
         let obj = parse(json)
         let port = (obj["ports"] as? [[String: Any]])?.first ?? [:]
-        // Port-USB-C@1 should resolve via Socket ID "1" -> host switch UID.
-        #expect(port["thunderboltSwitchUID"] as? Int64 == 12345)
+        // Port-USB-C@1 should resolve via Socket ID "1" -> the host
+        // switch's position in the thunderboltSwitches array, never the
+        // raw hardware UID (a stable machine identifier).
+        #expect(port["thunderboltSwitchIndex"] as? Int == 0)
+        #expect(port["thunderboltSwitchUID"] == nil)
     }
 
     /// Companion to the test above: a MagSafe port that shares the same
     /// `@1` socket suffix as the first USB-C port (universal on M-class
-    /// MacBooks) must NOT inherit the colliding TB switch UID. The
+    /// MacBooks) must NOT inherit the colliding TB switch reference. The
     /// `socketID(for:)` gate refuses the lookup on any port that doesn't
     /// carry data. Without this, the MagSafe JSON would mis-report a
     /// Thunderbolt switch attachment it never had (issue #195).
-    @Test("MagSafe port has null thunderboltSwitchUID despite colliding suffix")
-    func magSafePortHasNullThunderboltSwitchUid() throws {
+    @Test("MagSafe port has null thunderboltSwitchIndex despite colliding suffix")
+    func magSafePortHasNullThunderboltSwitchIndex() throws {
         let host = IOThunderboltSwitch(
             id: 408750268121704800,
             className: "IOIOThunderboltSwitchType5",
@@ -880,14 +934,14 @@ struct JSONFormatterTests {
         )
         let obj = parse(json)
         let port = (obj["ports"] as? [[String: Any]])?.first ?? [:]
-        // The `thunderboltSwitchUID` field is encoded with
+        // The `thunderboltSwitchIndex` field is encoded with
         // `encodeIfPresent`, so a nil value is omitted from the JSON
         // entirely. Either absent or explicitly null is fine; what
-        // matters is that the colliding USB-C@1 switch UID does NOT
+        // matters is that the colliding USB-C@1 switch reference does NOT
         // appear.
-        let switchUID = port["thunderboltSwitchUID"]
-        #expect(switchUID == nil || switchUID is NSNull,
-            "MagSafe should not inherit USB-C@1's TB switch UID via the @N suffix collision; got: \(String(describing: switchUID))")
+        let switchIndex = port["thunderboltSwitchIndex"]
+        #expect(switchIndex == nil || switchIndex is NSNull,
+            "MagSafe should not inherit USB-C@1's TB switch via the @N suffix collision; got: \(String(describing: switchIndex))")
         // Defence-in-depth: no data-link verdict should appear on this
         // port either, since `carriesData` is false. Same encoding
         // rule, so the key is either absent or null.

@@ -18,6 +18,14 @@ public enum JSONFormatter {
         displayPorts: [IOPortTransportStateDisplayPort] = []
     ) throws -> String {
         let activePortCount = ports.filter { $0.connectionActive == true }.count
+        // Map each switch's hardware UID to its position in the encoded
+        // array. The JSON exposes only these per-snapshot indices; the raw
+        // UID is a stable hardware identifier and stays internal (it would
+        // otherwise leak into output people paste publicly).
+        var switchIndexByUID: [Int64: Int] = [:]
+        for (index, sw) in thunderboltSwitches.enumerated() where switchIndexByUID[sw.id] == nil {
+            switchIndexByUID[sw.id] = index
+        }
         // Port keys that are actually drawing charging power right now. A
         // port with a connected-but-idle second charger uses this to know
         // another port is the active source. See issue #264.
@@ -42,6 +50,7 @@ public enum JSONFormatter {
                     sources: portSources,
                     identities: identities.filter { $0.portKey == port.portKey },
                     thunderboltSwitches: thunderboltSwitches,
+                    switchIndexByUID: switchIndexByUID,
                     showRaw: showRaw,
                     adapter: adapter,
                     federatedIdentities: federatedIdentities,
@@ -55,7 +64,9 @@ public enum JSONFormatter {
                     anotherPortActivelyCharging: anotherPortActivelyCharging
                 )
             },
-            thunderboltSwitches: thunderboltSwitches.map { IOThunderboltSwitchDTO(sw: $0) }
+            thunderboltSwitches: thunderboltSwitches.enumerated().map { index, sw in
+                IOThunderboltSwitchDTO(sw: sw, index: index, switchIndexByUID: switchIndexByUID)
+            }
         )
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
@@ -73,8 +84,8 @@ private struct Output: Codable {
     let ports: [PortDTO]
     /// Top-level Thunderbolt fabric. Always present (empty array on
     /// machines without a TB controller, or before the watcher has data).
-    /// Per-port `thunderboltSwitchUID` references this graph by UID rather
-    /// than nesting the whole switch under each port.
+    /// Per-port `thunderboltSwitchIndex` references this graph by array
+    /// index rather than nesting the whole switch under each port.
     let thunderboltSwitches: [IOThunderboltSwitchDTO]
 }
 
@@ -110,12 +121,13 @@ private struct PortDTO: Codable {
     /// no diagnosis attached (a Billboard device is often benign). Consumers
     /// pair it with `displays` to spot a probable failed Alt-Mode handshake.
     let billboardDevicePresent: Bool
-    /// UID of the host root Thunderbolt switch this port maps to, if any.
-    /// Resolved via the `Socket ID` <-> `@N` join key. Encoded as Int64
-    /// (signed, matching IOKit's representation; some vendors use the
-    /// sign bit). nil for ports that aren't TB-protocol or for which the
+    /// Index into the top-level `thunderboltSwitches` array of the host
+    /// root switch this port maps to, if any. Resolved via the
+    /// `Socket ID` <-> `@N` join key. A per-snapshot index, not the
+    /// hardware UID: the UID is a stable machine identifier and is kept
+    /// internal. nil for ports that aren't TB-protocol or for which the
     /// watcher hasn't found a match.
-    let thunderboltSwitchUID: Int64?
+    let thunderboltSwitchIndex: Int?
     /// Per-transport TRM state for this port. Nil when no TRM data is
     /// available (nothing connected, or TRM not active on this port).
     let trm: [TRMTransportDTO]?
@@ -130,6 +142,7 @@ private struct PortDTO: Codable {
         sources: [PowerSource],
         identities: [USBPDSOP],
         thunderboltSwitches: [IOThunderboltSwitch],
+        switchIndexByUID: [Int64: Int] = [:],
         showRaw: Bool,
         adapter: AdapterInfo?,
         federatedIdentities: [FederatedIdentity] = [],
@@ -166,12 +179,13 @@ private struct PortDTO: Codable {
         self.subtitle = summary.subtitle
         self.bullets = summary.bullets
 
-        // Resolve the host-root switch UID via Socket ID matching.
+        // Resolve the host-root switch via Socket ID matching, then encode
+        // its array index (never the raw hardware UID).
         if let socketID = ThunderboltTopology.socketID(for: port),
            let root = ThunderboltTopology.hostRoot(forSocketID: socketID, in: thunderboltSwitches) {
-            self.thunderboltSwitchUID = root.id
+            self.thunderboltSwitchIndex = switchIndexByUID[root.id]
         } else {
-            self.thunderboltSwitchUID = nil
+            self.thunderboltSwitchIndex = nil
         }
 
         // `TransportsActive` is the sole authority for "USB3 is live"
@@ -431,10 +445,12 @@ private struct DeviceDTO: Codable {
 // MARK: - Thunderbolt fabric DTOs
 
 /// One Thunderbolt switch in JSON form. Encoded once at the top level of
-/// the snapshot; per-port references use `thunderboltSwitchUID`. Avoids
-/// duplicating the whole graph under every port.
+/// the snapshot; per-port references use `thunderboltSwitchIndex`. Avoids
+/// duplicating the whole graph under every port. The hardware UID is a
+/// stable machine identifier and is deliberately not encoded; `index` and
+/// `parentSwitchIndex` are per-snapshot positions in this array.
 private struct IOThunderboltSwitchDTO: Codable {
-    let uid: Int64
+    let index: Int
     let className: String
     let vendorID: Int
     let vendorName: String
@@ -445,11 +461,11 @@ private struct IOThunderboltSwitchDTO: Codable {
     let upstreamPortNumber: Int
     let maxPortNumber: Int
     let supportedSpeedMask: Int
-    let parentSwitchUID: Int64?
+    let parentSwitchIndex: Int?
     let ports: [IOThunderboltPortDTO]
 
-    init(sw: IOThunderboltSwitch) {
-        self.uid = sw.id
+    init(sw: IOThunderboltSwitch, index: Int, switchIndexByUID: [Int64: Int]) {
+        self.index = index
         self.className = sw.className
         self.vendorID = sw.vendorID
         self.vendorName = sw.vendorName
@@ -460,7 +476,7 @@ private struct IOThunderboltSwitchDTO: Codable {
         self.upstreamPortNumber = sw.upstreamPortNumber
         self.maxPortNumber = sw.maxPortNumber
         self.supportedSpeedMask = Int(sw.supportedSpeed.rawValue)
-        self.parentSwitchUID = sw.parentSwitchUID
+        self.parentSwitchIndex = sw.parentSwitchUID.flatMap { switchIndexByUID[$0] }
         self.ports = sw.ports.map { IOThunderboltPortDTO(port: $0) }
     }
 }
