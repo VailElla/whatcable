@@ -36,13 +36,18 @@ public final class USB3TransportWatcher: ObservableObject {
             Task { @MainActor in w.handleRemoved(iter) }
         }
 
+        // Only drain the iterator when registration succeeds. The out-parameter
+        // iterator is only valid on KERN_SUCCESS; passing an uninitialised value
+        // to IOIteratorNext is undefined behaviour. Sibling pattern: USBPDSOPWatcher.
         let matching = IOServiceMatching("IOPortTransportStateUSB3")
-        IOServiceAddMatchingNotification(port, kIOMatchedNotification, matching, added, selfPtr, &addedIter)
-        handleAdded(addedIter)
+        if IOServiceAddMatchingNotification(port, kIOMatchedNotification, matching, added, selfPtr, &addedIter) == KERN_SUCCESS {
+            handleAdded(addedIter)
+        }
 
         let matching2 = IOServiceMatching("IOPortTransportStateUSB3")
-        IOServiceAddMatchingNotification(port, kIOTerminatedNotification, matching2, removed, selfPtr, &removedIter)
-        handleRemoved(removedIter)
+        if IOServiceAddMatchingNotification(port, kIOTerminatedNotification, matching2, removed, selfPtr, &removedIter) == KERN_SUCCESS {
+            handleRemoved(removedIter)
+        }
     }
 
     public func stop() {
