@@ -22,6 +22,30 @@ struct SMCPowerReaderTests {
         #expect(SMCPowerReader.fourCC("D1J€") == nil)
     }
 
+    @Test("Float decode roundtrips a finite SMC flt payload")
+    func decodeFloatFinite() {
+        // 5.18 as little-endian IEEE-754 bytes.
+        let bytes = withUnsafeBytes(of: Float(5.18).bitPattern.littleEndian) { Array($0) }
+        #expect(SMCPowerReader.decodeFloat(bytes) == 5.18)
+        #expect(SMCPowerReader.decodeFloat([0, 0, 0, 0]) == 0)
+    }
+
+    @Test("Float decode rejects non-finite and short payloads")
+    func decodeFloatRejectsGarbage() {
+        // An uninitialised channel can carry inf/NaN bit patterns; letting
+        // them through would trap in the Int() unit conversions downstream
+        // (PowerTelemetryWatcher mV/mA/mW). nil routes them into the same
+        // `?? 0` fallback as an absent key.
+        func bytes(_ f: Float) -> [UInt8] {
+            withUnsafeBytes(of: f.bitPattern.littleEndian) { Array($0) }
+        }
+        #expect(SMCPowerReader.decodeFloat(bytes(.infinity)) == nil)
+        #expect(SMCPowerReader.decodeFloat(bytes(-.infinity)) == nil)
+        #expect(SMCPowerReader.decodeFloat(bytes(.nan)) == nil)
+        #expect(SMCPowerReader.decodeFloat([]) == nil)
+        #expect(SMCPowerReader.decodeFloat([0x00, 0x00, 0xA6]) == nil)
+    }
+
     @Test("Constructing the reader does not trip the 80-byte struct assertion")
     func structLayoutIsCorrect() {
         // The init() precondition fires (in debug) if SMCParamStruct ever stops

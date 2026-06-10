@@ -161,9 +161,22 @@ public final class SMCPowerReader {
     /// endian) byte order on Apple Silicon, so the bytes load straight into a
     /// `Float` bit pattern.
     private func readFloat(_ key: String) -> Float? {
-        guard let bytes = readKey(key), bytes.count >= 4 else { return nil }
+        guard let bytes = readKey(key) else { return nil }
+        return Self.decodeFloat(bytes)
+    }
+
+    /// Decode an SMC `flt` payload. Returns nil for short payloads and for
+    /// non-finite values (infinity, NaN). An uninitialised or garbage SMC
+    /// channel can carry an inf/NaN bit pattern; letting it through would
+    /// reach `Int(...)` unit conversions downstream, which trap on
+    /// non-finite doubles. nil makes the callers' `?? 0` fallbacks handle
+    /// it like any other absent reading. Internal (not private) so the
+    /// decode is unit-testable without SMC hardware.
+    static func decodeFloat(_ bytes: [UInt8]) -> Float? {
+        guard bytes.count >= 4 else { return nil }
         let bits = UInt32(bytes[0]) | UInt32(bytes[1]) << 8 | UInt32(bytes[2]) << 16 | UInt32(bytes[3]) << 24
-        return Float(bitPattern: bits)
+        let value = Float(bitPattern: bits)
+        return value.isFinite ? value : nil
     }
 
     /// `ui8` keys (`DxPR`): a single byte.
