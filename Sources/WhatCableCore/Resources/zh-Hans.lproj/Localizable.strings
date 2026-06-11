@@ -381,6 +381,8 @@
 "Unlock deep diagnostics, live power graphs, and per-port history. One-off licence, no subscription." = "解锁深度诊断、实时功率图表及每端口历史记录。一次性授权，无订阅。";
 "Cable says %@, link reads %@" = "线缆声明 %@，链路读取 %@";
 "The cable's e-marker reports %@, but the active link is reading %@. One of those readings is wrong, and without a Thunderbolt controller cross-check we can't tell which. Trying a known-good cable will identify the culprit." = "线缆的 e-marker 报告 %@，但活动链路读取为 %@。这两个读数中必有一个是错误的，在没有 Thunderbolt 控制器进行交叉比对的情况下无法判断是哪一个。尝试更换已知良好的线缆将可确定原因。";
+"Data blocked by macOS accessory security" = "数据已被 macOS 配件安全性阻止";
+"The link is capable of %@, but macOS is blocking data until you approve the accessory. Click Allow on the connection prompt, or check System Settings > Privacy & Security > Allow accessories to connect, then replug." = "链路能够达到 %@，但 macOS 正在阻止数据，直到您批准该配件。点按连接提示中的「允许」，或前往系统设置 > 隐私与安全性 > 允许配件连接，然后重新插拔。";
 
 /* Display dimension. English; non-English to be refined by the community translation flow. */
 "A display is connected but its capabilities aren't readable, so there's nothing to compare the link against." = "已连接显示器，但其能力无法读取，因此无可比对的链路参数。";

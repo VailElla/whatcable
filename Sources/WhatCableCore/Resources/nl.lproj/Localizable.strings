@@ -350,6 +350,8 @@
 "This is the fastest the connected device supports. It is not a cable problem." = "Dit is de maximale snelheid die het verbonden apparaat ondersteunt. Het is geen kabelprobleem.";
 "Cable says %@, link reads %@" = "Kabel geeft %@ aan, verbinding meet %@";
 "The cable's e-marker reports %@, but the active link is reading %@. One of those readings is wrong, and without a Thunderbolt controller cross-check we can't tell which. Trying a known-good cable will identify the culprit." = "De e-marker van de kabel meldt %@, maar de actieve verbinding meet %@. Een van die metingen is onjuist, en zonder kruiscontrole via een Thunderbolt-controller kunnen we niet bepalen welke. Het proberen van een bekende goede kabel zal de oorzaak identificeren.";
+"Data blocked by macOS accessory security" = "Data geblokkeerd door macOS-accessoirebeveiliging";
+"The link is capable of %@, but macOS is blocking data until you approve the accessory. Click Allow on the connection prompt, or check System Settings > Privacy & Security > Allow accessories to connect, then replug." = "De verbinding ondersteunt %@, maar macOS blokkeert gegevens totdat je het accessoire goedkeurt. Klik op Toestaan in de verbindingsvraag, of ga naar Systeeminstellingen > Privacy en beveiliging > Accessoires toestaan verbinding te maken, en sluit het apparaat opnieuw aan.";
 "Battery full, not charging" = "Batterij vol, niet aan het opladen";
 "Charger and cable are fine. The Mac will draw up to %lldW when it needs to." = "Oplader en kabel zijn in orde. De Mac trekt tot %lldW wanneer dat nodig is.";
 "Negotiation Diagnostics" = "Onderhandelingsdiagnostiek";

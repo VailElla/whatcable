@@ -181,6 +181,10 @@ extension CableTrust {
             return (hasCableSpeedClaim, false)
         case .cableContradictsActive:
             return (false, true)
+        case .blockedBySecurity:
+            // A security block is not a cable-trust signal: the cable's
+            // capabilities are not in question, only the user's approval state.
+            return (false, false)
         case .hostLimit, .deviceLimit, .degraded, .unknownCable, .none:
             return (false, false)
         }

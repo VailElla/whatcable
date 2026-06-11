@@ -382,6 +382,8 @@
 "Unlock deep diagnostics, live power graphs, and per-port history. One-off licence, no subscription." = "詳細診断、リアルタイム電力グラフ、ポートごとの履歴を解放します。買い切りライセンス、サブスクリプション不要。";
 "Cable says %@, link reads %@" = "ケーブルは %@ を示していますが、リンクの読み取りは %@ です";
 "The cable's e-marker reports %@, but the active link is reading %@. One of those readings is wrong, and without a Thunderbolt controller cross-check we can't tell which. Trying a known-good cable will identify the culprit." = "ケーブルの e-marker は %@ を報告していますが、アクティブなリンクは %@ を示しています。どちらかの読み取りが誤っており、Thunderbolt コントローラーによる照合なしにはどちらかを特定できません。正常なケーブルで試すと原因を絞り込めます。";
+"Data blocked by macOS accessory security" = "macOS アクセサリセキュリティによりデータがブロックされています";
+"The link is capable of %@, but macOS is blocking data until you approve the accessory. Click Allow on the connection prompt, or check System Settings > Privacy & Security > Allow accessories to connect, then replug." = "リンクは %@ に対応していますが、アクセサリを承認するまで macOS がデータをブロックしています。接続プロンプトで「許可」をクリックするか、システム設定 > プライバシーとセキュリティ > アクセサリの接続を許可 を確認してから、再接続してください。";
 
 /* Display dimension. English; non-English to be refined by the community translation flow. */
 "A display is connected but its capabilities aren't readable, so there's nothing to compare the link against." = "ディスプレイは接続されていますが、その性能を読み取れないため、リンクと比較できません。";

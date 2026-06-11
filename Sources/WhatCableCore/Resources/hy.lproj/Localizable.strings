@@ -381,6 +381,8 @@
 "Unlock deep diagnostics, live power graphs, and per-port history. One-off licence, no subscription." = "Բացեք խորը ախտորոշում, ակտիվ սնուցման գրաֆիկներ և նավահանգստային պատմություն: Մեկանգամյա լիցենզիա, բաժանորդագրություն չկա:";
 "Cable says %@, link reads %@" = "Մալուխը ցույց է տալիս %@, կապն ընթերցում է %@";
 "The cable's e-marker reports %@, but the active link is reading %@. One of those readings is wrong, and without a Thunderbolt controller cross-check we can't tell which. Trying a known-good cable will identify the culprit." = "Մալուխի e-marker-ը ցույց է տալիս %@, սակայն ակտիվ կապն ընթերցում է %@: Այս ցուցումներից մեկը սխալ է, և Thunderbolt կարգավարի փոխադարձ ստուգման բացակայության պատճառով հնարավոր չէ ասել, թե որն: Հայտնի-լավ մալուխ փորձելը կհայտնաբերի մեղավորին:";
+"Data blocked by macOS accessory security" = "Տvyalnern argelafakvatc en macOS-i accessory anwtangutyamb";
+"The link is capable of %@, but macOS is blocking data until you approve the accessory. Click Allow on the connection prompt, or check System Settings > Privacy & Security > Allow accessories to connect, then replug." = "Kapn unak e %@-i, bayts macOS-n argelafakum e twyalner@ mintchev hastatetc accessory@. Kttatsek Thuylatrel kapman hushumum, kam stugek Hamakargi Nuytshner > Gordnatckanutyun ev Anwtangut'yun > Thuylatel accessories@, apa norits kap kagtshetsek.";
 
 /* Display dimension. English; non-English to be refined by the community translation flow. */
 "A display is connected but its capabilities aren't readable, so there's nothing to compare the link against." = "Էկրան միացված է, սակայն դրա հնարավորությունները կարդալ հնարավոր չէ, ուստի կապը համեմատելու հետ ոչինչ չկա:";

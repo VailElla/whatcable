@@ -380,6 +380,8 @@
 "Unlock deep diagnostics, live power graphs, and per-port history. One-off licence, no subscription." = "Odblokuj zaawansowaną diagnostykę, aktualne wykresy zasilania i historię dla każdego portu. Jednorazowa licencja, bez subskrypcji.";
 "Cable says %@, link reads %@" = "Kabel podaje %@, łącze odczytuje %@";
 "The cable's e-marker reports %@, but the active link is reading %@. One of those readings is wrong, and without a Thunderbolt controller cross-check we can't tell which. Trying a known-good cable will identify the culprit." = "E-marker kabla podaje %@, ale aktywne łącze odczytuje %@. Jeden z tych odczytów jest błędny, a bez weryfikacji przez kontroler Thunderbolt nie można stwierdzić który. Wypróbowanie sprawdzonego kabla pozwoli wskazać winowajcę.";
+"Data blocked by macOS accessory security" = "Dane zablokowane przez zabezpieczenia akcesoriów macOS";
+"The link is capable of %@, but macOS is blocking data until you approve the accessory. Click Allow on the connection prompt, or check System Settings > Privacy & Security > Allow accessories to connect, then replug." = "Łącze obsługuje %@, ale macOS blokuje dane do momentu zatwierdzenia akcesoriuma. Kliknij Zezwól w monicie połączenia lub przejdź do Ustawienia systemowe > Prywatność i ochrona > Zezwalaj na podłączanie akcesoriów, a następnie odłącz i ponownie podłącz.";
 
 /* Display dimension. English; non-English to be refined by the community translation flow. */
 "A display is connected but its capabilities aren't readable, so there's nothing to compare the link against." = "Ekran jest podłączony, ale jego możliwości są nieczytelne, więc nie ma z czym porównać łącza.";

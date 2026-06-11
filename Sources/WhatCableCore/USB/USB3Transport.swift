@@ -23,6 +23,15 @@ public struct USB3Transport: Identifiable, Hashable, Sendable {
     /// HPM controller UUID captured by walking the IOKit parent chain.
     /// Internal join key only. Never serialised to JSON or text output.
     public let hpmControllerUUID: String?
+    /// Whether the transport is currently active (from the `Active` IOKit property).
+    /// Nil when the property is absent. Carried as data; DataLinkDiagnostic uses
+    /// `transportRestricted` as the primary gate for the blocked-by-security verdict.
+    public let active: Bool?
+    /// Whether macOS TRM (Trust and Restrict Management) has blocked data on this
+    /// transport (from the `TRM_TransportRestricted` IOKit property). When true,
+    /// the transport's signaled speed is present but macOS is not passing data until
+    /// the user approves the accessory.
+    public let transportRestricted: Bool?
 
     public init(
         id: UInt64,
@@ -30,7 +39,9 @@ public struct USB3Transport: Identifiable, Hashable, Sendable {
         signaling: Int?,
         signalingDescription: String?,
         dataRole: String?,
-        hpmControllerUUID: String? = nil
+        hpmControllerUUID: String? = nil,
+        active: Bool? = nil,
+        transportRestricted: Bool? = nil
     ) {
         self.id = id
         self.portKey = portKey
@@ -38,6 +49,8 @@ public struct USB3Transport: Identifiable, Hashable, Sendable {
         self.signalingDescription = signalingDescription
         self.dataRole = dataRole
         self.hpmControllerUUID = hpmControllerUUID
+        self.active = active
+        self.transportRestricted = transportRestricted
     }
 
     /// Canonical in-session join key: normalised UUID when captured, else portKey.

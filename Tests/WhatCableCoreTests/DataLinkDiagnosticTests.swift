@@ -89,10 +89,11 @@ struct DataLinkDiagnosticTests {
         )
     }
 
-    private func usb3(signaling: Int) -> USB3Transport {
+    private func usb3(signaling: Int, transportRestricted: Bool? = nil) -> USB3Transport {
         USB3Transport(
             id: 4, portKey: "2/1",
-            signaling: signaling, signalingDescription: nil, dataRole: nil
+            signaling: signaling, signalingDescription: nil, dataRole: nil,
+            transportRestricted: transportRestricted
         )
     }
 
@@ -1019,5 +1020,70 @@ struct DataLinkDiagnosticTests {
         )
 
         #expect(diag?.facts.activeGbps == 10)
+    }
+
+    // MARK: - TRM blocked-by-security verdict (DAR-134)
+
+    @Test("TRM-restricted USB3 transport yields .blockedBySecurity (DAR-134)")
+    func trmRestrictedYieldsBlockedBySecurity() {
+        // When TRM_TransportRestricted is true on the USB3 transport the link
+        // is physically capable but macOS is withholding data. The old behaviour
+        // falsely returned .fine; the fix emits .blockedBySecurity instead.
+        let diag = DataLinkDiagnostic(
+            port: makePort(transportsActive: ["CC", "USB3"]),
+            identities: [],
+            devices: [],
+            usb3Transports: [usb3(signaling: 1, transportRestricted: true)],  // Gen 1 (5 Gbps), restricted
+            cio: nil
+        )
+        guard case .blockedBySecurity(let signaledGbps) = diag?.bottleneck else {
+            Issue.record("Expected .blockedBySecurity, got \(String(describing: diag?.bottleneck))")
+            return
+        }
+        #expect(signaledGbps == 5, "signaledGbps should be 5 from Gen 1 signaling")
+        #expect(diag!.isWarning, "blockedBySecurity must be a warning verdict")
+        #expect(diag!.summary == "Data blocked by macOS accessory security")
+        #expect(diag!.detail.contains("5 Gbps"))
+    }
+
+    @Test("TRM-restricted false leaves previous verdict path unchanged")
+    func trmRestrictedFalseDoesNotBlock() {
+        // transportRestricted=false must not trigger the security verdict.
+        // The diagnostic should proceed normally: in this case .unknownCable
+        // because no e-marker and no host cap is supplied.
+        let diag = DataLinkDiagnostic(
+            port: makePort(transportsActive: ["CC", "USB3"]),
+            identities: [],
+            devices: [],
+            usb3Transports: [usb3(signaling: 2, transportRestricted: false)],
+            cio: nil
+        )
+        if case .blockedBySecurity = diag?.bottleneck {
+            Issue.record("transportRestricted=false must not produce .blockedBySecurity")
+        }
+        // Expect a normal (non-security) verdict: unknownCable in this scenario.
+        guard case .unknownCable = diag?.bottleneck else {
+            Issue.record("Expected .unknownCable (no e-marker, no host cap), got \(String(describing: diag?.bottleneck))")
+            return
+        }
+    }
+
+    @Test("TRM-restricted nil leaves previous verdict path unchanged")
+    func trmRestrictedNilDoesNotBlock() {
+        // transportRestricted=nil (field absent) must not trigger the security verdict.
+        let diag = DataLinkDiagnostic(
+            port: makePort(transportsActive: ["CC", "USB3"]),
+            identities: [],
+            devices: [],
+            usb3Transports: [usb3(signaling: 2)],    // nil transportRestricted by default
+            cio: nil
+        )
+        if case .blockedBySecurity = diag?.bottleneck {
+            Issue.record("transportRestricted=nil must not produce .blockedBySecurity")
+        }
+        guard case .unknownCable = diag?.bottleneck else {
+            Issue.record("Expected .unknownCable (no e-marker, no host cap), got \(String(describing: diag?.bottleneck))")
+            return
+        }
     }
 }

@@ -350,6 +350,8 @@
 "This is the fastest the connected device supports. It is not a cable problem." = "Bu, bağlı aygıtın desteklediği en yüksek hızdır. Kablo sorunu değildir.";
 "Cable says %@, link reads %@" = "Kablo %1$@ diyor, bağlantı %2$@ okuyor";
 "The cable's e-marker reports %@, but the active link is reading %@. One of those readings is wrong, and without a Thunderbolt controller cross-check we can't tell which. Trying a known-good cable will identify the culprit." = "Kablonun e-marker'ı %1$@ bildiriyor, ancak aktif bağlantı %2$@ okuyor. Bu okumalardan biri yanlış; Thunderbolt denetleyicisi çapraz kontrolü olmadan hangisi olduğunu söyleyemiyoruz. Bilinen iyi bir kablo denemek sorumluyu belirler.";
+"Data blocked by macOS accessory security" = "Veriler macOS aksesuar güvenliği tarafından engellendi";
+"The link is capable of %@, but macOS is blocking data until you approve the accessory. Click Allow on the connection prompt, or check System Settings > Privacy & Security > Allow accessories to connect, then replug." = "Bağlantı %@ kapasitesine sahip, ancak aksesuar onaylanana kadar macOS verileri engelliyor. Bağlantı isteminde İzin Ver'e tıklayın ya da Sistem Ayarları > Gizlilik ve Güvenlik > Aksesuarların bağlanmasına izin ver bölümünü kontrol edin, ardından yeniden bağlayın.";
 "Battery full, not charging" = "Pil dolu, şarj olmuyor";
 "Charger and cable are fine. The Mac will draw up to %lldW when it needs to." = "Şarj aleti ve kablo sorunsuz. Mac gerektiğinde en fazla %lldW çekecek.";
 "Negotiation Diagnostics" = "Müzakere Tanılama";

@@ -349,6 +349,8 @@
 "This is the fastest the connected device supports. It is not a cable problem." = "Esta é a maior velocidade compatível com o dispositivo conectado. Não é um problema do cabo.";
 "Cable says %@, link reads %@" = "O cabo informa %@, o link lê %@";
 "The cable's e-marker reports %@, but the active link is reading %@. One of those readings is wrong, and without a Thunderbolt controller cross-check we can't tell which. Trying a known-good cable will identify the culprit." = "O e-marker do cabo informa %@, mas o link ativo lê %@. Uma dessas leituras está errada e, sem uma verificação cruzada pelo controlador Thunderbolt, não dá para saber qual. Testar com um cabo conhecido como bom identificará o culpado.";
+"Data blocked by macOS accessory security" = "Dados bloqueados pela segurança de acessórios do macOS";
+"The link is capable of %@, but macOS is blocking data until you approve the accessory. Click Allow on the connection prompt, or check System Settings > Privacy & Security > Allow accessories to connect, then replug." = "O link tem capacidade de %@, mas o macOS está bloqueando os dados até que você aprove o acessório. Clique em Permitir na caixa de diálogo de conexão, ou verifique Ajustes do Sistema > Privacidade e Segurança > Permitir que acessórios se conectem, e reconecte.";
 "Battery full, not charging" = "Bateria cheia, sem carregar";
 "Charger and cable are fine. The Mac will draw up to %lldW when it needs to." = "O carregador e o cabo estão corretos. O Mac consumirá até %lld W quando precisar.";
 "Negotiation Diagnostics" = "Diagnóstico de negociação";

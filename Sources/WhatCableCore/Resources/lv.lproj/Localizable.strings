@@ -380,6 +380,8 @@
 "Unlock deep diagnostics, live power graphs, and per-port history. One-off licence, no subscription." = "Atbloķējiet detalizētu diagnostiku, tiešraides jaudas grafikus un notikumu vēsturi pa portiem. Vienreizēja licence, bez abonēšanas.";
 "Cable says %@, link reads %@" = "Kabelis norāda %@, savienojums nolasa %@";
 "The cable's e-marker reports %@, but the active link is reading %@. One of those readings is wrong, and without a Thunderbolt controller cross-check we can't tell which. Trying a known-good cable will identify the culprit." = "Kabeļa e-marker norāda %@, bet aktīvais savienojums nolasa %@. Viens no šiem rādījumiem ir kļūdains, un bez Thunderbolt kontroliera pārbaudes nav iespējams noskaidrot, kurš. Izmēģinot zināmi labu kabeli, var noteikt vainīgo.";
+"Data blocked by macOS accessory security" = "Dati bloķēti macOS piederumu drošības dēļ";
+"The link is capable of %@, but macOS is blocking data until you approve the accessory. Click Allow on the connection prompt, or check System Settings > Privacy & Security > Allow accessories to connect, then replug." = "Savienojums spēj %@, taču macOS bloķē datus, līdz jūs apstiprināt piederumu. Noklikšķiniet uz Atļaut savienojuma uzvednē vai pārbaudiet Sistēmas iestatījumi > Konfidencialitāte un drošība > Atļaut piederumiem savienoties, pēc tam atvieno un pievieno vēlreiz.";
 
 /* Display dimension. English; non-English to be refined by the community translation flow. */
 "A display is connected but its capabilities aren't readable, so there's nothing to compare the link against." = "Monitors ir pievienots, bet tā iespējas nav nolasāmas, tāpēc nav ar ko salīdzināt savienojumu.";

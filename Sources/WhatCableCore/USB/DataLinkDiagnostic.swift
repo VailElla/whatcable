@@ -38,6 +38,12 @@ public struct DataLinkDiagnostic {
         /// legitimately slow cables whenever the active reading was
         /// itself unreliable).
         case cableContradictsActive(cableGbps: Double, activeGbps: Double)
+        /// macOS TRM (Trust and Restrict Management) has blocked data on this
+        /// transport. The link is physically capable of `signaledGbps`, but
+        /// macOS is withholding data until the user approves the accessory.
+        /// Takes precedence over healthy/speed verdicts because the link is
+        /// not actually passing data regardless of the signaled rate.
+        case blockedBySecurity(signaledGbps: Double)
     }
 
     public let bottleneck: Bottleneck
@@ -52,7 +58,7 @@ public struct DataLinkDiagnostic {
     public var isWarning: Bool {
         switch bottleneck {
         case .fine, .deviceLimit, .unknownCable: return false
-        case .cableLimit, .hostLimit, .degraded, .cableContradictsActive: return true
+        case .cableLimit, .hostLimit, .degraded, .cableContradictsActive, .blockedBySecurity: return true
         }
     }
 
@@ -173,6 +179,33 @@ extension DataLinkDiagnostic {
         // give. Returning nil keeps this off ports that are charge-only or
         // where the link state isn't readable yet.
         guard let active = activeGbps else { return nil }
+
+        // TRM (Trust and Restrict Management) short-circuit. When macOS has
+        // blocked data on the USB3 transport, the transport's signaling rate
+        // is still present (hence `active` is non-nil above) but no data
+        // actually flows until the user approves the accessory. Reporting a
+        // healthy "Running at X Gbps" verdict in this state is false
+        // reassurance (DAR-134). The signaled rate goes into `signaledGbps`
+        // so the verdict can say what the link *would* do once approved.
+        // This check runs before the cable-speed resolution so it takes
+        // precedence over all speed-based verdicts.
+        if usb3?.transportRestricted == true,
+           let signaledGbps = Self.usb3Gbps(usb3?.signaling) {
+            self.cableSignalConflict = false
+            self.facts = Facts(
+                hostGbps: resolvedHostMaxGbps,
+                cableEmarkerGbps: nil,
+                cableControllerGbps: nil,
+                cableGbps: nil,
+                deviceGbps: nil,
+                deviceName: nil,
+                activeGbps: active
+            )
+            self.bottleneck = .blockedBySecurity(signaledGbps: signaledGbps)
+            self.summary = String(localized: "Data blocked by macOS accessory security", bundle: _coreLocalizedBundle)
+            self.detail = String(localized: "The link is capable of \(Self.label(signaledGbps)), but macOS is blocking data until you approve the accessory. Click Allow on the connection prompt, or check System Settings > Privacy & Security > Allow accessories to connect, then replug.", bundle: _coreLocalizedBundle)
+            return
+        }
 
         // Cable's claimed speed from its e-marker (SOP' / SOP'').
         let cableIdentity = identities

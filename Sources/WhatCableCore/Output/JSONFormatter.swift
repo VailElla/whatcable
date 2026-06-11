@@ -650,6 +650,7 @@ private struct DataLinkDTO: Codable {
         case .degraded: self.bottleneck = "degraded"
         case .unknownCable: self.bottleneck = "unknownCable"
         case .cableContradictsActive: self.bottleneck = "cableContradictsActive"
+        case .blockedBySecurity: self.bottleneck = "blockedBySecurity"
         }
     }
 }

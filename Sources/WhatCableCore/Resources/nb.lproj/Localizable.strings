@@ -381,6 +381,8 @@
 "Unlock deep diagnostics, live power graphs, and per-port history. One-off licence, no subscription." = "Lås opp dyp diagnostikk, direktevisning av strømgrafer og per-port historikk. Engangslisens, ingen abonnement.";
 "Cable says %@, link reads %@" = "Kabelen oppgir %@, tilkoblingen leser %@";
 "The cable's e-marker reports %@, but the active link is reading %@. One of those readings is wrong, and without a Thunderbolt controller cross-check we can't tell which. Trying a known-good cable will identify the culprit." = "Kabelens e-marker rapporterer %@, men den aktive tilkoblingen leser %@. En av disse avlesningene er feil, og uten krysssjekk mot en Thunderbolt-kontroller kan vi ikke avgjøre hvilken. Å prøve en kabel man vet virker vil avsløre årsaken.";
+"Data blocked by macOS accessory security" = "Data blokkert av macOS tilbehørssikkerhet";
+"The link is capable of %@, but macOS is blocking data until you approve the accessory. Click Allow on the connection prompt, or check System Settings > Privacy & Security > Allow accessories to connect, then replug." = "Koblingen støtter %@, men macOS blokkerer data til du godkjenner tilbehøret. Klikk Tillat i tilkoblingsdialogen, eller gå til Systeminnstillinger > Personvern og sikkerhet > La tilbehør koble til, og koble deretter til på nytt.";
 
 /* Display dimension. English; non-English to be refined by the community translation flow. */
 "A display is connected but its capabilities aren't readable, so there's nothing to compare the link against." = "En skjerm er tilkoblet, men kapasiteten er ikke lesbar, så det er ingenting å sammenligne tilkoblingen med.";

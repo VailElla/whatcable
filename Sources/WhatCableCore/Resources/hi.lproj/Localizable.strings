@@ -380,6 +380,8 @@
 "Unlock deep diagnostics, live power graphs, and per-port history. One-off licence, no subscription." = "गहरे डायग्नोस्टिक्स, लाइव पावर ग्राफ और प्रति-पोर्ट हिस्ट्री अनलॉक करें। एकबारगी लाइसेंस, कोई सब्सक्रिप्शन नहीं।";
 "Cable says %@, link reads %@" = "केबल %@ बताती है, लिंक %@ पढ़ता है";
 "The cable's e-marker reports %@, but the active link is reading %@. One of those readings is wrong, and without a Thunderbolt controller cross-check we can't tell which. Trying a known-good cable will identify the culprit." = "केबल का e-marker %@ रिपोर्ट करता है, लेकिन सक्रिय लिंक %@ पढ़ रहा है। इनमें से एक रीडिंग गलत है, और Thunderbolt कंट्रोलर की जांच के बिना यह नहीं कहा जा सकता कि कौन सी। किसी ज्ञात-अच्छी केबल से यह पहचाना जा सकता है।";
+"Data blocked by macOS accessory security" = "macOS सहायक उपकरण सुरक्षा द्वारा डेटा अवरुद्ध";
+"The link is capable of %@, but macOS is blocking data until you approve the accessory. Click Allow on the connection prompt, or check System Settings > Privacy & Security > Allow accessories to connect, then replug." = "लिंक %@ में सक्षम है, लेकिन macOS तब तक डेटा रोक रहा है जब तक आप सहायक उपकरण को स्वीकृति नहीं देते। कनेक्शन प्रॉम्प्ट पर अनुमति दें पर क्लिक करें, या सिस्टम सेटिंग्स > गोपनीयता और सुरक्षा > सहायक उपकरणों को कनेक्ट होने दें देखें, फिर दोबारा लगाएं।";
 
 /* Display dimension. English; non-English to be refined by the community translation flow. */
 "A display is connected but its capabilities aren't readable, so there's nothing to compare the link against." = "एक डिस्प्ले कनेक्टेड है लेकिन उसकी क्षमताएं पढ़ी नहीं जा सकतीं, इसलिए लिंक से तुलना के लिए कुछ नहीं है।";

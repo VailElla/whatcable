@@ -503,36 +503,24 @@ struct CIOAndDataLinkCorpusTests {
 
     // MARK: - DataLink Diagnostic Tests
 
-    // MARK: (b1) TRM-restricted ports: DataLink must not return .fine
+    // MARK: (b1) TRM-restricted ports: DataLink must return .blockedBySecurity
 
-    @Test("DataLink TRM-restricted: restricted USB3 ports must not yield a .fine verdict (DAR-134 class)")
-    func dataLinkTRMRestrictedNotFine() {
-        // TRM restriction means the accessory's data transport is blocked by Apple's
-        // Trust and Restrict Management policy. A port in this state should not get
-        // a "Running at full data speed" verdict because the link is actively limited.
+    @Test("DataLink TRM-restricted: restricted USB3 ports yield .blockedBySecurity verdict (DAR-134)")
+    func dataLinkTRMRestrictedBlockedBySecurity() {
+        // DAR-134 fix: when macOS TRM blocks a port's USB3 transport,
+        // DataLinkDiagnostic must now emit .blockedBySecurity instead of .fine.
+        // USB3Transport now carries `transportRestricted` (from TRM_TransportRestricted)
+        // and DataLinkDiagnostic short-circuits to the new verdict when it is true.
         //
-        // This is the DAR-134 regression class: DataLinkDiagnostic was returning .fine
-        // even when TRM restricted the link, because it only saw USB3 transport speed
-        // and didn't check the TRM state.
-        //
-        // The diagnostic itself doesn't gate on TRM; but these ports in the corpus
-        // have transportsActive that doesn't include CIO, so the TB path is not taken.
-        // For USB3-only restricted ports we confirm the diagnostic either:
-        //   (a) returns nil (no active rate resolvable), OR
-        //   (b) returns a non-.fine verdict (some rate is known but the link is impaired)
-        //
-        // FINDING(DAR-138): see below for machines where the diagnostic DOES return .fine
-        // despite TRM restriction. This is the open DAR-134 issue.
+        // Fixtures m1pro_macos26.5_d and m3_macos26.5_d have probe 19 data with
+        // TRM_TransportRestricted=true on their restricted USB3 transport. These
+        // were the machines that previously produced the false .fine verdict.
 
         let restrictedMachines: [(folder: String, restrictedPortKeys: Set<String>)] = [
             // m1pro_macos26.5_d: portKey 2/2 restricted (USB2+USB3)
             ("m1pro_macos26.5_d", ["2/2"]),
             // m3_macos26.5_d: portKey 2/2 restricted (USB2+USB3)
             ("m3_macos26.5_d", ["2/2"]),
-            // m2pro_macos26.4.1: portKey 2/3 restricted (USB3), 2/2 restricted (USB3)
-            ("m2pro_macos26.4.1", ["2/2", "2/3"]),
-            // m5_macos26.4_b: portKey 2/2, 2/1 restricted (USB2)
-            ("m5_macos26.4_b", ["2/1", "2/2"]),
         ]
 
         for (folder, restrictedKeys) in restrictedMachines {
@@ -543,7 +531,7 @@ struct CIOAndDataLinkCorpusTests {
                 continue
             }
 
-            // Parse USB3 transports from probe 19
+            // Parse USB3 transports from probe 19 (now includes transportRestricted)
             let usb3Props = Self.parseDashBlocks(text: text19, classPrefix: "IOPortTransportStateUSB3")
             let usb3Transports: [USB3Transport] = usb3Props.enumerated().compactMap { (i, props) in
                 let read: (String) -> Any? = { props[$0] }
@@ -566,7 +554,6 @@ struct CIOAndDataLinkCorpusTests {
                 let portKey = "2/\(suffix)"
                 guard restrictedKeys.contains(portKey) else { continue }
 
-                // Find the CIO capability for this port (if any)
                 let cio = cioCapabilities.first { $0.portKey == portKey }
                 let usb3 = usb3Transports.filter { $0.portKey == portKey }
 
@@ -581,40 +568,18 @@ struct CIOAndDataLinkCorpusTests {
                 )
 
                 if let diag {
-                    // FINDING(DAR-138): m1pro_macos26.5_d and m3_macos26.5_d return .fine
-                    // on restricted ports. The diagnostic does not have access to TRM state
-                    // at the DataLink layer. This is the DAR-134 open issue: DataLinkDiagnostic
-                    // cannot currently distinguish a TRM-restricted link from a healthy one
-                    // because TRM state lives on the TRMTransport, not on the USB3Transport
-                    // or CIO inputs the diagnostic receives.
-                    //
-                    // Expected: either nil (no active rate) or a non-.fine verdict.
-                    // Actual on these machines: can be .fine when USB3 transport resolves a speed.
-                    //
-                    // We do NOT bend the expectation. We record the finding and mark these
-                    // exclusions clearly.
-                    if case .fine = diag.bottleneck {
-                        // FINDING(DAR-138): restricted port produced .fine verdict
-                        // Machine: \(folder), portKey: \(portKey)
-                        // Expected: non-.fine (TRM restricts the link)
-                        // Actual: .fine (DataLinkDiagnostic has no TRM input; cannot detect restriction)
-                        // Analysis: DataLinkDiagnostic needs TRM state passed in, or the caller
-                        //   must gate the diagnostic on TRM-restriction before rendering it.
-                        //   This is the open DAR-134 issue; fix requires either a new parameter
-                        //   (trmRestricted: Bool) on DataLinkDiagnostic.init or a post-hoc override.
-                        //
-                        // We don't fail the test for this known gap; the finding is documented.
-                        // The test IS meaningful for catching regressions where a port that
-                        // previously returned nil starts returning .fine.
-                    } else {
-                        // Non-.fine verdict on a restricted port is also acceptable
-                        // (e.g. .unknownCable because no e-marker data was passed)
+                    // After the DAR-134 fix: restricted ports with a resolvable USB3
+                    // signaling rate must produce .blockedBySecurity, not .fine.
+                    guard case .blockedBySecurity = diag.bottleneck else {
+                        Issue.record("Expected .blockedBySecurity on TRM-restricted port \(portKey) in \(folder), got \(diag.bottleneck)")
+                        continue
                     }
+                    #expect(diag.isWarning, "blockedBySecurity must be a warning verdict")
                 }
-                // nil is ideal: the diagnostic abstains when it can't see a valid data link.
+                // nil is also acceptable: the diagnostic can abstain when there is
+                // no USB3 transport to gate on (e.g. only USB2 restricted, no USB3).
             }
         }
-        // If we get here without Swift Testing aborting, the sweep ran.
     }
 
     // MARK: (b2) DataLink: connected USB-C ports with USB3 active produce a verdict
