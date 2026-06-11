@@ -213,6 +213,7 @@
 "Manufacturer" = "製造元";
 "Marginal" = "要注意";
 "Requested max operating current" = "要求最大動作電流";
+"Requested max operating power" = "Requested max operating power";
 "Max power" = "最大電力";
 "Mitigations" = "緩和策";
 "Mode" = "モード";
@@ -232,6 +233,8 @@
 "None" = "なし";
 "Open Pro diagnostics for this port" = "このポートのPro診断を開く";
 "Requested operating current" = "要求動作電流";
+"Requested operating power" = "Requested operating power";
+"Requested output voltage" = "Requested output voltage";
 "PD protocol engine status changed. Tracks contract state, hard/soft reset counts, and message sequence numbers." = "PDプロトコルエンジンのステータスが変更。コントラクト状態、リセット回数、メッセージシーケンス番号を追跡します。";
 "PD spec revision" = "PD仕様リビジョン";
 "PD state" = "PD状態";

@@ -212,6 +212,7 @@
 "Manufacturer" = "Արտադրող";
 "Marginal" = "Սահմանային";
 "Requested max operating current" = "Պահանջվող առավելագույն աշխատանքային հոսանք";
+"Requested max operating power" = "Requested max operating power";
 "Max power" = "Առավելագույն հզորություն";
 "Mitigations" = "Մեղմացման միջոցներ";
 "Mode" = "Ռեժիմ";
@@ -231,6 +232,8 @@
 "None" = "Չկա";
 "Open Pro diagnostics for this port" = "Բացել Pro ախտորոշումը այս պորտի համար";
 "Requested operating current" = "Պահանջվող աշխատանքային հոսանք";
+"Requested operating power" = "Requested operating power";
+"Requested output voltage" = "Requested output voltage";
 "PD protocol engine status changed. Tracks contract state, hard/soft reset counts, and message sequence numbers." = "PD արձանագրության շարժիչի վիճակը փոխվեց: Հետևում է պայմանագրի վիճակին, կոշտ/փափուկ վերակայումների քանակին և հաղորդագրությունների հաջորդականության համարներին:";
 "PD spec revision" = "PD բնութագրի վերանայում";
 "PD state" = "PD վիճակ";

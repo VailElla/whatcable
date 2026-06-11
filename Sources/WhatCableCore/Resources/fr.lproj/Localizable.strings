@@ -212,6 +212,7 @@
 "Manufacturer" = "Fabricant";
 "Marginal" = "Limite";
 "Requested max operating current" = "Courant de fonctionnement max. demandé";
+"Requested max operating power" = "Requested max operating power";
 "Max power" = "Puissance max";
 "Mitigations" = "Mesures correctives";
 "Mode" = "Mode";
@@ -231,6 +232,8 @@
 "None" = "Aucun";
 "Open Pro diagnostics for this port" = "Ouvrir les diagnostics Pro pour ce port";
 "Requested operating current" = "Courant de fonctionnement demandé";
+"Requested operating power" = "Requested operating power";
+"Requested output voltage" = "Requested output voltage";
 "PD protocol engine status changed. Tracks contract state, hard/soft reset counts, and message sequence numbers." = "L'état du moteur de protocole PD a changé. Suit l'état du contrat, les compteurs de réinitialisation et les numéros de séquence.";
 "PD spec revision" = "Révision spécification PD";
 "PD state" = "État PD";

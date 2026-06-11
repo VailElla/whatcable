@@ -211,6 +211,7 @@
 "Manufacturer" = "Виробник";
 "Marginal" = "Граничний";
 "Requested max operating current" = "Запитуваний максимальний робочий струм";
+"Requested max operating power" = "Requested max operating power";
 "Max power" = "Максимальна потужність";
 "Mitigations" = "Пом'якшення";
 "Mode" = "Режим";
@@ -230,6 +231,8 @@
 "None" = "Немає";
 "Open Pro diagnostics for this port" = "Відкрити Pro-діагностику для цього порту";
 "Requested operating current" = "Запитуваний робочий струм";
+"Requested operating power" = "Requested operating power";
+"Requested output voltage" = "Requested output voltage";
 "PD protocol engine status changed. Tracks contract state, hard/soft reset counts, and message sequence numbers." = "Статус рушія протоколу PD змінився. Відстежує стан договору, лічильники жорстких/м'яких скидань і порядкові номери повідомлень.";
 "PD spec revision" = "Ревізія специфікації PD";
 "PD state" = "Стан PD";

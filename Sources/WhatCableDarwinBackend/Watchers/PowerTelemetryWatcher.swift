@@ -374,7 +374,14 @@ public final class PowerTelemetryWatcher: ObservableObject {
             if let index = joinByIndex.first(where: { $0.value == portKey })?.key {
                 let dict = wcDictionary(items[index])
                 let rdo = UInt32(bitPattern: Int32(truncatingIfNeeded: wcInt(dict["PortControllerActiveContractRdo"])))
-                let operatingCurrent = Int((rdo >> 10) & 0x3FF) * 10
+                // The operating-current field (bits 19:10, 10 mA units) is only
+                // valid for Fixed/Variable PDOs. Battery PDOs encode power in
+                // 250 mW units there; PPS/AVS APDOs encode output voltage. Pass 0
+                // for non-Fixed contracts so the tie-breaker inside
+                // decodeNegotiatedContract falls back to the highest-voltage pick
+                // rather than matching a mis-scaled value.
+                let selectedPdoType = rdoSelectedPdoType(rdo: rdo, pdoList: dict["PortControllerPortPDO"])
+                let operatingCurrent = selectedPdoType == .fixedOrVariable ? Int((rdo >> 10) & 0x3FF) * 10 : 0
                 if let negotiated = decodeNegotiatedContract(
                     pdoList: dict["PortControllerPortPDO"],
                     maxPowerMW: wcInt(dict["PortControllerMaxPower"]),
@@ -448,6 +455,25 @@ public final class PowerTelemetryWatcher: ObservableObject {
         }
         let pick = tied.max { $0.voltageMV < $1.voltageMV }!
         return (pick.voltageMV, pick.currentMA)
+    }
+
+    // Classifies the PDO type that an RDO selects, for safe field extraction.
+    // The object position is bits 30:28 of the RDO; position 0 means no active
+    // contract. Returns .fixedOrVariable when the position is out of range or
+    // the PDO list is empty, since Fixed is the only type seen in captured data
+    // and the Fixed path is always safe as a fallback.
+    enum SelectedPdoType { case fixedOrVariable, battery, apdo }
+    nonisolated static func rdoSelectedPdoType(rdo: UInt32, pdoList: Any?) -> SelectedPdoType {
+        let position = Int((rdo >> 28) & 0x7)
+        let idx = position - 1
+        let pdos = wcArray(pdoList)
+        guard idx >= 0, idx < pdos.count else { return .fixedOrVariable }
+        let raw = wcUInt32(pdos[idx])
+        switch (raw >> 30) & 0x3 {
+        case 1: return .battery
+        case 3: return .apdo
+        default: return .fixedOrVariable
+        }
     }
 
     // Walks HPM port-controller services in IOKit registry order and returns

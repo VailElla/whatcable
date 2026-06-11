@@ -211,6 +211,7 @@
 "Manufacturer" = "Fabrikant";
 "Marginal" = "Marginaal";
 "Requested max operating current" = "Gevraagde maximale bedrijfsstroom";
+"Requested max operating power" = "Requested max operating power";
 "Max power" = "Maximaal vermogen";
 "Mitigations" = "Maatregelen";
 "Mode" = "Modus";
@@ -230,6 +231,8 @@
 "None" = "Geen";
 "Open Pro diagnostics for this port" = "Pro-diagnostiek voor deze poort openen";
 "Requested operating current" = "Gevraagde bedrijfsstroom";
+"Requested operating power" = "Requested operating power";
+"Requested output voltage" = "Requested output voltage";
 "PD protocol engine status changed. Tracks contract state, hard/soft reset counts, and message sequence numbers." = "Status van PD-protocolmotor gewijzigd. Bijhoudt contractstatus, harde/zachte resettelwaarden en berichtvolgordnummers.";
 "PD spec revision" = "PD-specificatieversie";
 "PD state" = "PD-status";

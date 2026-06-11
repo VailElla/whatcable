@@ -212,6 +212,7 @@
 "Manufacturer" = "Produsent";
 "Marginal" = "Marginal";
 "Requested max operating current" = "Forespurt maks. driftsstrøm";
+"Requested max operating power" = "Requested max operating power";
 "Max power" = "Maks effekt";
 "Mitigations" = "Tiltak";
 "Mode" = "Modus";
@@ -231,6 +232,8 @@
 "None" = "Ingen";
 "Open Pro diagnostics for this port" = "Åpne Pro-diagnostikk for denne porten";
 "Requested operating current" = "Forespurt driftsstrøm";
+"Requested operating power" = "Requested operating power";
+"Requested output voltage" = "Requested output voltage";
 "PD protocol engine status changed. Tracks contract state, hard/soft reset counts, and message sequence numbers." = "PD-protokollmotorstatus endret. Sporer kontraktstatus, tilbakestillingsteller og meldingssekvensnumre.";
 "PD spec revision" = "PD-spesifikasjonsrevisjon";
 "PD state" = "PD-status";

@@ -211,6 +211,7 @@
 "Manufacturer" = "निर्माता";
 "Marginal" = "सीमांत";
 "Requested max operating current" = "अनुरोधित अधिकतम ऑपरेटिंग करंट";
+"Requested max operating power" = "Requested max operating power";
 "Max power" = "अधिकतम पावर";
 "Mitigations" = "शमन उपाय";
 "Mode" = "मोड";
@@ -230,6 +231,8 @@
 "None" = "कोई नहीं";
 "Open Pro diagnostics for this port" = "इस पोर्ट के लिए Pro डायग्नोस्टिक्स खोलें";
 "Requested operating current" = "अनुरोधित ऑपरेटिंग करंट";
+"Requested operating power" = "Requested operating power";
+"Requested output voltage" = "Requested output voltage";
 "PD protocol engine status changed. Tracks contract state, hard/soft reset counts, and message sequence numbers." = "PD प्रोटोकॉल इंजन की स्थिति बदली। कॉन्ट्रैक्ट स्थिति, रीसेट गणना, और मैसेज सीक्वेंस नंबर ट्रैक करता है।";
 "PD spec revision" = "PD विनिर्देश संशोधन";
 "PD state" = "PD स्थिति";

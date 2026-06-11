@@ -211,6 +211,7 @@
 "Manufacturer" = "Ražotājs";
 "Marginal" = "Robežstāvoklī";
 "Requested max operating current" = "Pieprasītā maks. darba strāva";
+"Requested max operating power" = "Requested max operating power";
 "Max power" = "Maks. jauda";
 "Mitigations" = "Mazināšanas pasākumi";
 "Mode" = "Režīms";
@@ -230,6 +231,8 @@
 "None" = "Nav";
 "Open Pro diagnostics for this port" = "Atvērt Pro diagnostiku šim portam";
 "Requested operating current" = "Pieprasītā darba strāva";
+"Requested operating power" = "Requested operating power";
+"Requested output voltage" = "Requested output voltage";
 "PD protocol engine status changed. Tracks contract state, hard/soft reset counts, and message sequence numbers." = "PD protokola dzinēja statuss mainījies. Izseko līguma stāvokli, pilnīgo/daļējo atiestati skaitu un ziņojumu secības numurus.";
 "PD spec revision" = "PD specifikācijas versija";
 "PD state" = "PD stāvoklis";

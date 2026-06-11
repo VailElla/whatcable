@@ -211,6 +211,7 @@
 "Manufacturer" = "Производитель";
 "Marginal" = "На грани";
 "Requested max operating current" = "Запрошенный макс. рабочий ток";
+"Requested max operating power" = "Requested max operating power";
 "Max power" = "Макс. мощность";
 "Mitigations" = "Меры";
 "Mode" = "Режим";
@@ -230,6 +231,8 @@
 "None" = "Нет";
 "Open Pro diagnostics for this port" = "Открыть диагностику Pro для этого порта";
 "Requested operating current" = "Запрошенный рабочий ток";
+"Requested operating power" = "Requested operating power";
+"Requested output voltage" = "Requested output voltage";
 "PD protocol engine status changed. Tracks contract state, hard/soft reset counts, and message sequence numbers." = "Изменилось состояние движка протокола PD: контракт, жёсткие/мягкие сбросы, номера сообщений.";
 "PD spec revision" = "Ревизия спецификации PD";
 "PD state" = "Состояние PD";

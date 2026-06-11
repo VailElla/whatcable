@@ -211,6 +211,7 @@
 "Manufacturer" = "Üretici";
 "Marginal" = "Sınırda";
 "Requested max operating current" = "İstenen maks. çalışma akımı";
+"Requested max operating power" = "Requested max operating power";
 "Max power" = "Maks. güç";
 "Mitigations" = "Azaltmalar";
 "Mode" = "Mod";
@@ -230,6 +231,8 @@
 "None" = "Yok";
 "Open Pro diagnostics for this port" = "Bu port için Pro tanılamayı aç";
 "Requested operating current" = "İstenen çalışma akımı";
+"Requested operating power" = "Requested operating power";
+"Requested output voltage" = "Requested output voltage";
 "PD protocol engine status changed. Tracks contract state, hard/soft reset counts, and message sequence numbers." = "PD protokol motoru durumu değişti. Sözleşme durumunu, donanımsal/yazılımsal sıfırlama sayılarını ve ileti sıra numaralarını izler.";
 "PD spec revision" = "PD spec revizyonu";
 "PD state" = "PD durumu";
