@@ -99,6 +99,8 @@ public final class PowerSourceWatcher: ObservableObject {
         }
     }
 
+    // MARK: - IOKit wrapper (package-internal)
+
     nonisolated static func makeSource(from service: io_service_t) -> PowerSource? {
         var entryID: UInt64 = 0
         guard IORegistryEntryGetRegistryEntryID(service, &entryID) == KERN_SUCCESS else { return nil }
@@ -113,16 +115,28 @@ public final class PowerSourceWatcher: ObservableObject {
             IORegistryEntryCreateCFProperty(service, key as CFString, kCFAllocatorDefault, 0)?.takeRetainedValue()
         }
 
-        let name = (read("PowerSourceName") as? String) ?? "Unknown"
-        let parent = Self.parentPortIdentity(read: read)
-
-        let options: [PowerOption] = parseOptions(read("PowerSourceOptions"))
-        let winning: PowerOption? = parseOption(read("WinningPowerSourceOption"))
-
         // Walk the parent chain to get the HPM controller UUID. This is the
         // same UUID stored on the AppleHPMInterface node two levels above, so
         // matching by UUID ties a power source to its port with no @N guessing.
         let uuid = wcHPMControllerUUID(for: service)
+        return makeSource(entryID: entryID, read: read, hpmControllerUUID: uuid)
+    }
+
+    // MARK: - Parse function (internal, testable)
+
+    /// Parse a power source from a property-read closure. The `hpmControllerUUID`
+    /// is passed in so the caller can walk the parent chain once and tests can
+    /// supply nil without IOKit.
+    nonisolated static func makeSource(
+        entryID: UInt64,
+        read: (String) -> Any?,
+        hpmControllerUUID: String?
+    ) -> PowerSource? {
+        let name = (read("PowerSourceName") as? String) ?? "Unknown"
+        let parent = parentPortIdentity(read: read)
+
+        let options: [PowerOption] = parseOptions(read("PowerSourceOptions"))
+        let winning: PowerOption? = parseOption(read("WinningPowerSourceOption"))
 
         return PowerSource(
             id: entryID,
@@ -131,7 +145,7 @@ public final class PowerSourceWatcher: ObservableObject {
             parentPortNumber: parent.number,
             options: options,
             winning: winning,
-            hpmControllerUUID: uuid
+            hpmControllerUUID: hpmControllerUUID
         )
     }
 

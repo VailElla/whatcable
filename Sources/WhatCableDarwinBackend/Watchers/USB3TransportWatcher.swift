@@ -93,6 +93,8 @@ public final class USB3TransportWatcher: ObservableObject {
         }
     }
 
+    // MARK: - IOKit wrapper (private)
+
     private func makeTransport(from service: io_service_t) -> USB3Transport? {
         var entryID: UInt64 = 0
         guard IORegistryEntryGetRegistryEntryID(service, &entryID) == KERN_SUCCESS else { return nil }
@@ -107,6 +109,22 @@ public final class USB3TransportWatcher: ObservableObject {
             IORegistryEntryCreateCFProperty(service, key as CFString, kCFAllocatorDefault, 0)?.takeRetainedValue()
         }
 
+        // Walk the parent chain to get the HPM controller UUID so this
+        // transport can be matched to its port by identity, not by @N.
+        let uuid = wcHPMControllerUUID(for: service)
+        return Self.makeTransport(entryID: entryID, read: read, hpmControllerUUID: uuid)
+    }
+
+    // MARK: - Parse function (internal, testable)
+
+    /// Parse a USB3 transport from a property-read closure. The `hpmControllerUUID`
+    /// is passed in so the caller can walk the parent chain once and tests can
+    /// supply nil without IOKit.
+    nonisolated static func makeTransport(
+        entryID: UInt64,
+        read: (String) -> Any?,
+        hpmControllerUUID: String?
+    ) -> USB3Transport? {
         let parentType = (read("ParentBuiltInPortType") as? NSNumber)?.intValue
             ?? (read("ParentPortType") as? NSNumber)?.intValue
             ?? 0
@@ -120,17 +138,13 @@ public final class USB3TransportWatcher: ObservableObject {
         let dataRole = (read("DataRole") as? String)
             ?? (read("PortDataRole") as? String)
 
-        // Walk the parent chain to get the HPM controller UUID so this
-        // transport can be matched to its port by identity, not by @N.
-        let uuid = wcHPMControllerUUID(for: service)
-
         return USB3Transport(
             id: entryID,
             portKey: portKey,
             signaling: signaling,
             signalingDescription: signalingDesc,
             dataRole: dataRole,
-            hpmControllerUUID: uuid
+            hpmControllerUUID: hpmControllerUUID
         )
     }
 }

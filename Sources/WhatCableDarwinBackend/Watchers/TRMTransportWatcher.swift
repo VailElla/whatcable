@@ -173,7 +173,31 @@ public final class TRMTransportWatcher: ObservableObject {
         }
     }
 
+    // MARK: - IOKit wrapper (private)
+
     private func makeTRMTransport(entryID: UInt64, service: io_service_t, read: (String) -> Any?, transportType: String) -> TRMTransport? {
+        let uuid = wcHPMControllerUUID(for: service)
+        return Self.makeTRMTransport(entryID: entryID, read: read, transportType: transportType, hpmControllerUUID: uuid)
+    }
+
+    private func makeCIOCapability(entryID: UInt64, service: io_service_t, read: (String) -> Any?) -> CIOCableCapability? {
+        let uuid = wcHPMControllerUUID(for: service)
+        return Self.makeCIOCapability(entryID: entryID, read: read, hpmControllerUUID: uuid)
+    }
+
+    // MARK: - Parse functions (internal, testable)
+
+    /// Parse a TRM transport from a property-read closure. The `hpmControllerUUID`
+    /// is passed in rather than looked up here so the caller (an IOKit wrapper)
+    /// can walk the parent chain once and tests can supply nil without IOKit.
+    ///
+    /// Gate: returns nil when TRM_State is absent (no TRM data on this service).
+    nonisolated static func makeTRMTransport(
+        entryID: UInt64,
+        read: (String) -> Any?,
+        transportType: String,
+        hpmControllerUUID: String?
+    ) -> TRMTransport? {
         // Use TRM_State as the presence gate: it is the primary TRM field and
         // is always published when TRM data exists. This replaces the old
         // dict.keys.contains { $0.hasPrefix("TRM_") } check, which required
@@ -184,11 +208,8 @@ public final class TRMTransportWatcher: ObservableObject {
         let trmStateRaw = read("TRM_State")
         guard trmStateRaw != nil else { return nil }
 
-        let parent = Self.parentPortIdentity(read: read)
+        let parent = parentPortIdentity(read: read)
         let portKey = "\(parent.type)/\(parent.number)"
-
-        // Walk the parent chain to get the HPM controller UUID.
-        let uuid = wcHPMControllerUUID(for: service)
 
         return TRMTransport(
             id: entryID,
@@ -206,16 +227,22 @@ public final class TRMTransportWatcher: ObservableObject {
             profile: (read("TRM_Profile") as? NSNumber)?.intValue,
             profileDescription: read("TRM_ProfileDescription") as? String,
             cacheMiss: (read("TRM_CacheMiss") as? NSNumber)?.boolValue,
-            hpmControllerUUID: uuid
+            hpmControllerUUID: hpmControllerUUID
         )
     }
 
-    private func makeCIOCapability(entryID: UInt64, service: io_service_t, read: (String) -> Any?) -> CIOCableCapability? {
-        let parent = Self.parentPortIdentity(read: read)
+    /// Parse a CIO cable capability from a property-read closure. The
+    /// `hpmControllerUUID` is passed in so tests can supply nil without IOKit.
+    ///
+    /// Unlike TRM, CIO has no hard gate key -- any IOPortTransportStateCIO
+    /// service is a valid candidate. Callers guard on transportType == "CIO".
+    nonisolated static func makeCIOCapability(
+        entryID: UInt64,
+        read: (String) -> Any?,
+        hpmControllerUUID: String?
+    ) -> CIOCableCapability? {
+        let parent = parentPortIdentity(read: read)
         let portKey = "\(parent.type)/\(parent.number)"
-
-        // Walk the parent chain to get the HPM controller UUID.
-        let uuid = wcHPMControllerUUID(for: service)
 
         return CIOCableCapability(
             id: entryID,
@@ -226,7 +253,7 @@ public final class TRMTransportWatcher: ObservableObject {
             asymmetricModeSupported: (read("AsymmetricModeSupported") as? NSNumber)?.boolValue,
             legacyAdapter: (read("LegacyAdapter") as? NSNumber)?.boolValue,
             linkTrainingMode: (read("LinkTrainingMode") as? NSNumber)?.intValue,
-            hpmControllerUUID: uuid
+            hpmControllerUUID: hpmControllerUUID
         )
     }
 
