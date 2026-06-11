@@ -100,17 +100,46 @@ public final class DisplayPortTransportWatcher: ObservableObject {
             }
             IOObjectRelease(iter)
         }
-        if rebuilt != statuses { statuses = rebuilt }
+        let next = enrichedWithLiveMode(rebuilt)
+        if next != statuses { statuses = next }
     }
 
     private func handleAdded(_ iterator: io_iterator_t) {
+        var changed = false
         while case let service = IOIteratorNext(iterator), service != 0 {
             if let update = makeUpdate(from: service) {
                 statuses.removeAll { $0.entryID == update.entryID }
                 statuses.append(update)
                 continuation?.yield(update)
+                changed = true
             }
             IOObjectRelease(service)
+        }
+        // Attach the live on-screen mode to the newly added display(s) so the
+        // popover, widget, CLI, and Diagnostics window all agree (DAR-159).
+        if changed { statuses = enrichedWithLiveMode(statuses) }
+    }
+
+    /// Attach the live CoreGraphics on-screen mode (`currentMode` / `maxMode`)
+    /// to each published status, at this single source. Every consumer of
+    /// `statuses` (the main-popover port card, the widget, the CLI snapshot, and
+    /// the Pro Diagnostics window) then sees the same live-mode verdict. Before
+    /// this, surfaces that read `statuses` without calling `DisplayModeReader`
+    /// themselves (the popover card and the widget) fell back to the EDID and
+    /// showed a stale verdict, for example "may be using compression" while the
+    /// Diagnostics panel said "full quality" for the same display (DAR-159).
+    /// `enrich` is a pure, order- and count-preserving map, so re-pairing by
+    /// index is safe.
+    private func enrichedWithLiveMode(_ updates: [DisplayPortUpdate]) -> [DisplayPortUpdate] {
+        let modes = DisplayModeReader.enrich(updates.map(\.status))
+        guard modes.count == updates.count else { return updates }
+        return zip(updates, modes).map { update, status in
+            DisplayPortUpdate(
+                entryID: update.entryID,
+                portIndex: update.portIndex,
+                portType: update.portType,
+                status: status
+            )
         }
     }
 
