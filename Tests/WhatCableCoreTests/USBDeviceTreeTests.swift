@@ -151,12 +151,52 @@ struct USBDeviceTreeTests {
         #expect(flat[3].depth == 1)
     }
 
+    // MARK: - deviceRows
+
+    @Test("deviceRows returns empty for no devices")
+    func deviceRowsEmpty() {
+        let rows = USBDeviceNode.deviceRows(from: [])
+        #expect(rows.isEmpty)
+    }
+
+    @Test("deviceRows returns name, speed, and depth 0 for a single root device")
+    func deviceRowsSingleRoot() {
+        let d = makeDevice(id: 1, locationID: 0x14100000, name: "Game Drive", speedRaw: 3)
+        let rows = USBDeviceNode.deviceRows(from: [d])
+        #expect(rows.count == 1)
+        #expect(rows[0].name == "Game Drive")
+        #expect(rows[0].speed == "Super Speed (5 Gbps)")
+        #expect(rows[0].depth == 0)
+    }
+
+    @Test("deviceRows returns hub at depth 0 and child at depth 1")
+    func deviceRowsHubWithChild() {
+        let hub = makeDevice(id: 1, locationID: 0x14100000, name: "USB Hub", speedRaw: 2)
+        let child = makeDevice(id: 2, locationID: 0x14110000, name: "Keyboard", speedRaw: 1)
+        let rows = USBDeviceNode.deviceRows(from: [child, hub])
+        #expect(rows.count == 2)
+        #expect(rows[0].name == "USB Hub")
+        #expect(rows[0].depth == 0)
+        #expect(rows[1].name == "Keyboard")
+        #expect(rows[1].depth == 1)
+    }
+
+    @Test("deviceRows uses Unknown for nil productName")
+    func deviceRowsUnknownName() {
+        let d = makeDevice(id: 1, locationID: 0x14100000, name: nil, speedRaw: 0)
+        let rows = USBDeviceNode.deviceRows(from: [d])
+        #expect(rows.count == 1)
+        #expect(rows[0].name == "Unknown")
+    }
+
     // MARK: - helpers
 
+    // name is String? so the deviceRows tests can pass nil without a second overload.
+    // Existing tests pass string literals, which are still valid String? arguments.
     private func makeDevice(
         id: UInt64,
         locationID: UInt32,
-        name: String,
+        name: String?,
         speedRaw: UInt8? = nil
     ) -> USBDevice {
         USBDevice(

@@ -259,4 +259,15 @@ public struct USBDeviceNode: Identifiable {
         }
         return result
     }
+
+    /// A flat list of (name, speed, depth) tuples for the device tree rooted
+    /// at `devices`, ready for rendering. Depth 0 = top-level device;
+    /// depth N > 0 = device behind N hubs. Mirrors the loop in TextFormatter
+    /// so CLI and TUI show the same content without duplicating tree logic.
+    public static func deviceRows(from devices: [USBDevice]) -> [(name: String, speed: String, depth: Int)] {
+        flatten(buildTree(from: devices)).map { node in
+            let name = node.device.productName ?? "Unknown"
+            return (name: name, speed: node.device.speedLabel, depth: node.depth)
+        }
+    }
 }
