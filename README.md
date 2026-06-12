@@ -269,6 +269,8 @@ Issues and PRs welcome. The code is small and tries to stay readable.
 
 ### Translations
 
+Read [TRANSLATIONS.md](TRANSLATIONS.md) first: it covers the terminology policy (technical labels stay in English) and which languages have an active maintainer who reviews changes.
+
 WhatCable uses `.lproj/.strings` files for localisation. Each module (`WhatCable` and `WhatCableCore`) has its own set under `Sources/<module>/Resources/<lang>.lproj/Localizable.strings`.
 
 To add a new language:
