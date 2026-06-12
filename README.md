@@ -141,6 +141,7 @@ Pro from the command line:
 ```bash
 whatcable --monitor                        # Pro: live power telemetry (Ctrl+C to exit)
 whatcable --monitor-json                   # Pro: live power telemetry as newline-delimited JSON
+whatcable --dashboard                      # Pro: full-screen TUI dashboard (Tab cycles screens, q quits)
 whatcable --activate XXXX-XXXX-XXXX-XXXX   # validate and store a Pro licence
 whatcable --licence                        # show current licence status
 whatcable --deactivate                     # remove the stored licence

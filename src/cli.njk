@@ -155,10 +155,15 @@ extraHead: |
 </p>
 <pre><code><span class="prompt">$</span> whatcable --monitor                        <span class="comment"># live power telemetry, Ctrl+C to exit</span>
 <span class="prompt">$</span> whatcable --monitor-json                   <span class="comment"># newline-delimited JSON, for scripting</span>
+<span class="prompt">$</span> whatcable --dashboard                      <span class="comment"># full-screen TUI dashboard (Tab cycles screens, q quits)</span>
 <span class="prompt">$</span> whatcable --activate XXXX-XXXX-XXXX-XXXX   <span class="comment"># validate and store a licence</span>
 <span class="prompt">$</span> whatcable --licence                        <span class="comment"># show current licence status</span>
 <span class="prompt">$</span> whatcable --deactivate                     <span class="comment"># remove stored licence from this machine</span>
 <span class="prompt">$</span> whatcable --pro                            <span class="comment"># show Pro features, open purchase page</span></code></pre>
+<p>
+  Full-screen live dashboard in your terminal. Tab cycles Overview, Negotiation, and Power screens,
+  arrow keys select ports, q quits. Requires Pro.
+</p>
 <p>
   Unlicensed users see a one-line footer at the end of plain text output pointing at
   <code>whatcable --pro</code>. Run <code>whatcable --silence-pro-hints</code> to hide it,
@@ -182,6 +187,7 @@ Options:
   -h, --help     Show this help and exit
   --monitor      Monitor live power telemetry (WhatCable Pro)
   --monitor-json Output live power telemetry as newline-delimited JSON
+  --dashboard    Full-screen TUI dashboard: ports, power, Thunderbolt (WhatCable Pro)
   --test-kit     Run diagnostic probes and submit data to help improve WhatCable
   --pro          Show WhatCable Pro features and open the purchase page
   --silence-pro-hints  Stop showing the Pro hint at the end of CLI output
