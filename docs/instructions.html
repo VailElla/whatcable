@@ -832,8 +832,31 @@
 
 <h3>TUI dashboard (CLI) <span class="pro-badge">Pro</span></h3>
 <p>
-  A live terminal view of ports, power, and Thunderbolt. Three screens: Overview, Negotiation, and Power. Updates live. Tab cycles screens, arrow keys select ports, q quits. Run <code>whatcable --dashboard</code>.
+  A live full-screen terminal view of ports, power, and Thunderbolt, for the SSH and tmux crowd. Three screens: Overview, Negotiation, and Power. Tab cycles screens, arrow keys select ports, q quits. Run <code>whatcable --dashboard</code>.
 </p>
+
+<figure>
+  <img src="/screenshot-dashboard-overview.webp" alt="WhatCable terminal dashboard Overview screen listing each USB-C port with its cable, negotiated data speed, power draw, and Thunderbolt state, with Power and Thunderbolt summary panels below" loading="lazy">
+  <figcaption>Overview: every port at a glance, with power and Thunderbolt summaries below.</figcaption>
+</figure>
+
+<p>
+  The <strong>Negotiation</strong> screen breaks down each link: what the Mac port, cable, and device each support against what was actually negotiated, with the bottleneck called out in plain English.
+</p>
+
+<figure>
+  <img src="/screenshot-dashboard-negotiation.webp" alt="WhatCable terminal dashboard Negotiation screen showing data speed and power for one port, with the device named as the 10 Gbps bottleneck and the charging contract explained" loading="lazy">
+  <figcaption>Negotiation: data speed and power per port, weak link highlighted.</figcaption>
+</figure>
+
+<p>
+  The <strong>Power</strong> screen shows live draw per port with a small chart, system totals at the top, and a plain cable-health verdict: it watches how a cable behaves over the session and says so if one isn't performing.
+</p>
+
+<figure>
+  <img src="/screenshot-dashboard-power.webp" alt="WhatCable terminal dashboard Power screen showing system charger totals, live per-port volts amps and watts with a draw chart, and a cable-health verdict reading Performing as expected" loading="lazy">
+  <figcaption>Power: live per-port draw, system totals, and a cable-health verdict.</figcaption>
+</figure>
 
 <h3>Widget power sparkline <span class="pro-badge">Pro</span></h3>
 <p>

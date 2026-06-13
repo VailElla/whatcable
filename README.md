@@ -61,6 +61,7 @@ WhatCable is free and open source. If you find it useful, you can support the pr
 - **Negotiation Diagnostics:** the full per-connection breakdown, what the Mac port, cable, and device each support vs what was negotiated, side by side with the weak link highlighted, plus an e-marker vs Thunderbolt-controller cross-check
 - **Display Diagnostics:** reads your monitor's live display mode straight from macOS and compares it against what the DisplayPort link is carrying, so a screen stuck below its top resolution or refresh has an explanation. Shows the true resolution even on 5K and 6K displays, confirms full quality when a screen reaches its top mode via compression (DSC), and names any HDMI or DisplayPort adapter in the chain
 - Port health counters and cable resistance estimation
+- **Terminal dashboard:** a live full-screen view of every port, power, and Thunderbolt for the SSH and tmux crowd. Three screens (Overview, Negotiation, Power), Tab to switch, with a plain cable-health verdict per port. Run `whatcable --dashboard`
 - Pin diagrams and liquid detection status
 - Pro screens open inside the app, with an optional detach into their own window
 - Works even on Macs that don't expose live per-port metering
