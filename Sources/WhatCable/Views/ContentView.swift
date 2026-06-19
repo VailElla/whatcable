@@ -373,8 +373,19 @@ struct ContentView: View {
             port: port,
             powerSources: powerWatcher.sources(for: port),
             identities: pdWatcher.identities(for: port),
-            matchingDevices: matchingDevices(for: port)
+            matchingDevices: matchingDevices(for: port),
+            chargerAttached: chargerAttached
         )
+    }
+
+    /// True when the Mac reports an external power adapter attached right now.
+    /// Corroborates a MagSafe `connectionActive` in `isPortLive`: M1/M2 MagSafe
+    /// ports expose no per-port power source, so without this a connected
+    /// MagSafe charger reads as "nothing connected". Read from the system
+    /// adapter, which clears on unplug, so a lingering `connectionActive` can't
+    /// keep the port live.
+    private var chargerAttached: Bool {
+        (SystemPower.currentAdapter()?.watts ?? 0) > 0
     }
 
     /// Match USB devices to their physical port. The IOKit relationship

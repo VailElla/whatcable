@@ -183,6 +183,7 @@ final class WidgetDataWriter {
         let batteryFull = batteryResult.battery?.fullyCharged
         let batteryCharging = batteryResult.battery?.isCharging
         let adapter = SystemPower.currentAdapter()
+        let chargerAttached = (adapter?.watts ?? 0) > 0
         let activePortCount = portWatcher.ports.filter { $0.connectionActive == true }.count
 
         let entries: [WidgetSnapshot.PortEntry] = portWatcher.ports.map { port in
@@ -194,7 +195,8 @@ final class WidgetDataWriter {
                 port: port,
                 powerSources: sources,
                 identities: identities,
-                matchingDevices: devices
+                matchingDevices: devices,
+                chargerAttached: chargerAttached
             )
 
             let summary = PortSummary(

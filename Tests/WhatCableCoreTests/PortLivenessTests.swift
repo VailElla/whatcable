@@ -156,4 +156,42 @@ struct PortLivenessTests {
             powerSources: [], identities: [], matchingDevices: []
         ))
     }
+
+    // MARK: - MagSafe charge-port-hidden (M1/M2: no per-port power source)
+
+    @Test("Connected MagSafe with a charger attached is live, even with no power source")
+    func connectedMagSafeWithChargerIsLive() {
+        // The reported case (M1/M2 silicon): the MagSafe port reports connected
+        // but exposes no per-port power source, so without the charger
+        // corroboration it read as "nothing connected" and was hidden.
+        #expect(isPortLive(
+            port: magSafePort(connectionActive: true),
+            powerSources: [], identities: [], matchingDevices: [],
+            chargerAttached: true
+        ))
+    }
+
+    @Test("Connected MagSafe with no charger attached is not live (lingering flag after unplug)")
+    func connectedMagSafeWithoutChargerIsNotLive() {
+        // connectionActive lingers true for seconds after unplug. With no
+        // adapter attached, that must not keep the port live.
+        #expect(!isPortLive(
+            port: magSafePort(connectionActive: true),
+            powerSources: [], identities: [], matchingDevices: [],
+            chargerAttached: false
+        ))
+    }
+
+    @Test("Disconnected MagSafe with a stale PDO stays not live even with a charger attached (issue #47 / #185)")
+    func disconnectedMagSafeStalePDONotLiveWithCharger() {
+        // The stale-cache case is connectionActive=false. A charger on another
+        // port (chargerAttached=true) must not resurrect it, because the new
+        // MagSafe branch is gated on connectionActive==true.
+        #expect(!isPortLive(
+            port: magSafePort(connectionActive: false),
+            powerSources: [staleUSBPDSource()],
+            identities: [], matchingDevices: [],
+            chargerAttached: true
+        ))
+    }
 }

@@ -262,6 +262,7 @@ extension WidgetSnapshot {
         let batteryFullyCharged = cable.batteryFullyCharged
         let batteryIsCharging = cable.batteryIsCharging
         let adapter = cable.adapter
+        let chargerAttached = (adapter?.watts ?? 0) > 0
         let activePortCount = cable.ports.filter { $0.connectionActive == true }.count
 
         let entries: [PortEntry] = cable.ports.map { port in
@@ -273,7 +274,8 @@ extension WidgetSnapshot {
                 port: port,
                 powerSources: sources,
                 identities: identities,
-                matchingDevices: devices
+                matchingDevices: devices,
+                chargerAttached: chargerAttached
             )
 
             let usb3 = cable.usb3Transports.filter { $0.canonicallyMatches(port: port) }
