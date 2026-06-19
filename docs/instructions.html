@@ -653,6 +653,7 @@
 <p>Each card shows more detail depending on what's connected:</p>
 <ul>
   <li><strong>Charging info:</strong> how many watts your Mac is drawing, and whether the cable, charger, or Mac itself is limiting the charge speed.</li>
+  <li><strong>Mid-session fault warnings:</strong> if a cable develops trouble while it's plugged in (a power overcurrent, or the connection dropping and coming back), a banner appears on the port. It catches faults that only show up once a cable is under load. Free for everyone.</li>
   <li><strong>Speed info:</strong> a plain-English line explaining what's limiting the data speed, so you know whether a faster cable would actually help.</li>
   <li><strong>Display info:</strong> when a monitor is connected, a one-line verdict on whether the link is carrying its full resolution and refresh, or falling short, and what's holding it back.</li>
   <li><strong>Cable info:</strong> the cable's maximum speed and power rating, plus the manufacturer if known. If the cable matches one in the built-in <a href="/cables">cable database</a>, the brand and model are shown too.</li>
@@ -867,6 +868,28 @@
 <figure>
   <img src="/screenshot-dp-altmode.webp" alt="Pro diagnostics screen for a USB-C port driving a display, showing the device identity and a pin diagram with the DP four-lane routing" loading="lazy">
   <figcaption>Display details: device identity, pin diagram with lane routing, and port health on one screen.</figcaption>
+</figure>
+</section>
+
+<section class="doc-card">
+<p class="pro-group-label" id="pro-history">Cable history</p>
+
+<h3>Cable history <span class="pro-badge">Pro</span></h3>
+<p>
+  Add a cable, give it a name, and WhatCable starts keeping a record of how it actually performs over time, not just a snapshot of the moment it's plugged in. It recognises the cable on later connections from its e-marker fingerprint and builds up a timeline: when you last used it, what it negotiated each time, and whether it has been misbehaving.
+</p>
+<p>
+  You get a saved-cables list, an all-time summary per cable (best and typical data speed, charging power, fault counts), and a verdict right on the port card so you don't have to dig. Cables you haven't added still get the live reading as before, they just aren't recorded. Localised in 18 languages.
+</p>
+
+<figure>
+  <img src="/screenshot-cable-history.webp" alt="Saved Cables screen showing a named Anker Thunderbolt cable with a Performing verdict, last seen one second ago, and History, Rename, and Delete actions" loading="lazy" width="480">
+  <figcaption>The Saved Cables list: each cable you've added, with a verdict, when it was last seen, and quick actions.</figcaption>
+</figure>
+
+<figure>
+  <img src="/screenshot-cable-history-graph.webp" alt="Cable history detail showing a named Anker Thunderbolt cable, its rated 40 Gbps reference line, and observed data-speed points over a 30-day window" loading="lazy" width="480">
+  <figcaption>Per-cable history: data speed over time against the cable's rated ceiling. Switch between 7-day, 30-day, and all-time views.</figcaption>
 </figure>
 </section>
 

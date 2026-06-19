@@ -27,6 +27,7 @@ Per port, in plain English:
   - *"Charging at 30W (charger can do up to 96W)"* (Mac is asking for less, e.g. battery near full)
   - *"Charging well at 96W"* (everything matches)
   - *"Battery full, not charging"* (plugged in, battery full, so the Mac isn't drawing power)
+- **Mid-session fault warnings:** if a cable develops trouble while it's plugged in (a power overcurrent, or the connection dropping and coming back), a banner appears on the port. It reads the port's own fault counters, so it catches faults that only show up once a cable is under load.
 - **Data-speed diagnostic:** a plain-English verdict on what's limiting the link, the Mac port, the cable, or the device. For example *"Cable is limiting data speed"*, *"Device runs at 10 Gbps, this is the fastest it supports, not a cable problem"*, or *"Running slower than expected"* when the link came up degraded. Shown inline, in the CLI, and in JSON.
 - **Cable e-marker info:** the cable's actual speed (USB 2.0, 5 / 10 / 20 / 40 / 80 Gbps), current rating (3 A / 5 A up to 60W / 100W / 240W), and the chip's vendor
 - **Cable trust signals:** an orange card appears when the e-marker reports values that look unusual against the USB-PD spec, like a zero vendor ID, a reserved bit pattern in the speed / current / cable-latency fields, or a VID that isn't in USB-IF's published list. Wording is hedged on purpose: a flag means "this looks unusual," not "this cable is fake."
@@ -56,6 +57,7 @@ Right-click the menu bar icon for **Refresh**, a **Keep window open** toggle (ha
 
 WhatCable is free and open source. If you find it useful, you can support the project by picking up [WhatCable Pro](https://whatcable.uk/pro), which unlocks extra features:
 
+- **Cable history:** add a cable, give it a name, and WhatCable keeps a record of how it actually performs over time. It recognises the cable on later connections and builds a timeline: when you last used it, what it negotiated, whether it's been misbehaving. A saved-cables list, an all-time summary per cable, and a verdict right on the port card.
 - Live power metering and PD contract inspection
 - Power Monitor with a live system power-input graph
 - **Negotiation Diagnostics:** the full per-connection breakdown, what the Mac port, cable, and device each support vs what was negotiated, side by side with the weak link highlighted, plus an e-marker vs Thunderbolt-controller cross-check

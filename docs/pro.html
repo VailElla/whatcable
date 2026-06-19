@@ -916,6 +916,17 @@
 
     <div class="story-feature">
       <div class="story-feature-text">
+        <div class="story-feature-name">Cable history</div>
+        <p class="story-feature-setup">Is this the cable that gave me trouble last week?</p>
+        <p class="story-feature-explainer">Add a cable, give it a name. WhatCable recognises it next time and builds up a timeline: when you last used it, what it negotiated, whether it has been misbehaving. Saved-cables list, summary per cable, verdict on the port card.</p>
+      </div>
+      <div class="story-feature-img">
+        <img src="/screenshot-cable-history.webp" alt="Saved Cables screen showing a named Anker Thunderbolt cable with a Performing verdict, last seen one second ago, and History, Rename, and Delete actions" loading="lazy">
+      </div>
+    </div>
+
+    <div class="story-feature reverse">
+      <div class="story-feature-text">
         <div class="story-feature-name">Negotiation Diagnostics</div>
         <p class="story-feature-setup">You bought a 40Gbps cable and the drive runs at 5.</p>
         <p class="story-feature-explainer">Port, cable, and device side by side against what was actually negotiated, weak link highlighted.</p>
@@ -925,7 +936,7 @@
       </div>
     </div>
 
-    <div class="story-feature reverse">
+    <div class="story-feature">
       <div class="story-feature-text">
         <div class="story-feature-name">Display Diagnostics</div>
         <p class="story-feature-setup">The new 4K display is running at 30Hz and macOS won't say why.</p>
@@ -936,7 +947,7 @@
       </div>
     </div>
 
-    <div class="story-feature">
+    <div class="story-feature reverse">
       <div class="story-feature-text">
         <div class="story-feature-name">Live Power Metering</div>
         <p class="story-feature-setup">The 100W charger that feels slow.</p>
@@ -947,7 +958,7 @@
       </div>
     </div>
 
-    <div class="story-feature reverse">
+    <div class="story-feature">
       <div class="story-feature-text">
         <div class="story-feature-name">Terminal Dashboard</div>
         <p class="story-feature-setup">You live in SSH and tmux, not a menu bar.</p>
@@ -1035,6 +1046,11 @@
     </div>
     <div class="feature-grid">
       <div class="feature">
+        <div class="icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div>
+        <h3>Cable history</h3>
+        <p>Add a cable, give it a name, and WhatCable keeps a record of how it actually performs over time. It recognises the cable on later connections from its e-marker fingerprint and builds up a timeline: when you last used it, what it negotiated, whether it has been misbehaving. A saved-cables list, a summary per cable, and a verdict right on the port card.</p>
+      </div>
+      <div class="feature">
         <div class="icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="4" height="9"/><rect x="10" y="7" width="4" height="13"/><rect x="17" y="3" width="4" height="17"/></svg></div>
         <h3>Negotiation Diagnostics</h3>
         <p>Per connection, see what the Mac port, the cable, and the device each support against what was actually negotiated, side by side, with the weak link highlighted. Includes a cross-check of the cable's e-marker against the Thunderbolt controller, so a cable that under-reports itself is caught. Pro screens open in place inside the popover, with an optional detach into their own window so a screen can stay open while you swap cables.</p>
@@ -1116,6 +1132,11 @@
     <div class="gallery">
       <div class="gallery-grid">
         <div class="gallery-item">
+          <img src="/screenshot-cable-history-graph.webp" alt="Cable history detail showing a named Anker Thunderbolt cable, its rated 40 Gbps reference line, and observed data-speed points over a 30-day window" loading="lazy">
+          <div class="caption">Cable history</div>
+          <div class="caption-detail">Per-cable data-speed timeline against its rated ceiling, 7-day / 30-day / all-time views</div>
+        </div>
+        <div class="gallery-item">
           <img src="/screenshot-diagnostics.webp" alt="Pro diagnostics screen showing port health counters, liquid detection status, and the negotiated power contract for one port" loading="lazy">
           <div class="caption">Port Diagnostics</div>
           <div class="caption-detail">Pin diagram, port health, PD contract, event trace</div>
@@ -1152,6 +1173,8 @@
         <tr><td class="feature-name">E-marker identity (VID/PID, vendor name)</td><td><span class="tick"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span></td><td class="col-pro"><span class="tick"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span></td></tr>
         <tr><td class="feature-name">Speed and power ratings from e-marker</td><td><span class="tick"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span></td><td class="col-pro"><span class="tick"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span></td></tr>
         <tr><td class="feature-name">Raw VDO identity (SOP and SOP')</td><td><span class="cross"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></span></td><td class="col-pro"><span class="tick"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span></td></tr>
+        <tr><td class="feature-name">Mid-session fault warnings (overcurrent, connection drops)</td><td><span class="tick"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span></td><td class="col-pro"><span class="tick"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span></td></tr>
+        <tr><td class="feature-name">Cable history (named cables, per-cable timeline and verdict)</td><td><span class="cross"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></span></td><td class="col-pro"><span class="tick"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span></td></tr>
         <tr class="group-header"><td colspan="3">Power</td></tr>
         <tr><td class="feature-name">Basic charger info (voltage, wattage)</td><td><span class="tick"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span></td><td class="col-pro"><span class="tick"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span></td></tr>
         <tr><td class="feature-name">Live power metering (watts, amps, volts)</td><td><span class="cross"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></span></td><td class="col-pro"><span class="tick"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span></td></tr>
