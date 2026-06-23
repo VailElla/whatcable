@@ -238,6 +238,20 @@
     "xid" : "none"
   },
   {
+    "brand" : "UGREEN L705 USB4 \/ TB4-class cable, Amazon (VID\/PID zeroed)",
+    "cableVDO" : "0x000A2643",
+    "issueNum" : "#359",
+    "issueURL" : "https:\/\/github.com\/darrylmorley\/whatcable\/issues\/359",
+    "pid" : "0x0000",
+    "power" : "5 A \/ 50 V (240 W)",
+    "registered" : true,
+    "speed" : "USB4 Gen 3 (40 Gbps, Thunderbolt-4-Klasse)",
+    "type" : "passive",
+    "vendor" : "(zeroed)",
+    "vid" : "0x0000",
+    "xid" : "none"
+  },
+  {
     "brand" : "Cable Matters Thunderbolt 5 80 Gbps \/ 240 W cable (VID\/PID zeroed)",
     "cableVDO" : "0x000A2644",
     "issueNum" : "#343",
@@ -600,6 +614,20 @@
     "vendor" : "Huizhou Bohui Connection Technology Co., Ltd",
     "vid" : "0x163E",
     "xid" : "0x99"
+  },
+  {
+    "brand" : "RØDE Wireless Pro SuperSpeed cable (bundled with mic kit)",
+    "cableVDO" : "0x00082021",
+    "issueNum" : "#361",
+    "issueURL" : "https:\/\/github.com\/darrylmorley\/whatcable\/issues\/361",
+    "pid" : "0x8001",
+    "power" : "3 A \/ 20 V (60 W)",
+    "registered" : true,
+    "speed" : "USB 3.2 Gen 1 (5 Gbps)",
+    "type" : "passive",
+    "vendor" : "RØDE",
+    "vid" : "0x19F7",
+    "xid" : "0x3290"
   },
   {
     "brand" : "Anker 333 USB-C 3.3 ft nylon",
@@ -1160,5 +1188,19 @@
     "vendor" : "Unregistered",
     "vid" : "0x7857",
     "xid" : "none"
+  },
+  {
+    "brand" : "PAXO USB 3.2 Gen 2 cable, Amazon DE",
+    "cableVDO" : "0x00082042",
+    "issueNum" : "#360",
+    "issueURL" : "https:\/\/github.com\/darrylmorley\/whatcable\/issues\/360",
+    "pid" : "0x0000",
+    "power" : "5 A \/ 20 V (100 W)",
+    "registered" : false,
+    "speed" : "USB 3.2 Gen 2 (10 Gbps)",
+    "type" : "passive",
+    "vendor" : "Unregistered",
+    "vid" : "0x7880",
+    "xid" : "0xB1BD"
   }
 ]

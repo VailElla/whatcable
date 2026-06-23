@@ -120,6 +120,9 @@ hand-maintained markdown table; format may change once the consumer exists.
 | Apple Thunderbolt 4 Pro Cable (1.8 m) | `0x05AC` | `0x7208` | `0x12082042` | Apple | `0x2600` | USB 3.2 Gen 2 (10 Gbps) | 5 A / 20 V (100 W) | passive | [#342](https://github.com/darrylmorley/whatcable/issues/342) |
 | WD My Passport SSD bundled cable (Joinsoon) | `0x060F` | `0x0000` | `0x00082022` | Joinsoon Electronics Mfg. Co., Ltd. | none | USB 3.2 Gen 2 (10 Gbps) | 3 A / 20 V (60 W) | passive | [#345](https://github.com/darrylmorley/whatcable/issues/345) |
 | Cable Matters Thunderbolt 5 80 Gbps / 240 W cable (VID/PID zeroed) | `0x0000` | `0x0000` | `0x000A2644` | (zeroed) | none | USB4 Gen 4 (80 Gbps, Thunderbolt 5 class) | 5 A / 50 V (240 W) | passive | [#343](https://github.com/darrylmorley/whatcable/issues/343) |
+| RØDE Wireless Pro SuperSpeed cable (bundled with mic kit) | `0x19F7` | `0x8001` | `0x00082021` | RØDE | `0x3290` | USB 3.2 Gen 1 (5 Gbps) | 3 A / 20 V (60 W) | passive | [#361](https://github.com/darrylmorley/whatcable/issues/361) |
+| PAXO USB 3.2 Gen 2 cable, Amazon DE | `0x7880` | `0x0000` | `0x00082042` | Unregistered | `0xB1BD` | USB 3.2 Gen 2 (10 Gbps) | 5 A / 20 V (100 W) | passive | [#360](https://github.com/darrylmorley/whatcable/issues/360) |
+| UGREEN L705 USB4 / TB4-class cable, Amazon (VID/PID zeroed) | `0x0000` | `0x0000` | `0x000A2643` | (zeroed) | none | USB4 Gen 3 (40 Gbps, Thunderbolt-4-Klasse) | 5 A / 50 V (240 W) | passive | [#359](https://github.com/darrylmorley/whatcable/issues/359) |
 
 Sorted by VID. The zeroed-fingerprint entry is parked at the bottom because it
 is identity-less.

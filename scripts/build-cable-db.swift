@@ -151,19 +151,34 @@ func importUSBIFVendors() -> Int {
 
 // MARK: - usb.ids community vendor import
 
-let usbidsURL = URL(string: "https://usb-ids.gowdy.us/usb.ids")!
+// Mirrors of the same file, maintained by Stephen J. Gowdy. Tried in order.
+// gowdy.us is the canonical primary; linux-usb.org serves an identical copy
+// over plain HTTP. If both Gowdy-hosted mirrors are unreachable (cert expiry,
+// DNS, etc.) we fall back to the Red Hat hwdata copy on GitHub, which lags
+// upstream by a few months but is stable.
+let usbidsMirrors: [URL] = [
+    URL(string: "https://usb-ids.gowdy.us/usb.ids")!,
+    URL(string: "http://www.linux-usb.org/usb.ids")!,
+    URL(string: "https://raw.githubusercontent.com/vcrhonek/hwdata/master/usb.ids")!,
+]
 
 func fetchUSBIDs() -> String? {
-    do {
-        let data = try Data(contentsOf: usbidsURL)
-        // The file is mostly UTF-8 but contains a few invalid bytes.
-        // Fall back to Latin-1 (which always succeeds) if strict UTF-8 fails.
-        return String(data: data, encoding: .utf8)
-            ?? String(data: data, encoding: .isoLatin1)
-    } catch {
-        fputs("warn: usb.ids fetch failed: \(error)\n", stderr)
-        return nil
+    for url in usbidsMirrors {
+        do {
+            let data = try Data(contentsOf: url)
+            // The file is mostly UTF-8 but contains a few invalid bytes.
+            // Fall back to Latin-1 (which always succeeds) if strict UTF-8 fails.
+            let text = String(data: data, encoding: .utf8)
+                ?? String(data: data, encoding: .isoLatin1)
+            if text != nil {
+                fputs("usb.ids: fetched from \(url.host ?? url.absoluteString)\n", stderr)
+                return text
+            }
+        } catch {
+            fputs("warn: usb.ids fetch failed from \(url.host ?? url.absoluteString): \(error)\n", stderr)
+        }
     }
+    return nil
 }
 
 func importUSBIDsVendors() -> (inserted: Int, skipped: Int) {
