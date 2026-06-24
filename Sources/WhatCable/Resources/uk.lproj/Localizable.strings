@@ -156,4 +156,5 @@
 
 /* Built-in display port card (issue #352). English placeholders, community can refine. */
 "Display connected" = "Підключено дисплей";
+"%lld displays connected" = "Підключено %lld дисплеїв";
 "Built-in %1$@ port %2$lld" = "Вбудований %1$@-порт під номером %2$lld";
