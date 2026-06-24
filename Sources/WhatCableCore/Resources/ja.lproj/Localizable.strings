@@ -431,7 +431,7 @@
 "Your %@ can run %@, which uncompressed would need about %@. This link is already running every lane at a high rate, carrying about %@ (%@). Many high-resolution displays use compression (DSC) to fit their top mode through a link like this, so the link rate alone can't tell whether you're already at your best mode. If the picture looks right, it most likely is." = "%@は%@で動作できますが、非圧縮では約%@が必要です。このリンクはすでにすべてのレーンを高速で使用しており、約%@（%@）を伝送しています。多くの高解像度ディスプレイは、このようなリンクで最高モードを通すために圧縮（DSC）を使用します。そのため、リンク速度だけでは、すでに最高モードになっているかどうかは判断できません。映像が正しく見えていれば、おそらく最高モードです。";
 
 /* Display dimension: confirmed full quality via CoreGraphics live mode (issue #246 Option B). */
-"Your %@ is running its top mode (%@), and the link is carrying it. Many high-resolution displays use compression (DSC) to fit a mode like this through the link, so the link rate alone can't show it; your display is at full quality." = "%@は最高モード（%@）で動作しており、リンクはそれを伝送しています。多くの高解像度ディスプレイは、このようなモードをリンクで通すために圧縮（DSC）を使用します。リンク速度だけではそれを示すことができません。ディスプレイは最高画質で動作しています。";
+"macOS reports your %@ at its top mode (%@), and the link is carrying it. Many high-resolution displays use compression (DSC) to fit a mode like this through the link, so the link rate alone can't show it; your display is at full quality." = "macOS は %@ が最高モード（%@）で動作していると報告しており、リンクはそれを伝送しています。多くの高解像度ディスプレイは、このようなモードをリンクで通すために圧縮（DSC）を使用します。リンク速度だけではそれを示すことができません。ディスプレイは最高画質で動作しています。";
 
 /* Session monitor verdicts. */
 "Battery full, not drawing power" = "Battery full, not drawing power";
@@ -543,4 +543,4 @@
 
 "Display running compressed (DSC) to fit through the link" = "Display running compressed (DSC) to fit through the link";
 
-"Your %@ is running %@, which would need more bandwidth than this link carries uncompressed. High-resolution displays use compression (DSC) to fit a mode like this through a link like this. The picture is reaching the display, so this is working as intended." = "Your %@ is running %@, which would need more bandwidth than this link carries uncompressed. High-resolution displays use compression (DSC) to fit a mode like this through a link like this. The picture is reaching the display, so this is working as intended.";
+"macOS reports your %@'s current mode as %@, which would need more bandwidth than this link carries uncompressed. High-resolution displays use compression (DSC) to fit a mode like this through a link like this. The picture is reaching the display, so this is working as intended." = "macOS は %@ の現在のモードを %@ と報告していますが、これを非圧縮で伝送するには、このリンクが提供する帯域幅以上が必要です。高解像度ディスプレイは、このようなリンクでこのようなモードを通すために圧縮（DSC）を使用します。映像はディスプレイに届いているため、意図通りに動作しています。";

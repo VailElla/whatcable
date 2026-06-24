@@ -349,7 +349,7 @@ extension DisplayDiagnostic {
                 self.facts = baseFacts
                 self.bottleneck = .fine
                 self.summary = String(localized: "Display running at full quality", bundle: _coreLocalizedBundle)
-                self.detail = String(localized: "Your \(name) is running its top mode (\(current.label)), and the link is carrying it. Many high-resolution displays use compression (DSC) to fit a mode like this through the link, so the link rate alone can't show it; your display is at full quality.", bundle: _coreLocalizedBundle)
+                self.detail = String(localized: "macOS reports your \(name) at its top mode (\(current.label)), and the link is carrying it. Many high-resolution displays use compression (DSC) to fit a mode like this through the link, so the link rate alone can't show it; your display is at full quality.", bundle: _coreLocalizedBundle)
                 return
             }
             self.facts = baseFacts
@@ -373,7 +373,7 @@ extension DisplayDiagnostic {
             self.facts = baseFacts
             self.bottleneck = .compressionActive
             self.summary = String(localized: "Display running compressed (DSC) to fit through the link", bundle: _coreLocalizedBundle)
-            self.detail = String(localized: "Your \(name) is running \(current.label), which would need more bandwidth than this link carries uncompressed. High-resolution displays use compression (DSC) to fit a mode like this through a link like this. The picture is reaching the display, so this is working as intended.", bundle: _coreLocalizedBundle)
+            self.detail = String(localized: "macOS reports your \(name)'s current mode as \(current.label), which would need more bandwidth than this link carries uncompressed. High-resolution displays use compression (DSC) to fit a mode like this through a link like this. The picture is reaching the display, so this is working as intended.", bundle: _coreLocalizedBundle)
             return
         }
 

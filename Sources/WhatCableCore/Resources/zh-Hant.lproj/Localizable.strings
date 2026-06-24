@@ -429,7 +429,7 @@
 "Your %@ can run %@, which uncompressed would need about %@. This link is already running every lane at a high rate, carrying about %@ (%@). Many high-resolution displays use compression (DSC) to fit their top mode through a link like this, so the link rate alone can't tell whether you're already at your best mode. If the picture looks right, it most likely is." = "您的 %@ 可支援 %@，若不使用壓縮約需 %@。目前連線的所有通道都已經以高速運作，承載約 %@ (%@)。許多高解析度顯示器會使用影像串流壓縮 (DSC)，讓最高模式能在這類連線上正常傳輸，因此僅憑連線速率無法判斷是否已使用最佳模式。若畫面顯示正常，很可能就已經是最佳模式。";
 
 /* Display dimension: confirmed full quality via CoreGraphics live mode (issue #246 Option B). */
-"Your %@ is running its top mode (%@), and the link is carrying it. Many high-resolution displays use compression (DSC) to fit a mode like this through the link, so the link rate alone can't show it; your display is at full quality." = "您的 %@ 正以最高模式 (%@) 運作，且連線已承載此模式。許多高解析度顯示器會使用影像串流壓縮 (DSC)，讓這種顯示模式能在這類連線上正常傳輸，因此僅憑連線速率無法判斷這一點；您的顯示器正以最佳畫質運作。";
+"macOS reports your %@ at its top mode (%@), and the link is carrying it. Many high-resolution displays use compression (DSC) to fit a mode like this through the link, so the link rate alone can't show it; your display is at full quality." = "macOS 回報您的 %@ 正以最高模式 (%@) 運作，且連線已承載此模式。許多高解析度顯示器會使用影像串流壓縮 (DSC)，讓這種顯示模式能在這類連線上正常傳輸，因此僅憑連線速率無法判斷這一點；您的顯示器正以最佳畫質運作。";
 
 /* Session monitor verdicts. */
 "Battery full, not drawing power" = "電池已充滿，未取用電力";
@@ -541,4 +541,4 @@
 
 "Display running compressed (DSC) to fit through the link" = "顯示器正以影像串流壓縮 (DSC) 配合此連線運作";
 
-"Your %@ is running %@, which would need more bandwidth than this link carries uncompressed. High-resolution displays use compression (DSC) to fit a mode like this through a link like this. The picture is reaching the display, so this is working as intended." = "您的 %@ 正以 %@ 運作，若不使用壓縮，所需頻寬會超過此連線可承載的範圍。高解析度顯示器會使用影像串流壓縮 (DSC)，讓這種顯示模式能在這類連線上正常傳輸。畫面已正常傳輸至顯示器，因此這是預期中的運作方式。";
+"macOS reports your %@'s current mode as %@, which would need more bandwidth than this link carries uncompressed. High-resolution displays use compression (DSC) to fit a mode like this through a link like this. The picture is reaching the display, so this is working as intended." = "macOS 回報您的 %@ 目前模式為 %@，若不使用壓縮，所需頻寬會超過此連線可承載的範圍。高解析度顯示器會使用影像串流壓縮 (DSC)，讓這種顯示模式能在這類連線上正常傳輸。畫面已正常傳輸至顯示器，因此這是預期中的運作方式。";
