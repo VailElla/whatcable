@@ -60,4 +60,11 @@ struct USBDeviceBillboardTests {
         // Whitespace-padded real names (seen in the corpus) are trimmed.
         #expect(device(deviceClass: 0x11, productName: "  TS5 Plus Composite Device  ").billboardInformativeName == "TS5 Plus Composite Device")
     }
+
+    @Test("The older IOKit class name is recognised too")
+    func detectsByOlderClassName() {
+        // The substring match covers both "AppleUSBHostBillboardDevice" and the
+        // older "IOUSBHostBillboardDevice" the C probe also looks for.
+        #expect(device(ioClassName: "IOUSBHostBillboardDevice").isBillboardDevice)
+    }
 }

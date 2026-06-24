@@ -17,6 +17,16 @@ import WhatCableCore
 /// as no kernel driver has exclusive-opened it. The app is not sandboxed, so
 /// nothing extra is required. Confirmed on live hardware (DAR-141).
 ///
+/// We never open the device. A no-open `DeviceRequest` is harmless on any
+/// device: it either returns the descriptor (a Billboard device, or a dock that
+/// carries a Billboard capability in its BOS) or returns a non-fatal error (no
+/// BOS, a pipe stall, etc). It does *not* disturb a device a kernel driver is
+/// holding, so it is safe to call on every USB device. The fix for issue #370
+/// is exactly this no-open contract: an earlier version fell back to
+/// `USBDeviceOpen` on a failed read, and force-opening a device its kernel HID
+/// driver owns seizes it and freezes input devices (a 2.4 GHz mouse receiver in
+/// that report). That fallback is gone.
+///
 /// All of this is one-shot and synchronous: call it once when a device appears,
 /// never on a poll. It is a free function (no actor state) so the watcher can
 /// call it off whatever context it likes.
@@ -78,19 +88,15 @@ enum BillboardDescriptorReader {
             }
         }
 
-        // Stage 1: 5-byte header to learn the total length. Try without opening
-        // the device first; only open as a fallback (and close after).
+        // Stage 1: 5-byte header to learn the total length. We deliberately do
+        // NOT open the device. This no-open request is safe on any device: it
+        // returns the descriptor on a Billboard device and a non-fatal error
+        // otherwise, without disturbing a driver-held device. A failed read is
+        // final: we return nil rather than force-opening, because the old
+        // USBDeviceOpen fallback seized HID devices from their kernel driver and
+        // froze them (issue #370).
         var header = [UInt8](repeating: 0, count: 5)
-        var rc = request(into: &header, length: 5)
-        var opened = false
-        if rc != kIOReturnSuccess {
-            if dev.pointee?.pointee.USBDeviceOpen(dev) == kIOReturnSuccess {
-                opened = true
-                rc = request(into: &header, length: 5)
-            }
-        }
-        defer { if opened { _ = dev.pointee?.pointee.USBDeviceClose(dev) } }
-
+        let rc = request(into: &header, length: 5)
         guard rc == kIOReturnSuccess, header[1] == 0x0F else { return nil }
         let total = Int(header[2]) | (Int(header[3]) << 8)
         guard total >= 5, total <= 4096 else { return nil }

@@ -142,7 +142,16 @@ public final class USBWatcher: ObservableObject {
 
         // Read the Billboard Capability Descriptor (advertised Alt Modes and
         // their per-mode state) once, here at device-appearance. One-shot
-        // control transfer, no device-open in the common case. See DAR-141.
+        // control transfer, no device-open. See DAR-141.
+        //
+        // We probe every device deliberately, NOT just Billboard-class ones.
+        // Functional docks, hubs and AV adapters advertise a Billboard
+        // capability inside their ordinary BOS (seen on 103 such devices across
+        // 71 machines in the customer-probe corpus), and the Pro Cable
+        // Diagnostics screen surfaces those alt modes; gating to Billboard-class
+        // devices would blank that table for them. The freeze in issue #370
+        // came purely from a force-open fallback that no longer exists; the
+        // no-open read here is harmless on a device a kernel driver holds.
         let billboard = BillboardDescriptorReader.read(from: service)
 
         return USBDevice(
