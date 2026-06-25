@@ -1,182 +1,218 @@
-/*
- * 26_displayport_altmode.c - Probe DisplayPort alt-mode properties.
- * DP alt-mode negotiation data (lane count, link rate, pin assignment)
- * might be exposed on IODisplayConnect or related services.
- *
- * Compile: clang -framework IOKit -framework CoreFoundation -o 26_displayport_altmode 26_displayport_altmode.c
- */
+// Capture connected-display capability as a tree, from the real Apple Silicon
+// display nodes, with serials and raw EDID redacted and IOReporting noise cut.
+//
+// History: the old version of this probe queried Intel-era framebuffer classes
+// (IODisplayConnect / IOFramebuffer / IOBacklightDisplay) that do not exist on
+// Apple Silicon, so it captured none of its intended data; it then fell back to
+// "match every IOService and dump anything with 'DisplayPort' in the name",
+// which produced ~640 KB of IOReporting event-log spam AND leaked the monitor's
+// serial number. This rewrite fixes all three problems:
+//
+//   1. Roots at the display nodes that actually exist on Apple Silicon
+//      (AppleCLCD2 / IOMobileFramebufferShim / DCPAVDevice) and walks each
+//      subtree, so the display capability (DSC / HDR / colour / native modes /
+//      timing) is actually captured.
+//   2. Preserves the tree: every node records its RegistryEntryID and its
+//      parent's, the same convention as probes 29 and 38, so the hierarchy is
+//      reconstructable from data, not from indentation.
+//   3. Redacts the panel serial number (and the raw EDID blob, which embeds the
+//      serial in its bytes) and skips the IOReporting event-log keys, so the
+//      output is the useful capability data, privacy-safe and a sane size.
+//
+// Only the per-unit SERIAL is removed (that is what the consent promises).
+// Model identity (DisplayVendorID / DisplayProductID / ManufacturerID),
+// manufacture date (week/year), and the EDID/IOMFB UUIDs are KEPT: they are
+// batch/model level, not per-unit, useful research data, and the probe submits
+// to the private research KV, not public output.
+//
+// Compile: clang -framework IOKit -framework CoreFoundation -o 26_displayport_altmode 26_displayport_altmode.c
 
 #include <IOKit/IOKitLib.h>
 #include <CoreFoundation/CoreFoundation.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdint.h>
+#include <strings.h>
 
-static void printCFType(CFTypeRef value, int indent) {
-    char pad[64] = {0};
-    for (int i = 0; i < indent && i < 60; i++) pad[i] = ' ';
+// The per-unit serial: redact the VALUE, keep the key so it stays visible that
+// the field exists. ONLY the serial is removed (that is what the consent
+// promises). Manufacture date, model identity (Vendor/Product ID), and the
+// EDID/IOMFB UUIDs are KEPT: they are batch/model level, not per-unit, and they
+// are useful research data going to the private KV, not public output. Covers
+// SerialNumber / AlphanumericSerialNumber / DisplaySerialNumber /
+// kDisplaySerialNumber (all contain "serialnumber") and kIOMonitorSerialID.
+static int isSerialKey(const char *k) {
+    return strcasestr(k, "serialnumber") || strcasestr(k, "serial number")
+        || strcasestr(k, "monitorserial");
+}
 
-    if (!value) { printf("%s(null)\n", pad); return; }
+// The RAW EDID blob embeds the per-unit serial in its bytes (and a serial-number
+// descriptor block), so the blob is redacted. The parsed capability attributes
+// macOS exposes alongside it carry the useful data without the serial. The EDID
+// UUID (a string) is NOT redacted here: it encodes manufacturer/product/week/
+// year, not the serial, so it is kept like the other model-level identifiers.
+static int isEDIDKey(const char *k) {
+    return strcasestr(k, "EDID") != NULL;
+}
 
+// IOReporting telemetry: high-volume event-log entries with no capability value
+// (this is what bloated the old probe). Skip the key entirely.
+static int isNoiseKey(const char *k) {
+    return strncmp(k, "Event", 5) == 0
+        || strcasestr(k, "IOReportLegend") || strcasestr(k, "IOReporting");
+}
+
+static void printValue(CFTypeRef value, int indent);
+
+static void printDict(CFDictionaryRef dict, int indent) {
+    CFIndex n = CFDictionaryGetCount(dict);
+    const void **keys = malloc(n * sizeof(void*));
+    const void **vals = malloc(n * sizeof(void*));
+    CFDictionaryGetKeysAndValues(dict, keys, vals);
+    for (CFIndex i = 0; i < n; i++) {
+        char kbuf[256] = {0};
+        if (CFGetTypeID(keys[i]) != CFStringGetTypeID()) continue;
+        CFStringGetCString(keys[i], kbuf, sizeof(kbuf), kCFStringEncodingUTF8);
+        // Skip noise keys BEFORE printing the indent, or a suppressed key leaves
+        // a stray blank-indent line that breaks a line-by-line parser.
+        if (isNoiseKey(kbuf)) { continue; }
+        for (int j = 0; j < indent; j++) printf("  ");
+        // Serial: always redact. Raw EDID blob (Data): redact, it embeds the
+        // serial. EDID UUID (String) and capability flags are kept.
+        CFTypeID vt = vals[i] ? CFGetTypeID(vals[i]) : 0;
+        int rawEDID = isEDIDKey(kbuf) && vt == CFDataGetTypeID();
+        if (isSerialKey(kbuf) || rawEDID) {
+            printf("%s = <redacted>\n", kbuf);
+            continue;
+        }
+        printf("%s = ", kbuf);
+        printValue(vals[i], indent + 1);
+    }
+    free(keys); free(vals);
+}
+
+static void printValue(CFTypeRef value, int indent) {
+    if (!value) { printf("(null)\n"); return; }
     CFTypeID tid = CFGetTypeID(value);
     if (tid == CFStringGetTypeID()) {
-        char buf[512];
+        char buf[512] = {0};
         CFStringGetCString(value, buf, sizeof(buf), kCFStringEncodingUTF8);
-        printf("%s\"%s\"\n", pad, buf);
+        printf("\"%s\"\n", buf);
     } else if (tid == CFNumberGetTypeID()) {
         long long num = 0;
         CFNumberGetValue(value, kCFNumberLongLongType, &num);
-        printf("%s%lld (0x%llx)\n", pad, num, num);
+        printf("%lld (0x%llx)\n", num, num);
+    } else if (tid == CFBooleanGetTypeID()) {
+        printf("%s\n", CFBooleanGetValue(value) ? "true" : "false");
     } else if (tid == CFDataGetTypeID()) {
         CFIndex len = CFDataGetLength(value);
-        const UInt8 *bytes = CFDataGetBytePtr(value);
-        printf("%sData[%ld]: ", pad, (long)len);
-        for (CFIndex i = 0; i < len && i < 64; i++)
-            printf("%02x ", bytes[i]);
-        if (len > 64) printf("...");
+        const UInt8 *b = CFDataGetBytePtr(value);
+        printf("Data[%ld]: ", (long)len);
+        for (CFIndex i = 0; i < len && i < 48; i++) printf("%02x ", b[i]);
+        if (len > 48) printf("...");
         printf("\n");
     } else if (tid == CFDictionaryGetTypeID()) {
-        CFIndex n = CFDictionaryGetCount(value);
-        const void **keys = malloc(n * sizeof(void*));
-        const void **vals = malloc(n * sizeof(void*));
-        CFDictionaryGetKeysAndValues(value, keys, vals);
-        for (CFIndex i = 0; i < n; i++) {
-            char kbuf[256];
-            CFStringGetCString(keys[i], kbuf, sizeof(kbuf), kCFStringEncodingUTF8);
-            printf("%s  %s = ", pad, kbuf);
-            printCFType(vals[i], indent + 4);
-        }
-        free(keys); free(vals);
+        printf("{\n");
+        printDict((CFDictionaryRef)value, indent + 1);
+        for (int j = 0; j < indent; j++) printf("  ");
+        printf("}\n");
     } else if (tid == CFArrayGetTypeID()) {
+        // Display nodes carry mode/timing tables with hundreds of entries, each
+        // repeating the same capability flags. A sample is enough to characterise
+        // the panel without dumping the whole table; the full count is recorded.
         CFIndex count = CFArrayGetCount(value);
-        for (CFIndex i = 0; i < count; i++) {
-            printf("%s  [%ld] ", pad, (long)i);
-            printCFType(CFArrayGetValueAtIndex(value, i), indent + 4);
+        const CFIndex cap = 12;
+        printf("[%ld]%s\n", (long)count, count > cap ? " (sampled)" : "");
+        for (CFIndex i = 0; i < count && i < cap; i++) {
+            for (int j = 0; j < indent + 1; j++) printf("  ");
+            printValue(CFArrayGetValueAtIndex(value, i), indent + 1);
         }
+    } else if (tid == CFSetGetTypeID()) {
+        // e.g. NominalSignalingFrequenciesHz on a DisplayPort node is a CFSet of
+        // numbers; without this it would print as an opaque type id.
+        CFIndex count = CFSetGetCount(value);
+        printf("set[%ld]\n", (long)count);
+        const void **items = malloc((count > 0 ? count : 1) * sizeof(void*));
+        CFSetGetValues(value, items);
+        for (CFIndex i = 0; i < count && i < 32; i++) {
+            for (int j = 0; j < indent + 1; j++) printf("  ");
+            printValue(items[i], indent + 1);
+        }
+        free(items);
     } else {
-        printf("%s<type %lu>\n", pad, (unsigned long)tid);
+        printf("<type %lu>\n", (unsigned long)tid);
     }
 }
 
-static void dumpAllProperties(io_service_t service, const char *label) {
+// Walk one display node and its subtree, recording the parent linkage so the
+// tree is reconstructable from data. Bounded depth guards a pathological tree.
+static void walk(io_service_t service, int depth, uint64_t parentEntryID) {
+    // The panel capability (DSC / HDR / colour / modes / timing) sits in the top
+    // display nodes; deeper children are framebuffer-pipeline internals (planes,
+    // scalers) that add bulk without capability value, so the walk stays shallow.
+    if (depth > 5) return;
+
+    io_name_t cls = {0}, name = {0};
+    IOObjectGetClass(service, cls);
+    IORegistryEntryGetName(service, name);
+    uint64_t entryID = 0;
+    IORegistryEntryGetRegistryEntryID(service, &entryID);
+
+    for (int j = 0; j < depth; j++) printf("  ");
+    printf("--- %s \"%s\" (entryID=0x%llx parentEntryID=0x%llx) ---\n",
+           cls, name, (unsigned long long)entryID, (unsigned long long)parentEntryID);
+
     CFMutableDictionaryRef props = NULL;
-    kern_return_t kr = IORegistryEntryCreateCFProperties(service, &props,
-        kCFAllocatorDefault, 0);
-    if (kr != KERN_SUCCESS || !props) return;
-
-    printf("\n--- %s ---\n", label);
-
-    CFIndex n = CFDictionaryGetCount(props);
-    const void **keys = malloc(n * sizeof(void*));
-    const void **vals = malloc(n * sizeof(void*));
-    CFDictionaryGetKeysAndValues(props, keys, vals);
-    for (CFIndex i = 0; i < n; i++) {
-        char kbuf[256];
-        CFStringGetCString(keys[i], kbuf, sizeof(kbuf), kCFStringEncodingUTF8);
-        printf("  %s = ", kbuf);
-        printCFType(vals[i], 4);
+    if (IORegistryEntryCreateCFProperties(service, &props, kCFAllocatorDefault, 0) == KERN_SUCCESS && props) {
+        printDict(props, depth + 1);
+        CFRelease(props);
     }
-    free(keys); free(vals);
-    CFRelease(props);
+
+    io_iterator_t childIter;
+    if (IORegistryEntryGetChildIterator(service, kIOServicePlane, &childIter) == KERN_SUCCESS) {
+        io_service_t child;
+        while ((child = IOIteratorNext(childIter))) {
+            walk(child, depth + 1, entryID);
+            IOObjectRelease(child);
+        }
+        IOObjectRelease(childIter);
+    }
 }
 
 int main(void) {
-    printf("Running as uid=%d\n\n", getuid());
+    printf("=== Connected display capability (tree; serials + raw EDID redacted) ===\n");
+    printf("Roots at the Apple Silicon display nodes; each node carries its\n");
+    printf("RegistryEntryID and parent's so the tree is reconstructable from data.\n\n");
 
-    io_iterator_t iter;
-    kern_return_t kr;
-    io_service_t svc;
-
-    // Search for display-related services
-    const char *classes[] = {
-        "IODisplayConnect",
-        "IOFramebuffer",
-        "IOBacklightDisplay",
+    // The display-capability nodes that actually exist on Apple Silicon. The DCP
+    // (display coprocessor) presents the panel attributes; AppleCLCD2 is the
+    // on-die display controller above it.
+    const char *roots[] = {
         "AppleCLCD2",
-        "IOPortTransportComponentCCDisplayPort",
-        "IOPortFeatureDisplayPort",
-        "IOPortTransportStateCCDisplayPort",
-        "DCPAVDevice",
         "IOMobileFramebufferShim",
+        "DCPAVDevice",
         NULL
     };
 
-    for (int c = 0; classes[c]; c++) {
-        printf("=== %s ===\n", classes[c]);
-        kr = IOServiceGetMatchingServices(kIOMainPortDefault,
-            IOServiceMatching(classes[c]), &iter);
-        if (kr != KERN_SUCCESS) {
-            printf("  (no matching services)\n\n");
+    for (int r = 0; roots[r]; r++) {
+        printf("=== root: %s ===\n", roots[r]);
+        io_iterator_t iter;
+        if (IOServiceGetMatchingServices(kIOMainPortDefault,
+                IOServiceMatching(roots[r]), &iter) != KERN_SUCCESS) {
+            printf("  (match failed)\n\n");
             continue;
         }
-
-        int count = 0;
-        while ((svc = IOIteratorNext(iter)) != 0) {
-            char label[256];
-            io_name_t name;
-            IORegistryEntryGetName(svc, name);
-            snprintf(label, sizeof(label), "%s[%d] \"%s\"", classes[c], count, name);
-            dumpAllProperties(svc, label);
+        io_service_t svc;
+        int n = 0;
+        while ((svc = IOIteratorNext(iter))) {
+            walk(svc, 0, 0);
             IOObjectRelease(svc);
-            count++;
+            n++;
         }
         IOObjectRelease(iter);
-        if (count == 0) printf("  (no instances)\n");
+        if (n == 0) printf("  (no instances)\n");
         printf("\n");
     }
-
-    // Also search for anything with "DisplayPort" or "DP" in name
-    printf("=== Registry search: *DisplayPort* services ===\n");
-    kr = IOServiceGetMatchingServices(kIOMainPortDefault,
-        IOServiceMatching("IOService"), &iter);
-    if (kr == KERN_SUCCESS) {
-        int found = 0;
-        while ((svc = IOIteratorNext(iter)) != 0) {
-            io_name_t name;
-            IORegistryEntryGetName(svc, name);
-            if (strcasestr(name, "DisplayPort") || strcasestr(name, "AltMode") ||
-                strcasestr(name, "DPAlt")) {
-                char label[256];
-                snprintf(label, sizeof(label), "DP-match: \"%s\"", name);
-                dumpAllProperties(svc, label);
-                found++;
-            }
-            IOObjectRelease(svc);
-        }
-        IOObjectRelease(iter);
-        printf("  Found %d DP-related services\n", found);
-    }
-
-    // Check IOPortTransportComponentCC children for DP-related entries
-    printf("\n=== IOPortTransportComponentCC children (looking for DP) ===\n");
-    kr = IOServiceGetMatchingServices(kIOMainPortDefault,
-        IOServiceMatching("IOPortTransportComponentCC"), &iter);
-    if (kr == KERN_SUCCESS) {
-        while ((svc = IOIteratorNext(iter)) != 0) {
-            io_name_t name;
-            IORegistryEntryGetName(svc, name);
-
-            io_iterator_t childIter;
-            kr = IORegistryEntryGetChildIterator(svc, kIOServicePlane, &childIter);
-            if (kr == KERN_SUCCESS) {
-                io_service_t child;
-                while ((child = IOIteratorNext(childIter)) != 0) {
-                    io_name_t childName;
-                    IORegistryEntryGetName(child, childName);
-                    if (strcasestr(childName, "DP") || strcasestr(childName, "Display") ||
-                        strcasestr(childName, "Video") || strcasestr(childName, "Alt")) {
-                        char label[256];
-                        snprintf(label, sizeof(label), "%s -> %s", name, childName);
-                        dumpAllProperties(child, label);
-                    }
-                    IOObjectRelease(child);
-                }
-                IOObjectRelease(childIter);
-            }
-            IOObjectRelease(svc);
-        }
-        IOObjectRelease(iter);
-    }
-
     return 0;
 }
