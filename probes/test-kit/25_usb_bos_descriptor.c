@@ -194,7 +194,79 @@ static void parseUSB4(const UInt8 *cap, UInt8 len) {
            cap[4], cap[6], cap[5]);
 }
 
+/* Read a small integer IOKit property as a long. Returns 1 on success. */
+static int readIntProperty(io_service_t svc, const char *key, long *out) {
+    CFStringRef cfKey = CFStringCreateWithCString(NULL, key, kCFStringEncodingUTF8);
+    if (!cfKey) return 0;
+    CFTypeRef val = IORegistryEntryCreateCFProperty(svc, cfKey, kCFAllocatorDefault, 0);
+    CFRelease(cfKey);
+    if (!val) return 0;
+    int ok = 0;
+    if (CFGetTypeID(val) == CFNumberGetTypeID()) {
+        long n = 0;
+        if (CFNumberGetValue(val, kCFNumberLongType, &n)) { *out = n; ok = 1; }
+    }
+    CFRelease(val);
+    return ok;
+}
+
+/*
+ * True if this USB device is (or contains) a Mass Storage interface
+ * (USB class 0x08). We avoid opening these: opening a storage device whose
+ * media is mounted as a removable volume makes macOS (Ventura+) raise the
+ * "would like to access files on a removable volume" privacy prompt. We skip
+ * every storage device rather than try to tell mounted from unmounted: it is
+ * the conservative choice and the BOS descriptor of a flash drive or external
+ * SSD is of no interest to the test kit, so skipping the open loses nothing
+ * and spares the user a popup.
+ *
+ * Storage class can sit at the device level (bDeviceClass) or, more
+ * commonly, on a child interface (bInterfaceClass) when the device reports
+ * class 0x00 ("see interface"). Check both.
+ *
+ * Walk only the device's own (direct-child) interfaces; do NOT recurse the
+ * subtree. In the IOService plane a hub's subtree contains the devices
+ * plugged into it, so a recursive walk would flag a plain hub as "storage"
+ * the moment a flash drive is attached downstream and skip the hub's own
+ * BOS. A USB interface (IOUSBHostInterface, which carries bInterfaceClass)
+ * is always a direct child of its IOUSBHostDevice, so one level is both
+ * sufficient and correct here.
+ */
+static int deviceHasMassStorageInterface(io_service_t device) {
+    enum { kUSBMassStorageClass = 0x08 };
+
+    long deviceClass = 0;
+    if (readIntProperty(device, "bDeviceClass", &deviceClass) &&
+        deviceClass == kUSBMassStorageClass) {
+        return 1;
+    }
+
+    io_iterator_t children = 0;
+    if (IORegistryEntryGetChildIterator(device, kIOServicePlane, &children) != KERN_SUCCESS) {
+        return 0;
+    }
+    int found = 0;
+    io_service_t child;
+    while ((child = IOIteratorNext(children)) != 0) {
+        long interfaceClass = 0;
+        if (readIntProperty(child, "bInterfaceClass", &interfaceClass) &&
+            interfaceClass == kUSBMassStorageClass) {
+            found = 1;
+        }
+        IOObjectRelease(child);
+        if (found) break;
+    }
+    IOObjectRelease(children);
+    return found;
+}
+
 static void fetchBOSDescriptor(io_service_t service) {
+    if (deviceHasMassStorageInterface(service)) {
+        printf("  [BOS] Mass-storage device; skipping open to avoid the macOS "
+               "removable-volume prompt (storage BOS not needed)\n");
+        return;
+    }
+
     IOCFPlugInInterface **plugIn = NULL;
     SInt32 score = 0;
     kern_return_t kr = IOCreatePlugInInterfaceForService(service,
