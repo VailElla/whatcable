@@ -881,7 +881,7 @@
   "url": "https://www.whatcable.uk",
   "image": "https://www.whatcable.uk/screenshot.webp",
   "downloadUrl": "https://github.com/darrylmorley/whatcable/releases/latest/download/WhatCable.zip",
-  "softwareVersion": "1.1.6",
+  "softwareVersion": "1.1.7",
   "author": { "@type": "Person", "name": "Darryl Morley", "url": "https://github.com/darrylmorley" },
   "license": "https://opensource.org/licenses/MIT",
   "keywords": [
@@ -933,7 +933,7 @@
       </div>
     </div>
     <div class="hero-shot">
-      <img src="/screenshot.webp?v=1.1.6" alt="WhatCable menu bar popover showing two USB-C ports. One has no e-marker yet so WhatCable offers an Add this cable action. The other is carrying both data and DisplayPort video to a 100W charger over a named Anker Thunderbolt cable that WhatCable is tracking, with a Display Diagnostics note that the video is going through a HDMI adapter holding the display below its top mode.">
+      <img src="/screenshot.webp?v=1.1.7" alt="WhatCable menu bar popover showing two USB-C ports. One has no e-marker yet so WhatCable offers an Add this cable action. The other is carrying both data and DisplayPort video to a 100W charger over a named Anker Thunderbolt cable that WhatCable is tracking, with a Display Diagnostics note that the video is going through a HDMI adapter holding the display below its top mode.">
     </div>
   </div>
 </header>
@@ -999,7 +999,7 @@
         <span class="section-tag">Free, with optional Pro</span>
         <h2>See what your cables are doing right now.</h2>
         <p>The free app tells you what your cable can do and, in plain English, where the bottleneck is. Pro shows you the full picture: live power flowing through each port, real-time PD contracts, the full negotiation breakdown of every connection, port health over time, and the raw VDO fingerprints behind every cable.</p>
-        <p>15 advanced features, £9.99 one-time, works on up to 2 Macs.</p>
+        <p>16 advanced features, £9.99 one-time, works on up to 2 Macs.</p>
         <a href="/pro" class="button primary" style="margin-top: 20px;">
           Unlock Pro
           <svg class="arrow" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 5l7 7-7 7"/></svg>
@@ -1149,8 +1149,8 @@
     <div class="faq-list">
       <div class="faq-item"><h3>Does it work on Intel Macs?</h3><p>No. Intel Macs use Titan Ridge Thunderbolt controllers that don't expose USB-PD state or cable e-marker data through any public macOS API. WhatCable needs Apple Silicon (M1 or later) to read this information.</p></div>
       <div class="faq-item"><h3>Is it really free?</h3><p>Yes. The WhatCable app is free and open source under the MIT licence. No ads, no tracking. WhatCable Pro (£9.99, optional) adds advanced diagnostics for power users. <a href="/pro" style="color: var(--accent);">See what's included.</a></p></div>
-      <div class="faq-item"><h3>What does WhatCable Pro add?</h3><p>Pro unlocks 15 advanced features including cable history (named cables with a recorded timeline), live power metering, Negotiation and Display Diagnostics, port health counters, PD contract inspection, and raw VDO identity. One-time £9.99, no subscription, works on up to 2 Macs. <a href="/pro" style="color: var(--accent);">See full features and comparison.</a></p></div>
-      <div class="faq-item"><h3>Does it phone home or collect data?</h3><p>No. There are no analytics, no telemetry, and no network requests. The app reads local IOKit data and nothing else. Check the source on GitHub if you want to verify.</p></div>
+      <div class="faq-item"><h3>What does WhatCable Pro add?</h3><p>Pro unlocks 16 advanced features including cable history (named cables with a recorded timeline), live power metering, Negotiation and Display Diagnostics, port health counters, PD contract inspection, and raw VDO identity. One-time £9.99, no subscription, works on up to 2 Macs. <a href="/pro" style="color: var(--accent);">See full features and comparison.</a></p></div>
+      <div class="faq-item"><h3>Does it phone home or collect data?</h3><p>No analytics, no telemetry, and nothing about you or your cables ever leaves your Mac. The one routine network call is a version check against the public GitHub Releases API, roughly every 6 hours. Diagnostic data only goes anywhere if you explicitly choose to contribute it. Check the source on GitHub if you want to verify.</p></div>
       <div class="faq-item"><h3>Why does my cable show no e-marker data?</h3><p>Two reasons. Either the cable has no e-marker chip (cheap USB 2.0 cables and many cables rated at 3A or below don't have one), or it has a chip but macOS hasn't read it. macOS only asks a cable to identify itself when the connection needs it: a charge drawing more than 3A (a 5A cable on a high-wattage charger), or a Thunderbolt / USB4 link. Plug a marked cable into a low-power charger or a plain data connection and macOS may never query it, so there's nothing for WhatCable to show. To force the read, connect the cable to a high-wattage charger or a Thunderbolt device.</p></div>
       <div class="faq-item"><h3>Can it tell me if a cable is fake?</h3><p>Not definitively. The trust signals feature flags values that look unusual against the USB-PD spec, like a zero vendor ID or reserved bit patterns. A flag means "worth checking," not "definitely counterfeit."</p></div>
       <div class="faq-item"><h3>What languages is WhatCable available in?</h3><p>19, and the diagnostic verdicts are translated too, not just the menus: Armenian, Brazilian Portuguese, Dutch, English, French, German, Hindi, Italian, Japanese, Korean, Latvian, Norwegian, Polish, Russian, Simplified Chinese, Spanish, Traditional Chinese, Turkish, and Ukrainian. WhatCable follows your Mac's language by default, or you can pick one in Settings. Translations are community-refinable, so if something reads oddly in your language, <a href="https://github.com/darrylmorley/whatcable/issues" style="color: var(--accent);">open an issue</a> and we'll fix it.</p></div>

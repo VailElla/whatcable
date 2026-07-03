@@ -13,6 +13,7 @@ Thanks to everyone who has contributed to WhatCable.
 - [@bovirus](https://github.com/bovirus) - Italian translation
 - [@Vardan933](https://github.com/Vardan933) - Armenian translation
 - [@jimmyorz](https://github.com/jimmyorz) - Traditional Chinese translation
+- [@dohun0310](https://github.com/dohun0310) - Korean translation
 - [@shpokas](https://github.com/shpokas) - Latvian translation
 - [@abrauchli](https://github.com/abrauchli) - screenshot fix
 - [@durul](https://github.com/durul) - updater security audit

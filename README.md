@@ -167,7 +167,7 @@ WhatCable reads four families of IOKit services. No entitlements, no private API
 
 | Service | What it gives us |
 | --- | --- |
-| `AppleHPMInterfaceType10/11/12` (M3-era), `AppleTCControllerType10/11` (M1 / M2) | Per-port state: connection, transports, plug orientation, e-marker presence. `Type11` is what M2 MacBook Air uses for its MagSafe 3 port. |
+| `AppleHPMInterfaceType10/11/12` (M3-era), `AppleHPMInterfaceType18` (MacBook Neo A-series), `AppleTCControllerType10/11` (M1 / M2) | Per-port state: connection, transports, plug orientation, e-marker presence. `Type11` is what M2 MacBook Air uses for its MagSafe 3 port. |
 | `IOPortFeaturePowerSource` | Full PDO list from the connected source, with the live "winning" PDO |
 | `IOPortTransportComponentCCUSBPDSOP`, `...SOPp`, `...SOPpp` | PD Discover Identity VDOs from the port partner (SOP), the cable's near-end e-marker (SOP'), and the far-end e-marker (SOP'') if present |
 | XHCI controller subtree | Each connected USB device is paired to its physical port via the XHCI port node's `UsbIOPort` registry path, falling back to a bus-index derived from the controller's `locationID` upper byte and the port's `hpm` SPMI ancestor on machines that don't expose `UsbIOPort`. |
