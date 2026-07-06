@@ -226,7 +226,9 @@ public struct IOThunderboltSwitch: Identifiable, Hashable {
     public let parentSwitchUID: Int64?
     /// CIO firmware version string with build date and chip ID.
     public let firmwareVersion: String?
-    /// Protocol version (64 = USB4/TB4).
+    /// Controller-class constant, not a per-link value: Apple Type5 = 32
+    /// (TB4-class), Apple Type7 = 64 (TB5-capable), Type3 = 16. Do not use
+    /// for link-generation labels. See `research/thunderbolt-fabric.md`.
     public let thunderboltVersion: Int?
     /// Controller chip device ID.
     public let deviceID: Int?
@@ -406,7 +408,9 @@ public struct IOThunderboltPort: Hashable {
     public let lane: Int?
     /// Power management link state (0 = CL0 active, higher = deeper sleep).
     public let clxState: Int?
-    /// Thunderbolt protocol version (64 = USB4/TB4).
+    /// Controller-class constant, not a per-link value: Apple Type5 = 32
+    /// (TB4-class), Apple Type7 = 64 (TB5-capable), Type3 = 16. Do not use
+    /// for link-generation labels. See `research/thunderbolt-fabric.md`.
     public let thunderboltVersion: Int?
     /// Hardware-supported maximum link speed as a bitmask.
     public let supportedSpeed: SupportedSpeedMask?

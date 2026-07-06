@@ -38,7 +38,10 @@ public struct CIOCableCapability: Identifiable, Hashable, Sendable {
     /// This is a cable-state field populated per-connection from VDM
     /// exchange during link bring-up, not a static port capability.
     /// Different cables on the same port produce different values.
-    /// Surface as "Cable supports asymmetric mode."
+    /// Cleared to surface as "Cable supports asymmetric mode" (see
+    /// `research/cio-value-mappings.md`), but not yet built into any UI
+    /// as of 2026-07-03: it currently only reaches JSON output and the
+    /// cable-report markdown.
     public let asymmetricModeSupported: Bool?
     /// Raw CIO flag. Observed `false` on every sampled connection,
     /// including a real TB3 dock (M1 Max + ThinkPad TB3). The earlier

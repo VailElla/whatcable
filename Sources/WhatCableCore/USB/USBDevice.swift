@@ -107,9 +107,10 @@ public struct USBDevice: Identifiable, Hashable {
     ///   - the IOKit class is Apple's Billboard device class, or
     ///   - the product name macOS assigns ("Generic Billboard Device").
     ///
-    /// On signal quality: `bDeviceClass == 0x11` is the *primary* signal. It is
-    /// confirmed across the customer-probe corpus (46 machines, M1 through M5,
-    /// macOS 15 and 26), and it catches real Billboard devices whose product
+    /// On signal quality: `bDeviceClass == 0x11` is the *primary* signal. It
+    /// was confirmed across the customer-probe corpus (46 machines as of
+    /// 2026-06, M1 through M5, macOS 15 and 26; see `corpus.jsonl` for the
+    /// current count), and it catches real Billboard devices whose product
     /// names contain no hint of "Billboard" at all (Apple's "USB Type-C Digital
     /// AV Adapter", "Anker USB-C Hub Device", "Belkin USB HDMI", and similar).
     /// The IOKit class match is the second durable signal. The product-name
