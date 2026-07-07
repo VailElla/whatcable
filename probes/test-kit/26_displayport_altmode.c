@@ -73,7 +73,8 @@ static void printDict(CFDictionaryRef dict, int indent) {
     for (CFIndex i = 0; i < n; i++) {
         char kbuf[256] = {0};
         if (CFGetTypeID(keys[i]) != CFStringGetTypeID()) continue;
-        CFStringGetCString(keys[i], kbuf, sizeof(kbuf), kCFStringEncodingUTF8);
+        if (!CFStringGetCString(keys[i], kbuf, sizeof(kbuf), kCFStringEncodingUTF8))
+            snprintf(kbuf, sizeof(kbuf), "<unconvertible>");
         // Skip noise keys BEFORE printing the indent, or a suppressed key leaves
         // a stray blank-indent line that breaks a line-by-line parser.
         if (isNoiseKey(kbuf)) { continue; }
@@ -97,7 +98,8 @@ static void printValue(CFTypeRef value, int indent) {
     CFTypeID tid = CFGetTypeID(value);
     if (tid == CFStringGetTypeID()) {
         char buf[512] = {0};
-        CFStringGetCString(value, buf, sizeof(buf), kCFStringEncodingUTF8);
+        if (!CFStringGetCString(value, buf, sizeof(buf), kCFStringEncodingUTF8))
+            snprintf(buf, sizeof(buf), "<unconvertible>");
         printf("\"%s\"\n", buf);
     } else if (tid == CFNumberGetTypeID()) {
         long long num = 0;

@@ -49,8 +49,10 @@ static void dump_cf_properties(io_service_t service) {
             CFDictionaryGetKeysAndValues(pluginTypes, keys, vals);
             for (CFIndex i = 0; i < count; i++) {
                 char kbuf[128] = {}, vbuf[128] = {};
-                CFStringGetCString(keys[i], kbuf, sizeof(kbuf), kCFStringEncodingUTF8);
-                CFStringGetCString(vals[i], vbuf, sizeof(vbuf), kCFStringEncodingUTF8);
+                if (!CFStringGetCString(keys[i], kbuf, sizeof(kbuf), kCFStringEncodingUTF8))
+                    snprintf(kbuf, sizeof(kbuf), "<unconvertible>");
+                if (!CFStringGetCString(vals[i], vbuf, sizeof(vbuf), kCFStringEncodingUTF8))
+                    snprintf(vbuf, sizeof(vbuf), "<unconvertible>");
                 printf("    %s -> %s\n", kbuf, vbuf);
             }
             free(keys);
@@ -79,7 +81,8 @@ static void dump_cf_properties(io_service_t service) {
                     printf("  %s = %lld (0x%llx)\n", interesting[i], n, n);
                 } else if (tid == CFStringGetTypeID()) {
                     char buf[256] = {};
-                    CFStringGetCString(val, buf, sizeof(buf), kCFStringEncodingUTF8);
+                    if (!CFStringGetCString(val, buf, sizeof(buf), kCFStringEncodingUTF8))
+                        snprintf(buf, sizeof(buf), "<unconvertible>");
                     printf("  %s = %s\n", interesting[i], buf);
                 } else if (tid == CFDataGetTypeID()) {
                     printf("  %s = <data %ld bytes>\n", interesting[i],
@@ -303,7 +306,8 @@ static void check_all_tb_properties(void) {
                 for (CFIndex i = 0; i < count; i++) {
                     char kbuf[256] = {};
                     if (CFGetTypeID(keys[i]) != CFStringGetTypeID()) continue;
-                    CFStringGetCString(keys[i], kbuf, sizeof(kbuf), kCFStringEncodingUTF8);
+                    if (!CFStringGetCString(keys[i], kbuf, sizeof(kbuf), kCFStringEncodingUTF8))
+                        snprintf(kbuf, sizeof(kbuf), "<unconvertible>");
 
                     /* Filter for interesting keys */
                     if (strstr(kbuf, "etimer") || strstr(kbuf, "able") ||
@@ -322,7 +326,8 @@ static void check_all_tb_properties(void) {
                             printf("    %s = %lld (0x%llx)\n", kbuf, n, n);
                         } else if (tid == CFStringGetTypeID()) {
                             char vbuf[256] = {};
-                            CFStringGetCString(val, vbuf, sizeof(vbuf), kCFStringEncodingUTF8);
+                            if (!CFStringGetCString(val, vbuf, sizeof(vbuf), kCFStringEncodingUTF8))
+                                snprintf(vbuf, sizeof(vbuf), "<unconvertible>");
                             printf("    %s = %s\n", kbuf, vbuf);
                         } else if (tid == CFBooleanGetTypeID()) {
                             printf("    %s = %s\n", kbuf,

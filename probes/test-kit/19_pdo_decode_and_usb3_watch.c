@@ -117,11 +117,13 @@ static void dumpDict(CFDictionaryRef dict, int depth) {
     const void **vals = malloc(sizeof(void*) * count);
     CFDictionaryGetKeysAndValues(dict, keys, vals);
     for (CFIndex i = 0; i < count; i++) {
-        char keyBuf[256];
-        if (CFGetTypeID(keys[i]) == CFStringGetTypeID())
-            CFStringGetCString(keys[i], keyBuf, sizeof(keyBuf), kCFStringEncodingUTF8);
-        else
+        char keyBuf[256] = {0};
+        if (CFGetTypeID(keys[i]) == CFStringGetTypeID()) {
+            if (!CFStringGetCString(keys[i], keyBuf, sizeof(keyBuf), kCFStringEncodingUTF8))
+                snprintf(keyBuf, sizeof(keyBuf), "<unconvertible>");
+        } else {
             snprintf(keyBuf, sizeof(keyBuf), "<non-string>");
+        }
         printIndent(depth);
         printf("%s: ", keyBuf);
         dumpCFType(vals[i], depth);
@@ -136,8 +138,12 @@ static void dumpCFType(CFTypeRef value, int depth) {
 
     if (tid == CFStringGetTypeID()) {
         char buf[1024];
-        CFStringGetCString(value, buf, sizeof(buf), kCFStringEncodingUTF8);
-        printf("\"%s\"\n", buf);
+        buf[0] = '\0';
+        if (CFStringGetCString(value, buf, sizeof(buf), kCFStringEncodingUTF8)) {
+            printf("\"%s\"\n", buf);
+        } else {
+            printf("<unconvertible string>\n");
+        }
     } else if (tid == CFNumberGetTypeID()) {
         int64_t val = 0;
         CFNumberGetValue(value, kCFNumberSInt64Type, &val);
@@ -185,7 +191,9 @@ static void dumpCFType(CFTypeRef value, int depth) {
         CFStringRef desc = CFCopyDescription(value);
         if (desc) {
             char buf[2048];
-            CFStringGetCString(desc, buf, sizeof(buf), kCFStringEncodingUTF8);
+            buf[0] = '\0';
+            if (!CFStringGetCString(desc, buf, sizeof(buf), kCFStringEncodingUTF8))
+                snprintf(buf, sizeof(buf), "unconvertible");
             printf("<type %lu> %s\n", tid, buf);
             CFRelease(desc);
         } else {
@@ -239,7 +247,9 @@ static void interestCallback(void *refcon, io_service_t service,
     if (tp && CFGetTypeID(tp) == CFArrayGetTypeID()) {
         for (CFIndex i = 0; i < CFArrayGetCount(tp); i++) {
             char buf[64];
-            CFStringGetCString(CFArrayGetValueAtIndex(tp, i), buf, sizeof(buf), kCFStringEncodingUTF8);
+            buf[0] = '\0';
+            if (!CFStringGetCString(CFArrayGetValueAtIndex(tp, i), buf, sizeof(buf), kCFStringEncodingUTF8))
+                snprintf(buf, sizeof(buf), "<unconvertible>");
             printf("%s%s", i > 0 ? ", " : "", buf);
         }
         CFRelease(tp);
@@ -371,7 +381,10 @@ int main(void) {
 
                     char desc[256] = "?";
                     CFStringRef descRef = CFDictionaryGetValue(adapterDetails, CFSTR("Description"));
-                    if (descRef) CFStringGetCString(descRef, desc, sizeof(desc), kCFStringEncodingUTF8);
+                    // Keep the "?" fallback rather than a possibly garbled
+                    // partial copy if the conversion fails.
+                    if (descRef && !CFStringGetCString(descRef, desc, sizeof(desc), kCFStringEncodingUTF8))
+                        snprintf(desc, sizeof(desc), "?");
 
                     int watts = 0, adapterV = 0, adapterI = 0, tier = 0;
                     CFNumberRef wRef = CFDictionaryGetValue(adapterDetails, CFSTR("Watts"));

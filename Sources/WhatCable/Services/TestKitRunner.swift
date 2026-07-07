@@ -13,7 +13,11 @@ final class TestKitRunner: ObservableObject {
     enum State: Equatable {
         case idle
         case running(probe: String, current: Int, total: Int)
-        case done(passed: Int, failed: Int)
+        // `noOutputProbes` carries names (no output content) for an optional
+        // subtle tooltip in the settings UI; `noOutput` is the count for the
+        // completion label. See `runAllProbes()` for how a probe lands here
+        // vs in `passed`/`failed`.
+        case done(passed: Int, failed: Int, noOutput: Int, noOutputProbes: [String])
         case error(String)
     }
 
@@ -84,6 +88,7 @@ final class TestKitRunner: ObservableObject {
         let total = Self.probeNames.count
         var passed = 0
         var failed = 0
+        var noOutputProbes: [String] = []
 
         for (index, probeName) in Self.probeNames.enumerated() {
             guard !Task.isCancelled else {
@@ -96,13 +101,38 @@ final class TestKitRunner: ObservableObject {
             let binaryURL = probesDir.appendingPathComponent(probeName)
             guard FileManager.default.isExecutableFile(atPath: binaryURL.path) else {
                 Self.log.warning("Probe binary not found: \(probeName)")
+                noOutputProbes.append(probeName)
                 continue
             }
 
-            let output = await runProbe(at: binaryURL)
-            guard let output, !output.isEmpty else {
-                Self.log.info("Probe \(probeName) produced no output, skipping")
+            let result = await runProbe(at: binaryURL)
+
+            // Accounting decision (audit finding: crashes/empty-output/missing
+            // binaries were silently uncounted). A probe lands in the new
+            // no-output bucket, and its output (if any) is discarded, unless
+            // it either exited cleanly (status 0, no signal) or was killed by
+            // our own 30s watchdog below (`result.didTimeout`, an explicit
+            // flag, not inferred from the exit signal, since an external
+            // SIGTERM would look identical to our own). The watchdog case is
+            // deliberately still treated as good data: when a probe is killed
+            // for running long we'd still rather submit whatever it had
+            // already written than throw it away, so it counts as
+            // passed/failed same as a clean run, and only a log line notes
+            // the timeout (not the no-output array, since it did produce
+            // something and did get submitted). Any other nonzero exit or
+            // signal (a genuine crash) is NOT trusted even if the pipe
+            // carries partial bytes, since an unsupervised crash's output
+            // isn't known to be well-formed; it goes to noOutputProbes and
+            // nothing is submitted for it.
+            let cleanExit = result.terminationReason == .exit && result.exitStatus == 0
+            guard let output = result.output, !output.isEmpty, cleanExit || result.didTimeout else {
+                Self.log.warning("Probe \(probeName) produced no usable output (exit \(result.exitStatus), reason \(String(describing: result.terminationReason)))")
+                noOutputProbes.append(probeName)
                 continue
+            }
+
+            if result.didTimeout {
+                Self.log.info("Probe \(probeName) hit the 30s watchdog but produced output; submitting partial data")
             }
 
             let ok = await submitProbeResult(
@@ -127,16 +157,58 @@ final class TestKitRunner: ObservableObject {
             chip: chip,
             passed: passed,
             failed: failed,
-            total: total
+            total: total,
+            noOutputProbes: noOutputProbes
         )
 
-        state = .done(passed: passed, failed: failed)
-        Self.log.info("Test kit complete: \(passed) passed, \(failed) failed")
+        state = .done(passed: passed, failed: failed, noOutput: noOutputProbes.count, noOutputProbes: noOutputProbes)
+        Self.log.info("Test kit complete: \(passed) passed, \(failed) failed, \(noOutputProbes.count) no output\(noOutputProbes.isEmpty ? "" : ": \(noOutputProbes.joined(separator: ", "))")")
 
         AppSettings.shared.testKitLastRunVersion = AppInfo.version
     }
 
-    private func runProbe(at binaryURL: URL) async -> String? {
+    /// Everything `runProbe` learns about how the probe process ended, so the
+    /// caller can distinguish "ran cleanly", "we killed it on the 30s
+    /// watchdog", and "it crashed/exited nonzero on its own" instead of just
+    /// getting an output string. `didTimeout` is the source of truth for the
+    /// watchdog case: `Process.terminate()` sends SIGTERM, but an external
+    /// SIGTERM (someone else killing the probe) produces the exact same
+    /// `terminationReason`/`terminationStatus` pair, so that pair alone can't
+    /// distinguish "our watchdog" from "somebody else's kill" (raw signal 15
+    /// is still worth knowing as a sanity check when reading logs, but it is
+    /// not what this code branches on).
+    private struct ProbeRunResult {
+        let output: String?
+        let exitStatus: Int32
+        let terminationReason: Process.TerminationReason
+        let didTimeout: Bool
+    }
+
+    /// Cross-queue flag: the timer fires on its own queue (`.global()`) and
+    /// sets this *before* calling `process.terminate()`; the probe-running
+    /// queue reads it after `process.waitUntilExit()` returns. A plain `var`
+    /// captured by both closures would be a data race, so this uses the same
+    /// NSLock-guarded-box pattern already used elsewhere in the app (e.g.
+    /// `DashboardApp.swift`'s state boxes) rather than inferring the answer
+    /// from the exit signal.
+    private final class TimeoutMarker: @unchecked Sendable {
+        private let lock = NSLock()
+        private var fired = false
+
+        func markFired() {
+            lock.lock()
+            fired = true
+            lock.unlock()
+        }
+
+        var didFire: Bool {
+            lock.lock()
+            defer { lock.unlock() }
+            return fired
+        }
+    }
+
+    private func runProbe(at binaryURL: URL) async -> ProbeRunResult {
         await withCheckedContinuation { continuation in
             DispatchQueue.global(qos: .utility).async {
                 let process = Process()
@@ -149,9 +221,11 @@ final class TestKitRunner: ObservableObject {
                     try process.run()
                 } catch {
                     Self.log.error("Failed to launch probe: \(error.localizedDescription)")
-                    continuation.resume(returning: nil)
+                    continuation.resume(returning: ProbeRunResult(output: nil, exitStatus: -1, terminationReason: .exit, didTimeout: false))
                     return
                 }
+
+                let timeoutMarker = TimeoutMarker()
 
                 // Timer is created only after process.run() succeeds, so the
                 // catch path above cannot leak a live timer source.
@@ -159,6 +233,10 @@ final class TestKitRunner: ObservableObject {
                 timer.schedule(deadline: .now() + 30)
                 timer.setEventHandler {
                     if process.isRunning {
+                        // Set before terminate() so a read after
+                        // waitUntilExit() always observes it once this
+                        // handler has run at all.
+                        timeoutMarker.markFired()
                         process.terminate()
                     }
                 }
@@ -171,7 +249,12 @@ final class TestKitRunner: ObservableObject {
                 let data = pipe.fileHandleForReading.readDataToEndOfFile()
                 process.waitUntilExit()
                 let output = String(data: data, encoding: .utf8)
-                continuation.resume(returning: output)
+                continuation.resume(returning: ProbeRunResult(
+                    output: output,
+                    exitStatus: process.terminationStatus,
+                    terminationReason: process.terminationReason,
+                    didTimeout: timeoutMarker.didFire
+                ))
             }
         }
     }
@@ -202,16 +285,21 @@ final class TestKitRunner: ObservableObject {
         chip: String,
         passed: Int,
         failed: Int,
-        total: Int
+        total: Int,
+        noOutputProbes: [String]
     ) async {
-        let payload: [String: Any] = [
+        var payload: [String: Any] = [
             "machine_id": machineID,
             "macos_version": macosVersion,
             "chip": chip,
             "passed": passed,
             "failed": failed,
             "total": total,
+            "no_output": noOutputProbes.count,
         ]
+        if !noOutputProbes.isEmpty {
+            payload["no_output_probes"] = noOutputProbes
+        }
 
         _ = await postJSON(to: "\(Self.apiURL)/complete", payload: payload)
     }

@@ -23,7 +23,9 @@ static void printCFType(CFTypeRef value, int indent) {
     CFTypeID tid = CFGetTypeID(value);
     if (tid == CFStringGetTypeID()) {
         char buf[512];
-        CFStringGetCString(value, buf, sizeof(buf), kCFStringEncodingUTF8);
+        buf[0] = '\0';
+        if (!CFStringGetCString(value, buf, sizeof(buf), kCFStringEncodingUTF8))
+            snprintf(buf, sizeof(buf), "<unconvertible>");
         printf("%s\"%s\"\n", pad, buf);
     } else if (tid == CFNumberGetTypeID()) {
         long long num = 0;
@@ -44,7 +46,9 @@ static void printCFType(CFTypeRef value, int indent) {
         CFDictionaryGetKeysAndValues(value, keys, vals);
         for (CFIndex i = 0; i < n; i++) {
             char kbuf[256];
-            CFStringGetCString(keys[i], kbuf, sizeof(kbuf), kCFStringEncodingUTF8);
+            kbuf[0] = '\0';
+            if (!CFStringGetCString(keys[i], kbuf, sizeof(kbuf), kCFStringEncodingUTF8))
+                snprintf(kbuf, sizeof(kbuf), "<unconvertible>");
             printf("%s  %s = ", pad, kbuf);
             printCFType(vals[i], indent + 4);
         }
@@ -74,7 +78,9 @@ static void dumpService(io_service_t service, const char *label) {
     CFDictionaryGetKeysAndValues(props, keys, vals);
     for (CFIndex i = 0; i < n; i++) {
         char kbuf[256];
-        CFStringGetCString(keys[i], kbuf, sizeof(kbuf), kCFStringEncodingUTF8);
+        kbuf[0] = '\0';
+        if (!CFStringGetCString(keys[i], kbuf, sizeof(kbuf), kCFStringEncodingUTF8))
+            snprintf(kbuf, sizeof(kbuf), "<unconvertible>");
         printf("  %s = ", kbuf);
         printCFType(vals[i], 4);
     }

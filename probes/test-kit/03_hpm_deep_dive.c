@@ -34,8 +34,12 @@ static void walkTree(io_service_t service, int depth, const char *plane) {
         service, CFSTR("IOUserClientClass"), kCFAllocatorDefault, 0);
     if (ucClass) {
         char buf[256];
-        CFStringGetCString(ucClass, buf, sizeof(buf), kCFStringEncodingUTF8);
-        printf(" (UserClient: %s)", buf);
+        buf[0] = '\0';
+        if (CFStringGetCString(ucClass, buf, sizeof(buf), kCFStringEncodingUTF8)) {
+            printf(" (UserClient: %s)", buf);
+        } else {
+            printf(" (UserClient: <unconvertible>)");
+        }
         CFRelease(ucClass);
     }
 
@@ -44,8 +48,12 @@ static void walkTree(io_service_t service, int depth, const char *plane) {
         service, CFSTR("CFBundleIdentifier"), kCFAllocatorDefault, 0);
     if (bundleID) {
         char buf[256];
-        CFStringGetCString(bundleID, buf, sizeof(buf), kCFStringEncodingUTF8);
-        printf(" [%s]", buf);
+        buf[0] = '\0';
+        if (CFStringGetCString(bundleID, buf, sizeof(buf), kCFStringEncodingUTF8)) {
+            printf(" [%s]", buf);
+        } else {
+            printf(" [<unconvertible>]");
+        }
         CFRelease(bundleID);
     }
 
@@ -84,8 +92,12 @@ static void walkTree(io_service_t service, int depth, const char *plane) {
                 printf("%lld (0x%llx)\n", num, num);
             } else if (tid == CFStringGetTypeID()) {
                 char buf[512];
-                CFStringGetCString(val, buf, sizeof(buf), kCFStringEncodingUTF8);
-                printf("\"%s\"\n", buf);
+                buf[0] = '\0';
+                if (CFStringGetCString(val, buf, sizeof(buf), kCFStringEncodingUTF8)) {
+                    printf("\"%s\"\n", buf);
+                } else {
+                    printf("<unconvertible string>\n");
+                }
             } else if (tid == CFDictionaryGetTypeID()) {
                 printf("<dict with %ld keys>\n", CFDictionaryGetCount(val));
             } else if (tid == CFArrayGetTypeID()) {

@@ -19,7 +19,11 @@ static void printCFDict(CFDictionaryRef dict, int indent) {
 
         char keyBuf[256] = {0};
         if (CFGetTypeID(keys[i]) == CFStringGetTypeID()) {
-            CFStringGetCString(keys[i], keyBuf, sizeof(keyBuf), kCFStringEncodingUTF8);
+            // Zero the buffer first and check the return: CFStringGetCString
+            // can fail (too long, lossy encoding) and leaves buf unspecified
+            // on failure, not just untouched.
+            if (!CFStringGetCString(keys[i], keyBuf, sizeof(keyBuf), kCFStringEncodingUTF8))
+                snprintf(keyBuf, sizeof(keyBuf), "<unconvertible-key>");
         } else {
             snprintf(keyBuf, sizeof(keyBuf), "<non-string-key>");
         }
@@ -37,8 +41,12 @@ static void printCFValue(CFTypeRef value, int indent) {
 
     if (tid == CFStringGetTypeID()) {
         char buf[1024];
-        CFStringGetCString(value, buf, sizeof(buf), kCFStringEncodingUTF8);
-        printf("\"%s\"\n", buf);
+        buf[0] = '\0';
+        if (CFStringGetCString(value, buf, sizeof(buf), kCFStringEncodingUTF8)) {
+            printf("\"%s\"\n", buf);
+        } else {
+            printf("<unconvertible string>\n");
+        }
     } else if (tid == CFNumberGetTypeID()) {
         long long num;
         CFNumberGetValue(value, kCFNumberLongLongType, &num);
@@ -72,7 +80,9 @@ static void printCFValue(CFTypeRef value, int indent) {
     } else {
         CFStringRef desc = CFCopyDescription(value);
         char buf[512];
-        CFStringGetCString(desc, buf, sizeof(buf), kCFStringEncodingUTF8);
+        buf[0] = '\0';
+        if (!CFStringGetCString(desc, buf, sizeof(buf), kCFStringEncodingUTF8))
+            snprintf(buf, sizeof(buf), "unconvertible");
         printf("<%s>\n", buf);
         CFRelease(desc);
     }

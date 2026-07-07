@@ -60,17 +60,59 @@ struct TestKitSettingsSection: View {
                     .scaledFont(.caption)
                     .foregroundStyle(.secondary)
             }
-        case .done(let passed, let failed):
-            let label = failed > 0
-                ? String(localized: "\(passed) passed, \(failed) failed", bundle: _appLocalizedBundle)
-                : String(localized: "\(passed) probes submitted", bundle: _appLocalizedBundle)
-            Text(label)
-                .scaledFont(.caption)
-                .foregroundStyle(failed > 0 ? .orange : .green)
+        case .done(let passed, let failed, let noOutput, let noOutputProbes):
+            // Matches the CLI's completion line style ("N submitted, N failed,
+            // N no output"). See testKitDoneLabel(...) below for the wording
+            // and the localisation note (this label has no translation
+            // entries in any Localizable.strings yet; that predates this
+            // change).
+            let label = Self.testKitDoneLabel(passed: passed, failed: failed, noOutput: noOutput)
+
+            if noOutputProbes.isEmpty {
+                Text(label)
+                    .scaledFont(.caption)
+                    .foregroundStyle(failed > 0 ? .orange : .green)
+            } else {
+                // Subtle: same caption styling, just an extra hover tooltip
+                // naming which probes produced nothing, no separate line.
+                Text(label)
+                    .scaledFont(.caption)
+                    .foregroundStyle(.orange)
+                    .help(String(localized: "No output: \(noOutputProbes.joined(separator: ", "))", bundle: _appLocalizedBundle))
+            }
         case .error(let message):
             Text(message)
                 .scaledFont(.caption)
                 .foregroundStyle(.red)
+        }
+    }
+
+    /// Whole-phrase label per passed/failed/noOutput combination, matching
+    /// the CLI's completion line style. Each combination is its own full
+    /// localizable string (not fragments concatenated with a hardcoded
+    /// separator) so a translator gets natural phrasing rather than joined
+    /// clauses. Plain function, not a `@ViewBuilder` body: an if/else chain
+    /// that only produces a `String` (no `View` in any branch) doesn't
+    /// compile inside a `@ViewBuilder` context, since the builder tries to
+    /// treat every branch as view content.
+    ///
+    /// NOTE: as with the prior "passed, failed" / "probes submitted" strings
+    /// this replaces, none of these phrases have translation entries in any
+    /// Localizable.strings yet (verified: zero hits for "passed"/"submitted"/
+    /// "no output" across all 13 en.lproj and other .lproj folders), so today
+    /// every locale falls back to the English text via `String(localized:)`'s
+    /// default-value behaviour. That's a pre-existing gap this change doesn't
+    /// introduce or fix; the new label is kept consistent with what the old
+    /// one already did.
+    private static func testKitDoneLabel(passed: Int, failed: Int, noOutput: Int) -> String {
+        if failed > 0 && noOutput > 0 {
+            return String(localized: "\(passed) submitted, \(failed) failed, \(noOutput) no output", bundle: _appLocalizedBundle)
+        } else if failed > 0 {
+            return String(localized: "\(passed) submitted, \(failed) failed", bundle: _appLocalizedBundle)
+        } else if noOutput > 0 {
+            return String(localized: "\(passed) submitted, \(noOutput) no output", bundle: _appLocalizedBundle)
+        } else {
+            return String(localized: "\(passed) probes submitted", bundle: _appLocalizedBundle)
         }
     }
 }

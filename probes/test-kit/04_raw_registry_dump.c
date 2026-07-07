@@ -20,8 +20,12 @@ static void dumpDict(CFDictionaryRef dict, int indent) {
         for (int j = 0; j < indent; j++) printf("  ");
         if (CFGetTypeID(keys[i]) == CFStringGetTypeID()) {
             char buf[256];
-            CFStringGetCString(keys[i], buf, sizeof(buf), kCFStringEncodingUTF8);
-            printf("\"%s\": ", buf);
+            buf[0] = '\0';
+            if (CFStringGetCString(keys[i], buf, sizeof(buf), kCFStringEncodingUTF8)) {
+                printf("\"%s\": ", buf);
+            } else {
+                printf("<unconvertible-key>: ");
+            }
         } else {
             printf("<key>: ");
         }
@@ -37,8 +41,12 @@ static void dumpValue(CFTypeRef value, int indent) {
 
     if (tid == CFStringGetTypeID()) {
         char buf[2048];
-        CFStringGetCString(value, buf, sizeof(buf), kCFStringEncodingUTF8);
-        printf("\"%s\"\n", buf);
+        buf[0] = '\0';
+        if (CFStringGetCString(value, buf, sizeof(buf), kCFStringEncodingUTF8)) {
+            printf("\"%s\"\n", buf);
+        } else {
+            printf("<unconvertible string>\n");
+        }
     } else if (tid == CFNumberGetTypeID()) {
         long long n;
         CFNumberGetValue(value, kCFNumberLongLongType, &n);

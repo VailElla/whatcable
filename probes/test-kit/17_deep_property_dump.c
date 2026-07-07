@@ -37,9 +37,10 @@ static void dumpDict(CFDictionaryRef dict, int depth) {
     CFDictionaryGetKeysAndValues(dict, keys, vals);
 
     for (CFIndex i = 0; i < count; i++) {
-        char keyBuf[256];
+        char keyBuf[256] = {0};
         if (CFGetTypeID(keys[i]) == CFStringGetTypeID()) {
-            CFStringGetCString(keys[i], keyBuf, sizeof(keyBuf), kCFStringEncodingUTF8);
+            if (!CFStringGetCString(keys[i], keyBuf, sizeof(keyBuf), kCFStringEncodingUTF8))
+                snprintf(keyBuf, sizeof(keyBuf), "<unconvertible key>");
         } else {
             snprintf(keyBuf, sizeof(keyBuf), "<non-string key>");
         }
@@ -68,8 +69,12 @@ static void dumpCFType(CFTypeRef value, int depth) {
 
     if (tid == CFStringGetTypeID()) {
         char buf[1024];
-        CFStringGetCString(value, buf, sizeof(buf), kCFStringEncodingUTF8);
-        printf("\"%s\"\n", buf);
+        buf[0] = '\0';
+        if (CFStringGetCString(value, buf, sizeof(buf), kCFStringEncodingUTF8)) {
+            printf("\"%s\"\n", buf);
+        } else {
+            printf("<unconvertible string>\n");
+        }
     } else if (tid == CFNumberGetTypeID()) {
         int64_t val = 0;
         CFNumberGetValue(value, kCFNumberSInt64Type, &val);
@@ -241,7 +246,9 @@ int main(void) {
                 if (bcdUSB) { CFNumberGetValue(bcdUSB, kCFNumberIntType, &bcd); CFRelease(bcdUSB); }
 
                 char nameBuf[256] = "?";
-                if (name) { CFStringGetCString(name, nameBuf, sizeof(nameBuf), kCFStringEncodingUTF8); CFRelease(name); }
+                // Keep the "?" fallback if the string can't be converted, rather
+                // than leaving nameBuf in whatever state a failed copy left it.
+                if (name) { if (!CFStringGetCString(name, nameBuf, sizeof(nameBuf), kCFStringEncodingUTF8)) snprintf(nameBuf, sizeof(nameBuf), "?"); CFRelease(name); }
 
                 printf("  %s VID=0x%04x PID=0x%04x speed=%d bcdUSB=0x%04x\n",
                     nameBuf, v, p, s, bcd);
