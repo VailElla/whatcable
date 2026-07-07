@@ -165,9 +165,11 @@ final class TestKitRunner: ObservableObject {
                 timer.resume()
                 defer { timer.cancel() }
 
-                process.waitUntilExit()
-
+                // Drain the pipe while the probe runs; reading after waitUntilExit
+                // deadlocks once output exceeds the 64KB pipe buffer (the child
+                // blocks on write() and nothing is draining the other end).
                 let data = pipe.fileHandleForReading.readDataToEndOfFile()
+                process.waitUntilExit()
                 let output = String(data: data, encoding: .utf8)
                 continuation.resume(returning: output)
             }
@@ -261,9 +263,12 @@ final class TestKitRunner: ObservableObject {
         process.arguments = ["-d2", "-c", "IOPlatformExpertDevice"]
         process.standardOutput = pipe
         try? process.run()
+        // Drain the pipe while the probe runs; reading after waitUntilExit
+        // deadlocks once output exceeds the 64KB pipe buffer. ioreg output is
+        // small so this never triggered here, but keep the ordering consistent.
+        let data = pipe.fileHandleForReading.readDataToEndOfFile()
         process.waitUntilExit()
 
-        let data = pipe.fileHandleForReading.readDataToEndOfFile()
         let output = String(data: data, encoding: .utf8) ?? ""
 
         var uuid = "unknown"
