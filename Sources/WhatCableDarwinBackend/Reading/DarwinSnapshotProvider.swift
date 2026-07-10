@@ -39,6 +39,22 @@ public final class DarwinSnapshotProvider: CableSnapshotProvider, @unchecked Sen
             trmWatcher.start()
             phyWatcher.start()
             displayWatcher.start()
+
+            // Lets powerWatcher.refresh() synthesize a per-port source when
+            // macOS never publishes a real IOPortFeaturePowerSource node
+            // (M1 Pro/Max/Ultra USB-C, issue #401).
+            powerWatcher.synthesisContext = { [weak self] in
+                guard let self else { return nil }
+                return PowerSourceSynthesisContext(
+                    ports: self.portWatcher.ports,
+                    identities: self.pdWatcher.identities,
+                    // hpmPortKeys() walks six IOKit service classes; wrapped
+                    // in a closure so it only runs on the rare tick that
+                    // reaches the actual synthesis call, not on every read().
+                    positionalPortKeys: { PowerTelemetryWatcher.hpmPortKeys() }
+                )
+            }
+
             started = true
         }
 
@@ -47,8 +63,11 @@ public final class DarwinSnapshotProvider: CableSnapshotProvider, @unchecked Sen
             // so refresh on every read. The others are notification-driven
             // but refresh is cheap and keeps reads consistent.
             portWatcher.refresh()
-            powerWatcher.refresh()
+            // pdWatcher before powerWatcher: PowerSourceSynthesis's
+            // partner-kind attribution rung (issue #401) needs this tick's
+            // identities, not last tick's.
             pdWatcher.refresh()
+            powerWatcher.refresh()
             tbWatcher.refresh()
             usb3Watcher.refresh()
             trmWatcher.refresh()

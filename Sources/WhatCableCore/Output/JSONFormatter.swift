@@ -377,12 +377,18 @@ private struct PowerSourceDTO: Codable {
     let maxPowerW: Int
     let options: [OptionDTO]
     let negotiated: OptionDTO?
+    /// True only when this source was synthesized from `PortControllerInfo`
+    /// because macOS never published a real `IOPortFeaturePowerSource` node
+    /// (issue #401, M1 Pro/Max/Ultra USB-C). Nil (omitted from JSON) for a
+    /// real source, so existing output is unchanged.
+    let synthesized: Bool?
 
     init(source: PowerSource) {
         self.name = source.name
         self.maxPowerW = Int((Double(source.maxPowerMW) / 1000).rounded())
         self.options = source.options.map { OptionDTO(option: $0) }
         self.negotiated = source.winning.map { OptionDTO(option: $0) }
+        self.synthesized = source.isSynthesized ? true : nil
     }
 }
 

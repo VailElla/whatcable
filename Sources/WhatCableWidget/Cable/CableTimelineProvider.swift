@@ -113,9 +113,28 @@ struct CableTimelineProvider: AppIntentTimelineProvider {
         phyWatcher.start()
         displayWatcher.start()
 
+        // Lets powerWatcher.refresh() synthesize a per-port source when macOS
+        // never publishes a real IOPortFeaturePowerSource node (M1 Pro/Max/Ultra
+        // USB-C, issue #401). This is a one-shot local build (see the teardown
+        // comment above), so a plain closure over the local watchers is safe:
+        // no retain cycle, and both are gone by the time the function returns.
+        powerWatcher.synthesisContext = {
+            PowerSourceSynthesisContext(
+                ports: portWatcher.ports,
+                identities: pdWatcher.identities,
+                // hpmPortKeys() walks six IOKit service classes; wrapped in a
+                // closure for API consistency with the other owners, though
+                // this one-shot build only ever calls it once anyway.
+                positionalPortKeys: { PowerTelemetryWatcher.hpmPortKeys() }
+            )
+        }
+
         portWatcher.refresh()
-        powerWatcher.refresh()
+        // pdWatcher before powerWatcher: PowerSourceSynthesis's partner-kind
+        // attribution rung (issue #401) needs this tick's identities, not
+        // last tick's.
         pdWatcher.refresh()
+        powerWatcher.refresh()
         tbWatcher.refresh()
         usb3Watcher.refresh()
         trmWatcher.refresh()

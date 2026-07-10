@@ -2,11 +2,44 @@ import Foundation
 import IOKit
 import WhatCableCore
 
+/// Snapshot of the other watchers `PowerSourceWatcher.refresh()` needs in
+/// order to attempt `PowerSourceSynthesis` (issue #401: M1 Pro/Max/Ultra
+/// never publish a real `IOPortFeaturePowerSource` node for USB-C). Built by
+/// whichever owner constructs this watcher alongside a port watcher and an
+/// identity watcher; supplied via `PowerSourceWatcher.synthesisContext`.
+public struct PowerSourceSynthesisContext {
+    public let ports: [AppleHPMInterface]
+    public let identities: [USBPDSOP]
+    /// Port keys in HPM traversal order, matching the order Apple builds
+    /// `PortControllerInfo` in. See `PowerTelemetryWatcher.hpmPortKeys()`.
+    ///
+    /// Lazy on purpose: `hpmPortKeys()` walks six IOKit service classes, so
+    /// it must only run on the rare tick that's actually about to attempt
+    /// synthesis, not on every `refresh()` call. `synthesizeIfNeeded` only
+    /// evaluates this closure right before calling
+    /// `PowerSourceSynthesis.synthesizedSource`, after every cheaper gate
+    /// has already passed.
+    public let positionalPortKeys: () -> [String]
+
+    public init(ports: [AppleHPMInterface], identities: [USBPDSOP], positionalPortKeys: @escaping () -> [String]) {
+        self.ports = ports
+        self.identities = identities
+        self.positionalPortKeys = positionalPortKeys
+    }
+}
+
 /// Watches `IOPortFeaturePowerSource` services. These appear under each port's
 /// `Power In` feature when something that advertises PD is connected.
 @MainActor
 public final class PowerSourceWatcher: ObservableObject {
     @Published public private(set) var sources: [PowerSource] = []
+
+    /// Injected by the owner (`WatcherHub` / `DarwinSnapshotProvider`) so
+    /// `refresh()` can synthesize a per-port source when macOS publishes none
+    /// (M1 Pro/Max/Ultra USB-C, issue #401). Returns nil when the owner has
+    /// no port/identity watchers to draw from, in which case `refresh()`
+    /// skips synthesis entirely and behaves exactly as before.
+    public var synthesisContext: (() -> PowerSourceSynthesisContext?)?
 
     /// Live charger-in wattage for the menu bar readout. Recomputed on the hub's
     /// poll cadence (1 Hz while a UI surface is visible, 30 s idle) and on each
@@ -138,9 +171,81 @@ public final class PowerSourceWatcher: ObservableObject {
         // value that downstream subscribers see as "everything disconnected,"
         // which made NotificationManager fire a charger-connect/disconnect pair
         // on every poll tick. See issue #227.
-        let rebuilt = Self.readAllPowerSources()
+        var rebuilt = Self.readAllPowerSources()
+        if let synthesized = synthesizeIfNeeded(realSources: rebuilt) {
+            rebuilt.append(synthesized)
+        }
         if rebuilt != sources { sources = rebuilt }
         if readsChargerInputWatts { refreshChargerInputWatts() }
+    }
+
+    /// Attempt `PowerSourceSynthesis` (issue #401). Gated cheap-first so
+    /// healthy machines (a real node exists) and idle machines (no active
+    /// uncovered USB-C port) never pay for the extra `AppleSmartBattery`
+    /// read: only once both checks below pass do we read the battery
+    /// property dictionary at all.
+    private func synthesizeIfNeeded(realSources: [PowerSource]) -> PowerSource? {
+        // Cheapest check first: needs only the sources this tick's
+        // readAllPowerSources() already read, no context and no extra IOKit
+        // work. Not `PowerSource.hasLiveChargingContract(in:)`: that only
+        // inspects the first source named "USB-PD" in the array, which is
+        // correct for every existing caller (they all pass an already-
+        // per-port-filtered array) but wrong here, where `realSources` spans
+        // every port. See the matching comment in
+        // `PowerSourceSynthesis.synthesizedSource` (gate 2) for the corpus
+        // evidence.
+        let anyRealSourceHasLiveContract = realSources.contains { source in
+            guard let winning = source.winning else { return false }
+            return winning.maxPowerMW > 0
+        }
+        guard !anyRealSourceHasLiveContract else { return nil }
+
+        guard let context = synthesisContext?() else { return nil }
+
+        // context.ports is a cheap read of an already-published property, no
+        // IOKit call. USB-C is required explicitly (portKey prefix "2/"),
+        // not just "not MagSafe": A18 Pro ("MacBook Neo") corpus machines
+        // have Port-Inductive ports, and other non-USB-C, non-MagSafe port
+        // types may exist that we've never seen. Positive match only.
+        let hasUncoveredActivePort = context.ports.contains { port in
+            port.portKey?.hasPrefix("2/") == true
+                && port.connectionActive == true
+                && realSources.filter({ $0.canonicallyMatches(port: port) }).isEmpty
+        }
+        guard hasUncoveredActivePort else { return nil }
+
+        // Only past this point do we pay for the AppleSmartBattery read.
+        // A desktop Mac has no AppleSmartBattery service at all, so there is
+        // no PortControllerInfo to synthesize from; returning nil here is
+        // correct, not a fallback default.
+        guard let dict = PowerTelemetryWatcher.appleSmartBatteryProperties() else { return nil }
+        // The dict exists here (the guard above already returned for a
+        // missing one); a dict without the ExternalConnected flag itself
+        // still reads as connected, same defaulting refreshChargerInputWatts() uses.
+        let externalConnected = (dict["ExternalConnected"] as? NSNumber)?.boolValue ?? true
+        let entries = wcArray(dict["PortControllerInfo"]).map(wcDictionary).enumerated().map { offset, entry in
+            let pdoCount = wcInt(entry["PortControllerNPDOs"])
+            let rawPDOs = wcArray(entry["PortControllerPortPDO"]).map(wcUInt32)
+            let trimmed = Array(rawPDOs.prefix(pdoCount > 0 ? pdoCount : rawPDOs.count))
+            return PowerSourceSynthesis.ContractEntry(
+                index: offset,
+                rawPDOs: trimmed,
+                activeRdo: wcUInt32(entry["PortControllerActiveContractRdo"]),
+                maxPowerMW: wcInt(entry["PortControllerMaxPower"])
+            )
+        }
+
+        return PowerSourceSynthesis.synthesizedSource(
+            realSources: realSources,
+            ports: context.ports,
+            identities: context.identities,
+            entries: entries,
+            // Evaluated here, right before the call that needs it: this is
+            // the one point in the whole gate chain where the IOKit walk in
+            // hpmPortKeys() actually runs.
+            positionalPortKeys: context.positionalPortKeys(),
+            externalConnected: externalConnected
+        )
     }
 
     /// Read the live charger-in wattage and publish it when the rounded value
@@ -218,11 +323,20 @@ public final class PowerSourceWatcher: ObservableObject {
     }
 
     private func handleAdded(_ iter: io_iterator_t) {
+        var addedRealUSBCSource = false
         while case let service = IOIteratorNext(iter), service != 0 {
             if let s = Self.makeSource(from: service), !sources.contains(where: { $0.id == s.id }) {
                 sources.append(s)
+                if s.parentPortType == 2 { addedRealUSBCSource = true }
             }
             IOObjectRelease(service)
+        }
+        // A real USB-C-parented node just arrived: gate 2b in
+        // PowerSourceSynthesis means synthesis must stop for this machine
+        // from now on, so drop any synthesized entry immediately rather than
+        // leaving it in `sources` until the next refresh() tick clears it.
+        if addedRealUSBCSource {
+            sources.removeAll { $0.isSynthesized }
         }
     }
 

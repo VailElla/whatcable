@@ -66,6 +66,22 @@ public final class WatcherHub {
         trmWatcher.start()
         displayWatcher.start()
 
+        // Lets powerWatcher.refresh() synthesize a per-port source when macOS
+        // never publishes a real IOPortFeaturePowerSource node (M1 Pro/Max/Ultra
+        // USB-C, issue #401). Weak self: the closure only reads live watcher
+        // state, never touches the hub's own lifecycle.
+        powerWatcher.synthesisContext = { [weak self] in
+            guard let self else { return nil }
+            return PowerSourceSynthesisContext(
+                ports: self.portWatcher.ports,
+                identities: self.pdWatcher.identities,
+                // hpmPortKeys() walks six IOKit service classes; wrapped in
+                // a closure so it only runs on the rare tick that reaches
+                // the actual synthesis call, not on every refresh().
+                positionalPortKeys: { PowerTelemetryWatcher.hpmPortKeys() }
+            )
+        }
+
         startPoll()
         setupBurstTriggers()
     }
@@ -101,8 +117,11 @@ public final class WatcherHub {
 
     public func refreshAll() {
         portWatcher.refresh()
-        powerWatcher.refresh()
+        // pdWatcher before powerWatcher: PowerSourceSynthesis's partner-kind
+        // attribution rung (issue #401) needs this tick's identities, not
+        // last tick's, to recognise a power-brick SOP partner.
         pdWatcher.refresh()
+        powerWatcher.refresh()
         tbWatcher.refresh()
         usb3Watcher.refresh()
         trmWatcher.refresh()

@@ -38,6 +38,12 @@ public struct PowerSource: Identifiable, Hashable {
     /// HPM interface to the HPM device (`AppleHPMDevice` / `AppleHPMDeviceHALType3`).
     /// Internal join key only. Never serialised to JSON or text output.
     public let hpmControllerUUID: String?
+    /// True when this source was built by `PowerSourceSynthesis` from
+    /// `AppleSmartBattery`'s `PortControllerInfo` rather than read from a
+    /// real `IOPortFeaturePowerSource` node (issue #401: macOS never
+    /// creates that node for USB-C on M1 Pro/Max/Ultra). Defaults to false
+    /// so every existing call site and fixture keeps working unchanged.
+    public let isSynthesized: Bool
 
     public init(
         id: UInt64,
@@ -46,7 +52,8 @@ public struct PowerSource: Identifiable, Hashable {
         parentPortNumber: Int,
         options: [PowerOption],
         winning: PowerOption?,
-        hpmControllerUUID: String? = nil
+        hpmControllerUUID: String? = nil,
+        isSynthesized: Bool = false
     ) {
         self.id = id
         self.name = name
@@ -55,6 +62,7 @@ public struct PowerSource: Identifiable, Hashable {
         self.options = options
         self.winning = winning
         self.hpmControllerUUID = hpmControllerUUID
+        self.isSynthesized = isSynthesized
     }
 
     public var maxPowerMW: Int {
