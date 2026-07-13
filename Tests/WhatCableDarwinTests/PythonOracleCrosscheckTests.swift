@@ -706,6 +706,39 @@ private func oracleAllTransportBlocks(folder: String, className: String) -> [[St
         + oracleParseEqualsBlocks(text: text, className: className)
 }
 
+/// The two probes that carry CIO transports, in the order the Python oracle
+/// (`scripts/inspect-probe.py`) reads them.
+///
+/// Probe 17 alone is not enough: it is truncated at the 64 KB pipe cap on 37
+/// corpus folders and absent on others, so reading it alone undercounts
+/// machines-with-a-connected-Thunderbolt-device by 36 (87 vs the true 123).
+/// Probe 19 is never truncated in the corpus and its CIO port set is a superset
+/// of probe 17's. Both probes can describe the same port, so callers must
+/// de-duplicate by `TransportDescription` rather than summing block counts.
+private let oracleCIOProbes = ["17_deep_property_dump", "19_pdo_decode_and_usb3_watch"]
+
+private func oracleCIOBlocksByPort(folder: String) -> [String: [String: Any]] {
+    var byPort: [String: [String: Any]] = [:]
+    for probe in oracleCIOProbes {
+        guard let text = oracleLoadProbeText(folder: folder, probe: probe) else { continue }
+        let blocks = oracleParseDashBlocks(text: text, classPrefix: "IOPortTransportStateCIO")
+            + oracleParseEqualsBlocks(text: text, className: "IOPortTransportStateCIO")
+        for props in blocks {
+            // A bare `Port-USB-C@N/CIO` transport carrying a real CableSpeed is
+            // the only thing that means a Thunderbolt device is actually linked.
+            // Probe 19 publishes a structural CIO node on every USB-C port even
+            // when nothing is plugged in (335 of 468 folders), and tunnels like
+            // `.../CIO/USB3@0` are children of the transport, not separate links.
+            guard let port = props["TransportDescription"] as? String,
+                  port.hasSuffix("/CIO"),
+                  props["CableSpeed"] != nil
+            else { continue }
+            if byPort[port] == nil { byPort[port] = props }
+        }
+    }
+    return byPort
+}
+
 // MARK: - Check 4: TRM restriction count
 @Suite("Python oracle crosscheck - TRM restriction count")
 struct TRMRestrictionOracleCrosscheckTests {
@@ -797,40 +830,54 @@ struct CIOBlockCountOracleCrosscheckTests {
         let corpus = oracleLoadCorpusRecords()
         var applicable = 0
         var matched = 0
+        // Folders where the oracle says a Thunderbolt device IS connected. If
+        // this is zero the whole check is vacuous: comparing 0 == 0 on every
+        // folder proves nothing about the counting logic.
+        var positives = 0
         var mismatches: [String] = []
 
         for folder in oracleAllProbeFolders() {
             guard let record = corpus[folder] else { continue }
-            guard !oracleProbeTruncated(record, "17_deep_property_dump") else { continue }
-            // Raw-probe presence guard, same as the TRM check above: probe
-            // 17 is gitignored (only committed for folders that keep it on
-            // disk locally), but `corpus.jsonl`'s `cio_blocks` is committed
-            // regardless, computed back when the raw file existed on
-            // whichever machine ran the regen. On a tracked-only clone
-            // (corpus.jsonl present, most raw probe-17 files absent),
-            // skipping this guard would compare Swift's forced 0 (no raw
-            // text to parse) against Python's stale nonzero committed
-            // value for every folder that has a real CIO block, which is
-            // not "both sides degrade to 0 the same way" (they don't: only
-            // Swift degrades), it is comparing live data against no data.
-            // Confirmed this matters: without this guard, a tracked-only
-            // checkout produces up to 38 false mismatches racing the floor
-            // gate below. Skip instead, exactly like the TRM check.
-            guard oracleLoadProbeText(folder: folder, probe: "17_deep_property_dump") != nil else { continue }
+            // Raw-probe presence guard, same as the TRM check above: probes 17
+            // and 19 are gitignored (only committed for folders that keep them
+            // on disk locally), but `corpus.jsonl`'s `cio_blocks` is committed
+            // regardless, computed back when the raw files existed on whichever
+            // machine ran the regen. On a tracked-only clone (corpus.jsonl
+            // present, raw probes absent), skipping this guard would compare
+            // Swift's forced 0 (no raw text to parse) against Python's committed
+            // nonzero value for every folder that has a real CIO block, which is
+            // not "both sides degrade to 0 the same way" (they don't: only Swift
+            // degrades), it is comparing live data against no data. Confirmed
+            // this matters: without this guard, a tracked-only checkout produces
+            // up to 38 false mismatches racing the floor gate below.
+            //
+            // No truncation guard here (unlike the TRM check): both sides now
+            // read exactly the same two probe texts and apply the same rule, so
+            // a truncated probe degrades Swift and Python identically rather
+            // than pulling them apart. Probe 19, which carries the complete CIO
+            // port set, is never truncated in the corpus anyway.
+            guard oracleCIOProbes.contains(where: {
+                oracleLoadProbeText(folder: folder, probe: $0) != nil
+            }) else { continue }
             guard let pythonCIOBlocks = record["cio_blocks"] as? Int else { continue }
 
             applicable += 1
+            if pythonCIOBlocks > 0 { positives += 1 }
 
-            let blocks = oracleAllTransportBlocks(folder: folder, className: "IOPortTransportStateCIO")
+            // Distinct CIO-linked ports across probes 17 and 19, matching the
+            // Python oracle's union. Summing raw block counts would double-count
+            // the 118 ports that both probes captured.
+            let byPort = oracleCIOBlocksByPort(folder: folder)
             var swiftCIOBlocks = 0
-            for (idx, props) in blocks.enumerated() {
+            for (idx, port) in byPort.keys.sorted().enumerated() {
+                let props = byPort[port]!
                 let read: (String) -> Any? = { props[$0] }
                 // makeCIOCapability has no hard gate key (unlike TRM's
                 // TRM_State); any IOPortTransportStateCIO block is a valid
                 // candidate and always produces a non-nil capability, per
                 // its own doc comment. The count is therefore really "did
-                // we find the right number of blocks", not "did the parser
-                // succeed" -- which is exactly what this check is
+                // we find the right number of linked ports", not "did the
+                // parser succeed" -- which is exactly what this check is
                 // validating against the Python oracle.
                 if TRMTransportWatcher.makeCIOCapability(entryID: UInt64(idx + 1), read: read, hpmControllerUUID: nil) != nil {
                     swiftCIOBlocks += 1
@@ -846,15 +893,22 @@ struct CIOBlockCountOracleCrosscheckTests {
 
         for m in mismatches.prefix(20) { Issue.record("CIO block count mismatch: \(m)") }
 
-        if applicable >= 50 {
-            // Actual as of 2026-07: 360 applicable (410 folders total,
-            // minus 40 truncated on probe 17, minus the same 10
-            // raw-probe-unavailable folders excluded from the TRM check
-            // above (9 absent from disk, 1 present but malformed JSON --
-            // see that check's comment); 46 of those 360 have
-            // cio_blocks > 0), 360/360 (100%) agree. Floor set at 85% of
-            // applicable (0.85 * 360 = 306), not the actual 100%, for the
-            // same margin-not-brittleness reason as the other checks.
+        // Gate at 20, not 50, so this check still ASSERTS on a tracked-only
+        // clone. Probe 17/19 are gitignored in general, but 27 probe-17 and 15
+        // probe-19 files are committed as replay fixtures (DAR-138, #383), which
+        // is enough to run a real comparison anywhere. At the old floor of 50 a
+        // fresh clone fell short, the assertion never ran, and the check passed
+        // vacuously -- and a silently-agreeable check is precisely what let the
+        // probe-17-only `cio_blocks` undercount survive this long. Full local
+        // corpus: 459 applicable, 123 with cio_blocks > 0. Tracked-only clone:
+        // ~27 applicable, ~12 positive.
+        #expect(positives > 0,
+                "CIO crosscheck is vacuous: no folder with cio_blocks > 0 was comparable; expected the committed probe-17/19 replay fixtures to supply some")
+
+        if applicable >= 20 {
+            // 100% agree in practice (both locally and on the tracked-only
+            // subset). Floor set at 85% of applicable for margin, not
+            // brittleness, matching the other checks in this file.
             let floor = Int(Double(applicable) * 0.85)
             #expect(
                 matched >= floor,
