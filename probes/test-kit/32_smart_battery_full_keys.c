@@ -12,6 +12,15 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <strings.h>
+
+// Battery/charger serial keys (e.g. "Serial", "SerialNumber",
+// "BatterySerialNumber") are per-unit identifiers, not needed for the
+// capability catalogue this probe exists to build. Redact the VALUE, keep
+// the key so it stays visible that the field exists.
+static int isSerialKey(const char *k) {
+    return strcasestr(k, "serial") != NULL;
+}
 
 static void printCFType(CFTypeRef value, int indent) {
     char pad[64] = {0};
@@ -21,8 +30,9 @@ static void printCFType(CFTypeRef value, int indent) {
 
     CFTypeID tid = CFGetTypeID(value);
     if (tid == CFStringGetTypeID()) {
-        char buf[1024];
-        CFStringGetCString(value, buf, sizeof(buf), kCFStringEncodingUTF8);
+        char buf[1024] = {0};
+        if (!CFStringGetCString(value, buf, sizeof(buf), kCFStringEncodingUTF8))
+            snprintf(buf, sizeof(buf), "<unconvertible>");
         printf("%s\"%s\"\n", pad, buf);
     } else if (tid == CFNumberGetTypeID()) {
         long long num = 0;
@@ -45,11 +55,17 @@ static void printCFType(CFTypeRef value, int indent) {
         const void **vals = malloc(n * sizeof(void*));
         CFDictionaryGetKeysAndValues(value, keys, vals);
         for (CFIndex i = 0; i < n; i++) {
-            char kbuf[256];
-            if (CFGetTypeID(keys[i]) == CFStringGetTypeID())
-                CFStringGetCString(keys[i], kbuf, sizeof(kbuf), kCFStringEncodingUTF8);
-            else
+            char kbuf[256] = {0};
+            if (CFGetTypeID(keys[i]) == CFStringGetTypeID()) {
+                if (!CFStringGetCString(keys[i], kbuf, sizeof(kbuf), kCFStringEncodingUTF8))
+                    snprintf(kbuf, sizeof(kbuf), "<unconvertible-key>");
+            } else {
                 snprintf(kbuf, sizeof(kbuf), "<non-string-key>");
+            }
+            if (isSerialKey(kbuf)) {
+                printf("%s  %s = <redacted>\n", pad, kbuf);
+                continue;
+            }
             printf("%s  %s = ", pad, kbuf);
             printCFType(vals[i], indent + 4);
         }
@@ -92,8 +108,13 @@ int main(void) {
 
                 // Sort keys alphabetically for readability
                 for (CFIndex i = 0; i < n; i++) {
-                    char kbuf[256];
-                    CFStringGetCString(keys[i], kbuf, sizeof(kbuf), kCFStringEncodingUTF8);
+                    char kbuf[256] = {0};
+                    if (!CFStringGetCString(keys[i], kbuf, sizeof(kbuf), kCFStringEncodingUTF8))
+                        snprintf(kbuf, sizeof(kbuf), "<unconvertible-key>");
+                    if (isSerialKey(kbuf)) {
+                        printf("  %s = <redacted>\n", kbuf);
+                        continue;
+                    }
                     printf("  %s = ", kbuf);
                     printCFType(vals[i], 4);
                 }
@@ -122,8 +143,13 @@ int main(void) {
                 const void **vals = malloc(n * sizeof(void*));
                 CFDictionaryGetKeysAndValues(props, keys, vals);
                 for (CFIndex i = 0; i < n; i++) {
-                    char kbuf[256];
-                    CFStringGetCString(keys[i], kbuf, sizeof(kbuf), kCFStringEncodingUTF8);
+                    char kbuf[256] = {0};
+                    if (!CFStringGetCString(keys[i], kbuf, sizeof(kbuf), kCFStringEncodingUTF8))
+                        snprintf(kbuf, sizeof(kbuf), "<unconvertible-key>");
+                    if (isSerialKey(kbuf)) {
+                        printf("  %s = <redacted>\n", kbuf);
+                        continue;
+                    }
                     printf("  %s = ", kbuf);
                     printCFType(vals[i], 4);
                 }
@@ -147,7 +173,7 @@ int main(void) {
             IOServiceMatching(chargerClasses[c]), &iter);
         if (kr == KERN_SUCCESS) {
             while ((svc = IOIteratorNext(iter)) != 0) {
-                io_name_t name;
+                io_name_t name = {0};
                 IORegistryEntryGetName(svc, name);
                 printf("\n  --- %s \"%s\" ---\n", chargerClasses[c], name);
                 CFMutableDictionaryRef props = NULL;
@@ -158,8 +184,13 @@ int main(void) {
                     const void **vals = malloc(n * sizeof(void*));
                     CFDictionaryGetKeysAndValues(props, keys, vals);
                     for (CFIndex i = 0; i < n; i++) {
-                        char kbuf[256];
-                        CFStringGetCString(keys[i], kbuf, sizeof(kbuf), kCFStringEncodingUTF8);
+                        char kbuf[256] = {0};
+                        if (!CFStringGetCString(keys[i], kbuf, sizeof(kbuf), kCFStringEncodingUTF8))
+                            snprintf(kbuf, sizeof(kbuf), "<unconvertible-key>");
+                        if (isSerialKey(kbuf)) {
+                            printf("    %s = <redacted>\n", kbuf);
+                            continue;
+                        }
                         printf("    %s = ", kbuf);
                         printCFType(vals[i], 6);
                     }

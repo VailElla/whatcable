@@ -1,6 +1,7 @@
 /*
  * 21_tb_cfplugin_retimer.c - Use IOThunderboltLib CFPlugin to read TB config
- *                            space registers and attempt retimer enumeration.
+ *                            space registers, plus a passive property scan
+ *                            for retimer/cable-related keys.
  *
  * Apple's IOThunderboltLib.plugin exports IOThunderboltLibPriv with methods:
  *   configRead(routeString, adapter, space, offset, length, ???)
@@ -8,10 +9,17 @@
  *   routerOperation(routeString, opcode, metadata*, data*, dataLen, status*)
  *   findCapability(routeString, ...)
  *
- * This probe loads the plugin as an IOCFPlugIn and attempts to:
- *   1. Open the CFPlugin interface on an IOThunderboltController
- *   2. Read PORT_CS_18 (offset 0x12) for cable capability bits
- *   3. Issue ENUMERATE_RETIMERS via routerOperation
+ * This probe loads the plugin as an IOCFPlugIn and attempts to open the
+ * CFPlugin interface on an IOThunderboltController, then does a read-only
+ * property scan across the IOThunderboltSwitch/Port/Peer/Retimer/Cable/Link
+ * classes for retimer/cable-related keys.
+ *
+ * An earlier version of this probe also sent guessed IOConnectCallMethod
+ * selector numbers straight to the live IOThunderboltController user
+ * client, hoping one would turn out to be configRead/routerOperation. That
+ * is undocumented input to a kernel driver on the user's machine, and the
+ * selector survey never actually found a working selector, so it was
+ * removed. Everything else here is passive/read-only.
  *
  * Build:  clang -framework IOKit -framework CoreFoundation -o tb_cfplugin probes/21_tb_cfplugin_retimer.c
  * Run:    ./tb_cfplugin
@@ -20,7 +28,6 @@
 
 #include <stdio.h>
 #include <string.h>
-#include <dlfcn.h>
 #include <IOKit/IOKitLib.h>
 #include <IOKit/IOCFPlugIn.h>
 #include <CoreFoundation/CoreFoundation.h>
@@ -138,134 +145,6 @@ static void try_cfplugin(io_service_t service, const char *label) {
     }
 }
 
-/* Alternative approach: directly load the dylib and call through its vtable */
-static void try_direct_dylib(io_service_t service, io_connect_t connect) {
-    printf("\n  Trying direct dylib approach...\n");
-
-    void *handle = dlopen(
-        "/System/Library/Extensions/IOThunderboltFamily.kext/Contents/PlugIns/"
-        "IOThunderboltLib.plugin/Contents/MacOS/IOThunderboltLib",
-        RTLD_LAZY);
-
-    if (!handle) {
-        printf("  dlopen failed: %s\n", dlerror());
-        return;
-    }
-    printf("  dylib loaded\n");
-
-    /* The plugin exports IOThunderboltLibFactory and the vtable symbols.
-     * We can try calling configRead through the IOConnectCallMethod interface
-     * since that's what the plugin's methods likely map to internally.
-     *
-     * From the selector survey in probe 20:
-     * - Selectors 0-3, 5-7, 9 responded (not kIOReturnUnsupported)
-     * - Selector 0 returned 0xe00002e3 (kIOReturnNoPower) which is odd
-     * - Selector 8 returned kIOReturnExclusiveAccess
-     *
-     * The plugin's configRead likely uses a specific selector with
-     * structured input containing (routeString, adapter, space, offset, length).
-     *
-     * Let's try passing config space read parameters to the selectors
-     * that responded.
-     */
-
-    /* USB4 spec: PORT_CS_18 is at adapter-relative offset 0x12.
-     * Lane adapters are adapter type 1. The host switch has route string 0.
-     *
-     * Try reading port config space via selectors that might be configRead.
-     * Based on the plugin vtable, configRead is early in the list.
-     * The user client selectors often mirror the vtable order:
-     *   sel 0 = configRead?
-     *   sel 1 = configWrite?
-     *   sel 2 = i2cCommand?
-     *   etc.
-     */
-
-    /* Try sel 0 with route_string=0, adapter=1, space=0, offset=0x12, length=1 */
-    printf("\n  Config space read attempts via IOConnectCallScalarMethod:\n");
-
-    struct {
-        int sel;
-        const char *guess;
-    } guesses[] = {
-        {0, "configRead"},
-        {1, "configWrite (skip)"},
-        {5, "routerOperation?"},
-        {0, NULL}
-    };
-
-    for (int g = 0; guesses[g].guess; g++) {
-        if (guesses[g].sel == 1) continue; /* skip write */
-        int sel = guesses[g].sel;
-
-        /* Try as scalar: route_string=0, adapter=1, space=0 (path), offset=0x12, length=1 */
-        uint64_t input[6] = {
-            0,     /* route string (host switch) */
-            1,     /* adapter number (first lane adapter) */
-            0,     /* config space (0 = path) */
-            0x12,  /* offset (PORT_CS_18) */
-            1,     /* length (1 dword) */
-            0      /* padding */
-        };
-        uint64_t output[8] = {0};
-        uint32_t outputCount = 8;
-
-        kern_return_t kr = IOConnectCallScalarMethod(connect, sel,
-            input, 6, output, &outputCount);
-        printf("    sel %d (%s) scalar[6]: 0x%x", sel, guesses[g].guess, kr);
-        if (kr == KERN_SUCCESS && outputCount > 0) {
-            printf(" out=[");
-            for (uint32_t i = 0; i < outputCount; i++) {
-                if (i > 0) printf(", ");
-                printf("0x%llx", output[i]);
-            }
-            printf("]");
-        }
-        printf("\n");
-
-        /* Try with fewer inputs */
-        outputCount = 8;
-        memset(output, 0, sizeof(output));
-        kr = IOConnectCallScalarMethod(connect, sel, input, 5, output, &outputCount);
-        printf("    sel %d (%s) scalar[5]: 0x%x", sel, guesses[g].guess, kr);
-        if (kr == KERN_SUCCESS && outputCount > 0) {
-            printf(" out=[");
-            for (uint32_t i = 0; i < outputCount; i++) {
-                if (i > 0) printf(", ");
-                printf("0x%llx", output[i]);
-            }
-            printf("]");
-        }
-        printf("\n");
-
-        /* Try as struct input */
-        uint32_t structIn[8] = {
-            0, 0,  /* route string (uint64 as two uint32) */
-            1,     /* adapter */
-            0,     /* space */
-            0x12,  /* offset */
-            1,     /* length */
-            0, 0
-        };
-        uint8_t structOut[64] = {0};
-        size_t structOutSize = sizeof(structOut);
-
-        kr = IOConnectCallMethod(connect, sel,
-            NULL, 0, structIn, sizeof(structIn),
-            NULL, NULL, structOut, &structOutSize);
-        printf("    sel %d (%s) struct: 0x%x outSize=%zu", sel, guesses[g].guess, kr, structOutSize);
-        if (kr == KERN_SUCCESS && structOutSize > 0) {
-            printf(" data=[");
-            for (size_t i = 0; i < structOutSize && i < 32; i++)
-                printf("%02x", structOut[i]);
-            printf("]");
-        }
-        printf("\n");
-    }
-
-    dlclose(handle);
-}
-
 /* Walk all TB port services and look for retimer/cable-related properties */
 static void check_all_tb_properties(void) {
     printf("\n## Full property scan of all IOThunderbolt services\n");
@@ -374,14 +253,6 @@ int main(void) {
                 char label[256];
                 snprintf(label, sizeof(label), "Controller #%d (%s)", ++idx, name);
                 try_cfplugin(svc, label);
-
-                /* Also try the direct approach with an open connection */
-                io_connect_t connect = 0;
-                kern_return_t kr = IOServiceOpen(svc, mach_task_self(), 0, &connect);
-                if (kr == KERN_SUCCESS) {
-                    try_direct_dylib(svc, connect);
-                    IOServiceClose(connect);
-                }
 
                 IOObjectRelease(svc);
                 break; /* Just try the first controller */

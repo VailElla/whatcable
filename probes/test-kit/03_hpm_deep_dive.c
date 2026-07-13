@@ -22,7 +22,7 @@ static void printDataHex(CFDataRef data) {
 static void walkTree(io_service_t service, int depth, const char *plane) {
     if (depth > 8) return;
 
-    io_name_t className, name;
+    io_name_t className = {0}, name = {0};
     IOObjectGetClass(service, className);
     IORegistryEntryGetName(service, name);
 

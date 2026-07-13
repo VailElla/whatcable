@@ -89,10 +89,10 @@ static void printCFValue(CFTypeRef value, int indent) {
 }
 
 static void dumpService(io_service_t service, const char *label) {
-    io_name_t className;
+    io_name_t className = {0};
     IOObjectGetClass(service, className);
 
-    io_name_t name;
+    io_name_t name = {0};
     IORegistryEntryGetName(service, name);
 
     printf("\n=== %s ===\n", label);
@@ -116,7 +116,7 @@ static void dumpService(io_service_t service, const char *label) {
     if (kr == KERN_SUCCESS) {
         io_service_t child;
         while ((child = IOIteratorNext(childIter))) {
-            io_name_t childClass;
+            io_name_t childClass = {0};
             IOObjectGetClass(child, childClass);
             printf("  Child: %s\n", childClass);
             IOObjectRelease(child);

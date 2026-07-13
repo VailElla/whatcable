@@ -96,7 +96,7 @@ static void dumpServiceFull(io_service_t service, const char *label) {
         io_service_t child;
         int childIdx = 0;
         while ((child = IOIteratorNext(childIter)) != 0) {
-            io_name_t childName;
+            io_name_t childName = {0};
             IORegistryEntryGetName(child, childName);
             char childLabel[256];
             snprintf(childLabel, sizeof(childLabel), "%s -> child[%d] \"%s\"", label, childIdx, childName);
@@ -145,7 +145,7 @@ int main(void) {
 
         int count = 0;
         while ((svc = IOIteratorNext(iter)) != 0) {
-            io_name_t name;
+            io_name_t name = {0};
             IORegistryEntryGetName(svc, name);
             char label[256];
             snprintf(label, sizeof(label), "%s[%d] \"%s\"", classes[c], count, name);

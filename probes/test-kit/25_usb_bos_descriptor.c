@@ -5,16 +5,18 @@
  *
  * Two stages:
  *   1. Dump IOKit-published properties whose keys look BOS/Billboard/USB4-ish.
- *   2. Open the device via the legacy IOUSBDeviceInterface (IOCFPlugIn) and
- *      issue a USB control transfer GET_DESCRIPTOR(BOS) to fetch the raw
- *      capability bytes. Parses common device capability descriptors:
- *      USB 2.0 Extension, SuperSpeed, SuperSpeedPlus, Container ID,
- *      Platform, Billboard, Configuration Summary, etc.
+ *   2. Fetch the raw BOS capability bytes via the legacy IOUSBDeviceInterface
+ *      (IOCFPlugIn) using a USB control transfer GET_DESCRIPTOR(BOS). Parses
+ *      common device capability descriptors: USB 2.0 Extension, SuperSpeed,
+ *      SuperSpeedPlus, Container ID, Platform, Billboard, Configuration
+ *      Summary, etc.
  *
- * The legacy IOUSBDeviceInterface path works without DriverKit / USB
- * entitlements on macOS as long as no kernel driver has exclusive-opened
- * the device. Mass-storage and HID devices are usually claimed; raw cables,
- * docks in pass-through, and Billboard devices typically are not.
+ * This probe never calls USBDeviceOpen: the control transfer goes through
+ * DeviceRequest on the unopened device interface, the same no-open pattern
+ * used by Sources/WhatCableDarwinBackend/Watchers/BillboardDescriptorReader.swift.
+ * That works without DriverKit / USB entitlements as long as no kernel driver
+ * has exclusive-claimed the device, and it avoids the side effects of an
+ * open (e.g. disturbing a mass-storage device's mounted volume).
  *
  * Compile:
  *   clang -framework IOKit -framework CoreFoundation \
@@ -291,14 +293,6 @@ static void fetchBOSDescriptor(io_service_t service) {
         return;
     }
 
-    int opened = 0;
-    kr = (*dev)->USBDeviceOpen(dev);
-    if (kr == kIOReturnSuccess) {
-        opened = 1;
-    } else {
-        printf("  [BOS] USBDeviceOpen failed: 0x%x (trying control xfer without open)\n", kr);
-    }
-
     /* Stage A: fetch BOS descriptor header (5 bytes) to learn wTotalLength. */
     UInt8 header[5] = {0};
     IOUSBDevRequest req;
@@ -385,7 +379,6 @@ static void fetchBOSDescriptor(io_service_t service) {
     free(buf);
 
 done:
-    if (opened) (*dev)->USBDeviceClose(dev);
     (*dev)->Release(dev);
 }
 
@@ -408,7 +401,7 @@ static void dumpServiceProperties(io_service_t service, const char *label) {
         "SuperSpeed", "SuperSpeedPlus", "SSPCapability",
         "bNumConfigurations", "locationID", "sessionID",
         "kUSBContainerID", "ContainerID",
-        "USB Serial Number", "iSerialNumber",
+        /* Serial-number keys deliberately not captured: privacy promise. */
         NULL
     };
 
@@ -462,7 +455,7 @@ int main(void) {
         io_service_t svc;
         int count = 0;
         while ((svc = IOIteratorNext(iter)) != 0) {
-            io_name_t name;
+            io_name_t name = {0};
             IORegistryEntryGetName(svc, name);
             char label[256];
             snprintf(label, sizeof(label), "IOUSBHostDevice[%d] \"%s\"", count, name);

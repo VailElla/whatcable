@@ -121,7 +121,7 @@ static void dumpCFType(CFTypeRef value, int depth) {
 }
 
 static void dumpServiceFull(io_service_t service, int depth) {
-    io_name_t className;
+    io_name_t className = {0};
     IOObjectGetClass(service, className);
 
     printIndent(depth);
@@ -225,7 +225,7 @@ int main(void) {
         if (kr == KERN_SUCCESS) {
             io_service_t svc;
             while ((svc = IOIteratorNext(iter))) {
-                io_name_t className;
+                io_name_t className = {0};
                 IOObjectGetClass(svc, className);
 
                 CFNumberRef vid = (CFNumberRef)IORegistryEntryCreateCFProperty(
@@ -300,7 +300,7 @@ int main(void) {
                 if (kr == KERN_SUCCESS) {
                     io_service_t child;
                     while ((child = IOIteratorNext(childIter))) {
-                        io_name_t childClass;
+                        io_name_t childClass = {0};
                         IOObjectGetClass(child, childClass);
                         printf("  child: %s\n", childClass);
                         CFMutableDictionaryRef childProps = NULL;

@@ -206,7 +206,7 @@ static void dumpCFType(CFTypeRef value, int depth) {
 static void matchingCallback(void *refcon, io_iterator_t iterator) {
     io_service_t svc;
     while ((svc = IOIteratorNext(iterator))) {
-        io_name_t name;
+        io_name_t name = {0};
         IOObjectGetClass(svc, name);
         printf("\n>>> NEW SERVICE: %s\n", name);
 
@@ -225,7 +225,7 @@ static void matchingCallback(void *refcon, io_iterator_t iterator) {
 // Interest callback for HPM property changes
 static void interestCallback(void *refcon, io_service_t service,
                               uint32_t messageType, void *messageArgument) {
-    io_name_t cn;
+    io_name_t cn = {0};
     IOObjectGetClass(service, cn);
 
     // Get port number
@@ -266,7 +266,7 @@ static void interestCallback(void *refcon, io_service_t service,
             CFStringRef key = CFStringCreateWithCString(kCFAllocatorDefault, pins[j], kCFStringEncodingUTF8);
             CFNumberRef val = CFDictionaryGetValue(pinCfg, key);
             int v = 0;
-            if (val) CFNumberGetValue(val, kCFNumberIntType, &v);
+            if (val && CFGetTypeID(val) == CFNumberGetTypeID()) CFNumberGetValue(val, kCFNumberIntType, &v);
             printf("%s=%d ", pins[j], v);
             CFRelease(key);
         }

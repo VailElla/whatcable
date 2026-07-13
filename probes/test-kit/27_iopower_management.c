@@ -129,7 +129,7 @@ int main(void) {
         int count = 0;
         int found = 0;
         while ((svc = IOIteratorNext(iter)) != 0) {
-            io_name_t name;
+            io_name_t name = {0};
             IORegistryEntryGetName(svc, name);
             char label[256];
             snprintf(label, sizeof(label), "[%d] %s", count, name);
@@ -178,7 +178,7 @@ int main(void) {
         if (kr == KERN_SUCCESS) {
             int count = 0;
             while ((svc = IOIteratorNext(childIter)) != 0) {
-                io_name_t name;
+                io_name_t name = {0};
                 IORegistryEntryGetName(svc, name);
                 if (strcasestr(name, "Port") || strcasestr(name, "HPM") ||
                     strcasestr(name, "USB") || strcasestr(name, "Thunder") ||

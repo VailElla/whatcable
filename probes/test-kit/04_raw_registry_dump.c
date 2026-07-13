@@ -94,7 +94,7 @@ static void dumpAllMatchingServices(const char *className) {
     io_service_t service;
     int idx = 0;
     while ((service = IOIteratorNext(iter))) {
-        io_name_t name;
+        io_name_t name = {0};
         IORegistryEntryGetName(service, name);
 
         printf("\n========================================\n");
@@ -109,9 +109,8 @@ static void dumpAllMatchingServices(const char *className) {
         }
 
         // Also check parent classes
-        io_name_t superClass;
         // Walk up the class hierarchy
-        io_name_t curClass;
+        io_name_t curClass = {0};
         IOObjectGetClass(service, curClass);
         printf("  Class hierarchy: %s", curClass);
 

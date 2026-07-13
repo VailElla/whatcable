@@ -82,14 +82,17 @@ static int readIntProperty(io_service_t svc, const char *key, long *out) {
 }
 
 /*
- * True if this service is (or carries) a Mass Storage interface (USB class
- * 0x08). Adapted from probe 25's deviceHasMassStorageInterface: we avoid
- * opening these because opening a storage device/interface whose media is
- * mounted as a removable volume makes macOS (Ventura+) raise the "would
- * like to access files on a removable volume" privacy prompt.
+ * True if this service is (or carries) a Mass Storage (USB class 0x08) or
+ * HID (USB class 0x03) interface. Adapted from probe 25's
+ * deviceHasMassStorageInterface: we avoid opening these because
+ *   - opening a storage device/interface whose media is mounted as a
+ *     removable volume makes macOS (Ventura+) raise the "would like to
+ *     access files on a removable volume" privacy prompt.
+ *   - opening a HID interface can seize a keyboard or mouse away from its
+ *     kernel driver, which is disruptive on the user's live input devices.
  *
- * Storage class can sit directly on the matched service (bDeviceClass on a
- * composite device, or bInterfaceClass on an IOUSBHostInterface matched
+ * Storage/HID class can sit directly on the matched service (bDeviceClass on
+ * a composite device, or bInterfaceClass on an IOUSBHostInterface matched
  * directly -- this probe's "IOUSBHostInterface" class loop matches
  * interfaces themselves, not their parent device), or on a child interface
  * (bInterfaceClass) when the matched service is a device node reporting
@@ -97,18 +100,18 @@ static int readIntProperty(io_service_t svc, const char *key, long *out) {
  * the full subtree), mirroring probe 25's reasoning: a device's interfaces
  * are always direct children, so one level is sufficient and correct.
  */
-static int serviceHasMassStorageClass(io_service_t service) {
-    enum { kUSBMassStorageClass = 0x08 };
+static int shouldSkipDeviceClass(io_service_t service) {
+    enum { kUSBMassStorageClass = 0x08, kUSBHIDClass = 0x03 };
 
     long deviceClass = 0;
     if (readIntProperty(service, "bDeviceClass", &deviceClass) &&
-        deviceClass == kUSBMassStorageClass) {
+        (deviceClass == kUSBMassStorageClass || deviceClass == kUSBHIDClass)) {
         return 1;
     }
 
     long interfaceClass = 0;
     if (readIntProperty(service, "bInterfaceClass", &interfaceClass) &&
-        interfaceClass == kUSBMassStorageClass) {
+        (interfaceClass == kUSBMassStorageClass || interfaceClass == kUSBHIDClass)) {
         return 1;
     }
 
@@ -121,7 +124,7 @@ static int serviceHasMassStorageClass(io_service_t service) {
     while ((child = IOIteratorNext(children)) != 0) {
         long childInterfaceClass = 0;
         if (readIntProperty(child, "bInterfaceClass", &childInterfaceClass) &&
-            childInterfaceClass == kUSBMassStorageClass) {
+            (childInterfaceClass == kUSBMassStorageClass || childInterfaceClass == kUSBHIDClass)) {
             found = 1;
         }
         IOObjectRelease(child);
@@ -155,15 +158,17 @@ static void dumpService(io_service_t service, const char *label, const char *cla
     CFRelease(props);
 
     // Try opening user client, but skip USB classes carrying a mass-storage
-    // class: mirrors probe 25's deviceHasMassStorageInterface guard, since
-    // opening such a service can trigger the macOS removable-volume privacy
-    // prompt or disturb a mounted volume. Thunderbolt-native classes (any
-    // class name containing "Thunderbolt") are never USB storage devices
-    // and keep the existing unconditional-open behaviour.
+    // or HID class: mirrors probe 25's deviceHasMassStorageInterface guard,
+    // extended to HID since opening such a service can trigger the macOS
+    // removable-volume privacy prompt (storage), disturb a mounted volume
+    // (storage), or seize a keyboard/mouse from its kernel driver (HID).
+    // Thunderbolt-native classes (any class name containing "Thunderbolt")
+    // are never USB storage/HID devices and keep the existing
+    // unconditional-open behaviour.
     int isThunderboltClass = strstr(className, "Thunderbolt") != NULL;
-    if (!isThunderboltClass && serviceHasMassStorageClass(service)) {
-        printf("  [safety] Mass-storage class detected; skipping IOServiceOpen to avoid "
-               "the macOS removable-volume prompt\n");
+    if (!isThunderboltClass && shouldSkipDeviceClass(service)) {
+        printf("  [safety] Mass-storage or HID class detected; skipping IOServiceOpen to "
+               "avoid the macOS removable-volume prompt / disturbing input devices\n");
     } else {
         io_connect_t conn;
         kr = IOServiceOpen(service, mach_task_self(), 0, &conn);
@@ -249,7 +254,7 @@ int main(void) {
 
         int count = 0;
         while ((svc = IOIteratorNext(iter)) != 0) {
-            io_name_t name;
+            io_name_t name = {0};
             IORegistryEntryGetName(svc, name);
             char label[256];
             snprintf(label, sizeof(label), "%s[%d] \"%s\"", classes[c], count, name);
