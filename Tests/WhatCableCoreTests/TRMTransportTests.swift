@@ -154,7 +154,7 @@ struct TRMTransportTests {
     /// UUID match: both transport and port carry the same UUID. Must match.
     @Test("canonicallyMatches uses UUID when both sides have matching UUID")
     func canonicallyMatchesUUIDOnBothSides() {
-        let uuid = "7C30AF2D-D913-3441-0CD9-435CAC6CFA51"
+        let uuid = "7C30AF2D-CC71-7D20-5287-C77DB8476817"
         let t = makeTRM(portKey: "2/1", uuid: uuid)
         let port = makePort(portNumber: 1, portType: "USB-C", uuid: uuid)
         #expect(t.canonicallyMatches(port: port))
@@ -164,7 +164,7 @@ struct TRMTransportTests {
     @Test("canonicallyMatches falls back to portKey when transport has no UUID (M1/M2)")
     func canonicallyMatchesFallsBackToPortKey() {
         let t = makeTRM(portKey: "2/1", uuid: nil)
-        let port = makePort(portNumber: 1, portType: "USB-C", uuid: "7C30AF2D-D913-3441-0CD9-435CAC6CFA51")
+        let port = makePort(portNumber: 1, portType: "USB-C", uuid: "7C30AF2D-CC71-7D20-5287-C77DB8476817")
         #expect(t.canonicallyMatches(port: port))
     }
 
@@ -182,8 +182,8 @@ struct TRMTransportTests {
 
     @Test("canonicalJoinKey returns normalised UUID when UUID is present")
     func canonicalJoinKeyNormalisedUUID() {
-        let t = makeTRM(uuid: "17BD562D-D913-3441-0CD9-435CAC6CFA51")
-        #expect(t.canonicalJoinKey == "17bd562dd91334410cd9435cac6cfa51")
+        let t = makeTRM(uuid: "AAAA1111-BBBB-2222-CCCC-333344445555")
+        #expect(t.canonicalJoinKey == "aaaa1111bbbb2222cccc333344445555")
     }
 
     @Test("canonicalJoinKey falls back to portKey when UUID is nil")

@@ -14,7 +14,7 @@ struct CanonicalJoinKeyTests {
 
     @Test("PowerSource matches by UUID when both sides have a UUID")
     func powerSourceMatchesUUID() {
-        let uuid = "7C30AF2D-D913-3441-0CD9-435CAC6CFA51"
+        let uuid = "7C30AF2D-CC71-7D20-5287-C77DB8476817"
         let source = PowerSource(id: 1, name: "USB-PD",
                                  parentPortType: 2, parentPortNumber: 1,
                                  options: [], winning: nil,
@@ -32,7 +32,7 @@ struct CanonicalJoinKeyTests {
                                  options: [], winning: nil,
                                  hpmControllerUUID: nil)
         let port = makePort(portNumber: 1, portType: "USB-C",
-                            uuid: "7C30AF2D-D913-3441-0CD9-435CAC6CFA51")
+                            uuid: "7C30AF2D-CC71-7D20-5287-C77DB8476817")
         #expect(source.canonicallyMatches(port: port))
     }
 
@@ -55,8 +55,8 @@ struct CanonicalJoinKeyTests {
         let source = PowerSource(id: 1, name: "USB-PD",
                                  parentPortType: 2, parentPortNumber: 4,
                                  options: [], winning: nil,
-                                 hpmControllerUUID: "17BD562D-D913-3441-0CD9-435CAC6CFA51")
-        #expect(source.canonicalJoinKey == "17bd562dd91334410cd9435cac6cfa51")
+                                 hpmControllerUUID: "AAAA1111-BBBB-2222-CCCC-333344445555")
+        #expect(source.canonicalJoinKey == "aaaa1111bbbb2222cccc333344445555")
     }
 
     @Test("PowerSource canonicalJoinKey falls back to portKey when UUID is nil")
@@ -72,7 +72,7 @@ struct CanonicalJoinKeyTests {
 
     @Test("CIOCableCapability matches by UUID when both sides have a UUID")
     func cioMatchesUUID() {
-        let uuid = "7C30AF2D-D913-3441-0CD9-435CAC6CFA51"
+        let uuid = "7C30AF2D-CC71-7D20-5287-C77DB8476817"
         let cio = CIOCableCapability(id: 1, portKey: "2/1",
                                      cableGeneration: 2, negotiatedLinkSpeed: 3,
                                      generation: 3, asymmetricModeSupported: nil,
@@ -90,7 +90,7 @@ struct CanonicalJoinKeyTests {
                                      legacyAdapter: nil, linkTrainingMode: nil,
                                      hpmControllerUUID: nil)
         let port = makePort(portNumber: 1, portType: "USB-C",
-                            uuid: "7C30AF2D-D913-3441-0CD9-435CAC6CFA51")
+                            uuid: "7C30AF2D-CC71-7D20-5287-C77DB8476817")
         #expect(cio.canonicallyMatches(port: port))
     }
 
@@ -113,8 +113,8 @@ struct CanonicalJoinKeyTests {
                                      cableGeneration: nil, negotiatedLinkSpeed: 3,
                                      generation: nil, asymmetricModeSupported: nil,
                                      legacyAdapter: nil, linkTrainingMode: nil,
-                                     hpmControllerUUID: "17BD562D-D913-3441-0CD9-435CAC6CFA51")
-        #expect(cio.canonicalJoinKey == "17bd562dd91334410cd9435cac6cfa51")
+                                     hpmControllerUUID: "AAAA1111-BBBB-2222-CCCC-333344445555")
+        #expect(cio.canonicalJoinKey == "aaaa1111bbbb2222cccc333344445555")
     }
 
     @Test("CIOCableCapability canonicalJoinKey falls back to portKey when UUID is nil")
@@ -131,7 +131,7 @@ struct CanonicalJoinKeyTests {
 
     @Test("USBPDSOP matches by UUID when both sides have a UUID")
     func usbpdSOPMatchesUUID() {
-        let uuid = "7C30AF2D-D913-3441-0CD9-435CAC6CFA51"
+        let uuid = "7C30AF2D-CC71-7D20-5287-C77DB8476817"
         let sop = USBPDSOP(id: 1, endpoint: .sopPrime, parentPortType: 2, parentPortNumber: 1,
                            vendorID: 0x413c, productID: 0xb070, bcdDevice: 0, vdos: [], specRevision: 3,
                            hpmControllerUUID: uuid)
@@ -144,7 +144,7 @@ struct CanonicalJoinKeyTests {
         let sop = USBPDSOP(id: 2, endpoint: .sopPrime, parentPortType: 2, parentPortNumber: 1,
                            vendorID: 0x413c, productID: 0xb070, bcdDevice: 0, vdos: [], specRevision: 3,
                            hpmControllerUUID: nil)
-        let port = makePort(portNumber: 1, portType: "USB-C", uuid: "7C30AF2D-D913-3441-0CD9-435CAC6CFA51")
+        let port = makePort(portNumber: 1, portType: "USB-C", uuid: "7C30AF2D-CC71-7D20-5287-C77DB8476817")
         #expect(sop.canonicallyMatches(port: port))
     }
 
@@ -163,8 +163,8 @@ struct CanonicalJoinKeyTests {
     func usbpdSOPCanonicalJoinKeyIsNormalisedUUID() {
         let sop = USBPDSOP(id: 1, endpoint: .sop, parentPortType: 2, parentPortNumber: 4,
                            vendorID: 0, productID: 0, bcdDevice: 0, vdos: [], specRevision: 3,
-                           hpmControllerUUID: "17BD562D-D913-3441-0CD9-435CAC6CFA51")
-        #expect(sop.canonicalJoinKey == "17bd562dd91334410cd9435cac6cfa51")
+                           hpmControllerUUID: "AAAA1111-BBBB-2222-CCCC-333344445555")
+        #expect(sop.canonicalJoinKey == "aaaa1111bbbb2222cccc333344445555")
     }
 
     @Test("USBPDSOP canonicalJoinKey falls back to portKey when UUID is nil")
@@ -179,7 +179,7 @@ struct CanonicalJoinKeyTests {
 
     @Test("DisplayPort matches by UUID when both sides have a UUID")
     func displayPortMatchesUUID() {
-        let uuid = "7C30AF2D-D913-3441-0CD9-435CAC6CFA51"
+        let uuid = "7C30AF2D-CC71-7D20-5287-C77DB8476817"
         let dp = makeDisplayPort(parentPortType: 2, parentPortNumber: 1, uuid: uuid)
         let port = makePort(portNumber: 1, portType: "USB-C", uuid: uuid)
         #expect(dp.canonicallyMatches(port: port))
@@ -188,7 +188,7 @@ struct CanonicalJoinKeyTests {
     @Test("DisplayPort falls back to portKey when source has no UUID (M1/M2)")
     func displayPortFallsBackToPortKey() {
         let dp = makeDisplayPort(parentPortType: 2, parentPortNumber: 1, uuid: nil)
-        let port = makePort(portNumber: 1, portType: "USB-C", uuid: "7C30AF2D-D913-3441-0CD9-435CAC6CFA51")
+        let port = makePort(portNumber: 1, portType: "USB-C", uuid: "7C30AF2D-CC71-7D20-5287-C77DB8476817")
         #expect(dp.canonicallyMatches(port: port))
     }
 
@@ -204,8 +204,8 @@ struct CanonicalJoinKeyTests {
     @Test("DisplayPort canonicalJoinKey is normalised UUID when UUID present")
     func displayPortCanonicalJoinKeyIsNormalisedUUID() {
         let dp = makeDisplayPort(parentPortType: 2, parentPortNumber: 4,
-                                 uuid: "17BD562D-D913-3441-0CD9-435CAC6CFA51")
-        #expect(dp.canonicalJoinKey == "17bd562dd91334410cd9435cac6cfa51")
+                                 uuid: "AAAA1111-BBBB-2222-CCCC-333344445555")
+        #expect(dp.canonicalJoinKey == "aaaa1111bbbb2222cccc333344445555")
     }
 
     @Test("DisplayPort canonicalJoinKey falls back to portKey when UUID is nil")
@@ -217,7 +217,7 @@ struct CanonicalJoinKeyTests {
     @Test("DisplayPort hpmControllerUUID is absent from encoded JSON output (privacy guard)")
     func displayPortUUIDNotInEncodedOutput() throws {
         let dp = makeDisplayPort(parentPortType: 2, parentPortNumber: 1,
-                                 uuid: "7C30AF2D-D913-3441-0CD9-435CAC6CFA51")
+                                 uuid: "7C30AF2D-CC71-7D20-5287-C77DB8476817")
         let data = try JSONEncoder().encode(dp)
         let json = String(data: data, encoding: .utf8) ?? ""
         #expect(!json.contains("hpmControllerUUID"),

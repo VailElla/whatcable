@@ -358,7 +358,7 @@ struct TextFormatterTests {
             overcurrentCount: nil, pinConfiguration: [:], powerCurrentLimits: [],
             firmwareVersion: nil, bootFlagsHex: nil,
             rawProperties: [
-                "ConnectionUUID": "04A093D7-43A3-471F-A901-4A58EB4F6FE0",
+                "ConnectionUUID": "DDDD6666-EEEE-7777-FFFF-888899990000",
                 "PortType": "2",
                 "VendorID": "0x05AC",
             ]
@@ -369,7 +369,7 @@ struct TextFormatterTests {
         )
 
         #expect(!output.contains("ConnectionUUID"), "ConnectionUUID must not appear in text output")
-        #expect(!output.contains("04A093D7"), "ConnectionUUID value must not appear in text output")
+        #expect(!output.contains("DDDD6666"), "ConnectionUUID value must not appear in text output")
         #expect(output.contains("PortType"), "PortType must appear in text output")
         #expect(output.contains("VendorID"), "VendorID must appear in text output")
     }

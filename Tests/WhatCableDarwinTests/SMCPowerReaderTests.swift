@@ -56,13 +56,13 @@ struct SMCPowerReaderTests {
     @Test("HPM UUID normalisation strips dashes and lowercases")
     func uuidNormalisation() {
         #expect(
-            HPMPortUUIDMap.normalise("17BD562D-D913-3441-0CD9-435CAC6CFA51")
-                == "17bd562dd91334410cd9435cac6cfa51"
+            HPMPortUUIDMap.normalise("AAAA1111-BBBB-2222-CCCC-333344445555")
+                == "aaaa1111bbbb2222cccc333344445555"
         )
         // Already-normalised SMC-style input is unchanged.
         #expect(
-            HPMPortUUIDMap.normalise("6230af2dee59552ee28a652ccc0e7b11")
-                == "6230af2dee59552ee28a652ccc0e7b11"
+            HPMPortUUIDMap.normalise("6230af2d000000000000112233445566")
+                == "6230af2d000000000000112233445566"
         )
     }
 
@@ -73,7 +73,7 @@ struct SMCPowerReaderTests {
             present: true,
             volts: 5.18,
             amps: 0.643,
-            uuid: "17bd562dd91334410cd9435cac6cfa51"
+            uuid: "aaaa1111bbbb2222cccc333344445555"
         )
         // The channel's UUID maps to physical port @4 (the non-positional case).
         let sample = PowerTelemetryWatcher.smcPortSample(channel: channel, portKey: "2/4")
@@ -107,7 +107,7 @@ struct SMCPowerReaderTests {
     func smcChannelMagSafeKey() {
         let channel = SMCPortPowerChannel(
             channel: 4, present: true, volts: 9.0, amps: 1.0,
-            uuid: "7c30af2dcc717d205287c77db8476817"
+            uuid: "7c30af2d000000000000aabbccddeeff"
         )
         let sample = PowerTelemetryWatcher.smcPortSample(channel: channel, portKey: "17/1")
         #expect(sample.portKey == "17/1")
@@ -153,7 +153,7 @@ struct SMCPowerReaderTests {
 
     @Test("perPortMeteringSupported is true when at least one SMC channel UUID matches")
     func perPortMeteringSupportedWhenOneChannelMatches() {
-        let knownUUID = "17bd562dd91334410cd9435cac6cfa51"
+        let knownUUID = "aaaa1111bbbb2222cccc333344445555"
         let uuidMap: [String: String] = [knownUUID: "2/4"]
         let channels: [SMCPortPowerChannel] = [
             SMCPortPowerChannel(channel: 1, present: true, volts: 5.18, amps: 0.643,

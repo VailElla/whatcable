@@ -44,7 +44,9 @@ public struct AppleHPMInterface: Identifiable, Hashable {
     /// `AppleHPMDeviceHALType3`). Present on 100% of ports across all chip
     /// families (M1, M2, M3, M4, M5, Intel) per corpus probe 35: 704/704 ports
     /// carry one (409 `AppleHPMDeviceHALType3` + 295 `AppleHPMDevice`), 206 machines,
-    /// 2026-07-13. Pinned by `HPMControllerClassGateTests`.
+    /// 2026-07-13. The class PREDICATE is pinned everywhere by
+    /// `HPMControllerClassGateTests` (pure fixtures); the 704/704 corpus figure is
+    /// only checked where probe 35 is on disk (it is gitignored, so not in CI).
     ///
     /// This is an **internal in-session join key only**. It is never serialised
     /// to JSON or text output and must never appear in `--raw` or `--json`.

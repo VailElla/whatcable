@@ -1214,7 +1214,7 @@ struct JSONFormatterTests {
             overcurrentCount: nil, pinConfiguration: [:], powerCurrentLimits: [],
             firmwareVersion: nil, bootFlagsHex: nil,
             rawProperties: [
-                "ConnectionUUID": "04A093D7-43A3-471F-A901-4A58EB4F6FE0",
+                "ConnectionUUID": "DDDD6666-EEEE-7777-FFFF-888899990000",
                 "PortType": "2",
                 "VendorID": "0x05AC",
             ]

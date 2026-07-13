@@ -254,8 +254,8 @@ struct RegistryParsingTests {
     @Test("HPMPortUUIDMap.from(ports:) builds map from captured port UUIDs")
     func hpmPortUUIDMapFromPorts() {
         // Two ports with distinct UUIDs (the M3+ dashed form the watcher reads).
-        let uuid1 = "7C30AF2D-D913-3441-0CD9-000000000001"
-        let uuid2 = "6230AF2D-D913-3441-0CD9-000000000002"
+        let uuid1 = "7C30AF2D-CC71-7D20-5287-C77DB8476817"
+        let uuid2 = "6230AF2D-EE59-552E-E28A-652CCC0E7B11"
 
         let port1 = AppleHPMInterface(
             id: 1, serviceName: "Port-USB-C@1", className: "AppleHPMInterfaceType10",

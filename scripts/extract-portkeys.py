@@ -81,8 +81,8 @@ def read_probe_output(folder, probe_filename):
 # ---------- Probe 35 parser (unchanged since introduction) ----------
 # Blocks like:
 # [0] Port-USB-C@3        class=AppleHPMDeviceHALType3
-#       UUID=ADF2210F-FA00-4D29-4EFE-0C0883783E56  RID=2  Address=12
-#       ConnectionUUID=8F6F98E1-5276-4DC1-BF0B-6761BE6562EB
+#       UUID=17BD562D-D913-3441-0CD9-435CAC6CFA51  RID=2  Address=12
+#       ConnectionUUID=1BBA7253-D8C8-47B7-86EA-FE1C1ADC863F
 P35_HEADER = re.compile(r"^\[(\d+)\]\s+(.+?)\s+class=(\S+)\s*$")
 P35_UUID_LINE = re.compile(r"^\s*UUID=(\S+)\s+RID=(-?\d+)\s+Address=(-?\d+)\s*$")
 P35_CONN_LINE = re.compile(r"^\s*ConnectionUUID=(\S+)\s*$")
@@ -173,7 +173,7 @@ def parse_hpm_uuid_map_section(output):
 # === XHCI port -> HPM UUID via UsbIOPort (per-record ancestor join) ===
 # AppleUSB30XHCIARMPort (USB3 / SuperSpeed):
 #   usb-drd0-port-ss         UsbIOPort=IOService:/.../Port-USB-C@1
-#       HPM-class=AppleHPMDeviceHALType3  HPM-UUID=ADF2210F-...
+#       HPM-class=AppleHPMDeviceHALType3  HPM-UUID=17BD562D-...
 #   (AppleUSB30XHCIARMPort: none)          <- when zero ports matched
 #
 # AppleUSB20XHCIARMPort (USB2):

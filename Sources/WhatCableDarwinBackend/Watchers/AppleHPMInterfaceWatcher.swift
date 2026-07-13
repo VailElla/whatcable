@@ -271,8 +271,10 @@ public final class AppleHPMInterfaceWatcher: ObservableObject {
     /// (`AppleHPMDeviceHALType3`, a subclass). This matches probe 35's
     /// class-agnostic sweep. Corpus (206 machines, 2026-07-13): **704/704 ports**
     /// carry a UUID -- 409/409 `AppleHPMDeviceHALType3` and 295/295
-    /// `AppleHPMDevice` -- zero misses. Pinned by `HPMControllerClassGateTests`
-    /// via the shared `wcIsHPMControllerClass` predicate.
+    /// `AppleHPMDevice` -- zero misses. The class PREDICATE is pinned everywhere
+    /// by `HPMControllerClassGateTests` (pure fixtures) via the shared
+    /// `wcIsHPMControllerClass`; the 704/704 corpus figure itself is only checked
+    /// where probe 35 is on disk (gitignored, so not in CI).
     ///
     /// The UUID is an internal in-session join key only. It is stored on
     /// `AppleHPMInterface.hpmControllerUUID` and must never be serialised to

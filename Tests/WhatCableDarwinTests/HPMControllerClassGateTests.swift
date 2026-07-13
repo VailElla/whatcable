@@ -167,5 +167,17 @@ struct HPMControllerClassGateTests {
         #expect(!HPMPortUUIDMap.isValidNormalised(String(repeating: "a", count: 33)))
         #expect(!HPMPortUUIDMap.isValidNormalised(String(repeating: "z", count: 32)))
         #expect(!HPMPortUUIDMap.isValidNormalised(""))
+
+        // NON-ASCII. `Character.isHexDigit` is Unicode-aware and accepts
+        // full-width forms, so 32 full-width "Ａ" (U+FF21) passed the original
+        // length+isHexDigit check and would have become a join key. The SMC side
+        // only ever produces ASCII hex, so anything else is junk. Codex, #403.
+        let fullWidthA = String(repeating: "\u{FF21}", count: 32)
+        let isThirtyTwo = fullWidthA.count == 32
+        let unicodeHexAcceptsIt = fullWidthA.allSatisfy { $0.isHexDigit }
+        #expect(isThirtyTwo)               // the test only bites if this holds...
+        #expect(unicodeHexAcceptsIt)       // ...and only if isHexDigit really does accept it
+        #expect(!HPMPortUUIDMap.isValidNormalised(fullWidthA),
+                "32 full-width hex characters must be rejected: the join key must be ASCII hex")
     }
 }

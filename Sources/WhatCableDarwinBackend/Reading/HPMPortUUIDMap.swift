@@ -165,7 +165,12 @@ public enum HPMPortUUIDMap {
     /// Length alone is not enough: a 32-char non-hex string would otherwise
     /// become a join key (Codex review, PR #403).
     static func isValidNormalised(_ uuid: String) -> Bool {
-        uuid.count == 32 && uuid.allSatisfy(\.isHexDigit)
+        // ASCII hex only. `Character.isHexDigit` is Unicode-aware and accepts
+        // full-width forms (U+FF21 "Ａ" etc.), so 32 full-width A's would have
+        // passed and become a join key. Codex review, #403.
+        uuid.count == 32 && uuid.utf8.allSatisfy { c in
+            (0x30...0x39).contains(c) || (0x61...0x66).contains(c) || (0x41...0x46).contains(c)
+        }
     }
 
     static func normalise(_ uuid: String) -> String {

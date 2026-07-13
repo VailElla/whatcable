@@ -372,7 +372,7 @@ struct USBCPortFromTests {
             overcurrentCount: nil, pinConfiguration: [:], powerCurrentLimits: [],
             firmwareVersion: nil, bootFlagsHex: nil,
             rawProperties: [
-                "ConnectionUUID": "04A093D7-43A3-471F-A901-4A58EB4F6FE0",
+                "ConnectionUUID": "DDDD6666-EEEE-7777-FFFF-888899990000",
                 "PortType": "2",
                 "ConnectionActive": "1",
                 "VendorID": "0x05AC",
@@ -518,14 +518,14 @@ struct USBCPortFromTests {
     /// therefore have distinct canonical join keys and can never be confused.
     @Test("canonicalJoinKey is normalised UUID when UUID present (M3+)")
     func canonicalJoinKeyIsNormalisedUUID() throws {
-        let uuid = "7C30AF2D-D913-3441-0CD9-000000000001"
+        let uuid = "7C30AF2D-CC71-7D20-5287-C77DB8476817"
         let port = try #require(USBCPort.from(
             entryID: 1, serviceName: "Port-USB-C@1",
             className: "AppleHPMInterfaceType10",
             read: { self.m2MBA_USBC_Disconnected[$0] },
             hpmControllerUUID: uuid
         ))
-        let expectedKey = "7c30af2dd91334410cd9000000000001"
+        let expectedKey = "7c30af2dcc717d205287c77db8476817"
         #expect(port.canonicalJoinKey == expectedKey,
             "canonicalJoinKey must be the normalised (dashes stripped, lowercase) UUID")
     }

@@ -81,7 +81,7 @@ struct USB3TransportTests {
     /// path on M3+ where MagSafe@1 and USB-C@1 share portNumber 1.
     @Test("canonicallyMatches uses UUID when both sides have matching UUID")
     func canonicallyMatchesUUIDOnBothSides() {
-        let uuid = "7C30AF2D-D913-3441-0CD9-435CAC6CFA51"
+        let uuid = "7C30AF2D-CC71-7D20-5287-C77DB8476817"
         let transport = USB3Transport(id: 1, portKey: "2/1", signaling: 1,
                                       signalingDescription: "Gen 1", dataRole: "host",
                                       hpmControllerUUID: uuid)
@@ -98,7 +98,7 @@ struct USB3TransportTests {
         let transport = USB3Transport(id: 2, portKey: "2/1", signaling: 2,
                                       signalingDescription: "Gen 2", dataRole: "host",
                                       hpmControllerUUID: nil)
-        let port = makePort(portNumber: 1, portType: "USB-C", uuid: "7C30AF2D-D913-3441-0CD9-435CAC6CFA51")
+        let port = makePort(portNumber: 1, portType: "USB-C", uuid: "7C30AF2D-CC71-7D20-5287-C77DB8476817")
         #expect(transport.canonicallyMatches(port: port))
     }
 
@@ -127,8 +127,8 @@ struct USB3TransportTests {
     @Test("canonicalJoinKey returns normalised UUID when UUID is present")
     func canonicalJoinKeyNormalisedUUID() {
         let t = USB3Transport(id: 1, portKey: "2/4", signaling: 1, signalingDescription: nil, dataRole: nil,
-                              hpmControllerUUID: "17BD562D-D913-3441-0CD9-435CAC6CFA51")
-        #expect(t.canonicalJoinKey == "17bd562dd91334410cd9435cac6cfa51")
+                              hpmControllerUUID: "AAAA1111-BBBB-2222-CCCC-333344445555")
+        #expect(t.canonicalJoinKey == "aaaa1111bbbb2222cccc333344445555")
     }
 
     @Test("canonicalJoinKey falls back to portKey when UUID is nil")

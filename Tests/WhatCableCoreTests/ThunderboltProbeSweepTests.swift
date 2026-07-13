@@ -194,7 +194,7 @@ struct ThunderboltProbeSweepTests {
 
                     // UID must round-trip; depth must be non-negative.
                     #expect(sw.id == uid,
-                        "Folder \(folder): UID round-trip: stored \(sw.id), expected \(uid)")
+                        "Folder \(folder): TB switch UID did not round-trip, stored \(sw.id), expected \(uid)")
                     #expect(sw.depth >= 0,
                         "Folder \(folder): depth must be non-negative, got \(sw.depth)")
                     _ = sw.vendorName
