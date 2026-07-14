@@ -272,7 +272,15 @@ public struct AppleHPMInterface: Identifiable, Hashable {
 
         if !portNames.isEmpty {
             let directMatches = devices.filter { device in
-                guard let name = device.controllerPortName else { return false }
+                // Devices routed to their own sections by flag never match a
+                // port card, even when they carry a port-like name: an
+                // embedded built-in device keeps its shared board node
+                // (e.g. Port-USB-A@1) on the record as raw registry truth,
+                // and that name is controller-wide, not a physical port
+                // (discussion #417, PR 408 review).
+                guard !device.isBehindInternalHub,
+                      !device.isThunderboltTunnelled,
+                      let name = device.controllerPortName else { return false }
                 return portNames.contains { portName in
                     Self.portNameMatches(
                         portName,

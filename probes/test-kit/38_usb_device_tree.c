@@ -123,15 +123,19 @@ static void dumpAncestors(io_service_t device) {
         if (hasPort && ioPort[0]) printf(" UsbIOPort=%s", ioPort);
         printf("\n");
 
-        // Stop at the host controller, mirroring USBWatcher.controllerInfo /
-        // isThunderboltDockController EXACTLY so an offline replay reaches the
-        // same node production does:
+        // Stop at the host controller, mirroring USBWatcher.classifyAncestry's
+        // stop BOUNDARY so an offline replay reaches the same node production
+        // does:
         //   tunnel = AppleUSBXHCITR prefix
         //   native = AppleT* prefix AND ends with "USBXHCI" (so the M5 Pro/Max
         //            AppleT6050USBXHCIAUSS, which does NOT end in USBXHCI, is not
         //            treated as native, exactly as production)
         //   dock   = contains "USBXHCI" and is none of AppleT* / AppleUSBXHCITR /
         //            AppleIntel*
+        // Swift splits this dock bucket further (AppleEmbedded* = the Mac's own
+        // built-in wiring, discussion #417), but the union of stop classes is
+        // identical, which is all the replay cross-check needs. The probe
+        // deliberately records the boundary, not the category.
         const char *c = cls;
         size_t clen = strlen(c);
         int hasXHCI = strstr(c, "USBXHCI") != NULL;
@@ -181,6 +185,12 @@ int main(void) {
         long long pid   = readNumber(s, CFSTR("idProduct"), -1);
         long long speed = readNumber(s, CFSTR("Device Speed"), -1);
         long long klass = readNumber(s, CFSTR("bDeviceClass"), -1);
+        // The device's OWN USBPortType (the kind of port it is plugged
+        // into). The classifier uses it to tell the Mac's own hub silicon
+        // (value 2, internal board port) from user-attached devices on an
+        // embedded controller. -1 when absent; older captures lack this
+        // line, and the sweep then derives hub values from ancestor rows.
+        long long ownPT = readNumber(s, CFSTR("USBPortType"), -1);
 
         printf("--- Device[%d] ---\n", n);
         printf("  USB Product Name = \"%s\"\n", product);
@@ -191,6 +201,7 @@ int main(void) {
         printf("  idProduct = 0x%llx\n", (unsigned long long)(pid < 0 ? 0 : pid));
         printf("  Device Speed = %lld\n", speed);
         printf("  bDeviceClass = %lld\n", klass);
+        if (ownPT >= 0) printf("  USBPortType = %lld\n", ownPT);
         dumpAncestors(s);
         printf("\n");
 

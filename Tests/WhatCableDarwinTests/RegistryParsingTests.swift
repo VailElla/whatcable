@@ -109,14 +109,31 @@ struct RegistryParsingTests {
         // corpus must be recognised so its devices surface (TS3+ support case).
         for dock in [
             "AppleUSBXHCIFL1100",
-            "AppleEmbeddedUSBXHCIFL1100",
             "AppleASMediaUSBXHCI",
             "AppleASMedia1042USBXHCI",
-            "AppleEmbeddedUSBXHCIASMedia3142",
             "AppleUSBXHCIAR",
         ] {
             #expect(USBWatcher.isThunderboltDockController(dock) == true, "\(dock) should be a dock controller")
         }
+
+        // Apple-embedded board controllers: the Mac's own built-in plain-USB
+        // wiring (Mac Studio front ports + back USB-A, M1 mini USB-A block).
+        // These carried the dock classification until discussion #417 showed
+        // that grouped a Studio's front ports under "reached through a
+        // Thunderbolt dock"; they are their own category now.
+        for embedded in [
+            "AppleEmbeddedUSBXHCIASMedia3142",
+            "AppleEmbeddedUSBXHCIFL1100",
+        ] {
+            #expect(USBWatcher.isThunderboltDockController(embedded) == false,
+                "\(embedded) is the Mac's own wiring, not a dock (discussion #417)")
+            #expect(USBWatcher.isEmbeddedBuiltInController(embedded) == true,
+                "\(embedded) should classify as an embedded built-in controller")
+        }
+        // The dock variants of the same silicon stay docks and never read as
+        // embedded: the prefix is the whole distinction.
+        #expect(USBWatcher.isEmbeddedBuiltInController("AppleASMediaUSBXHCI") == false)
+        #expect(USBWatcher.isEmbeddedBuiltInController("AppleUSBXHCIFL1100") == false)
 
         // Native Apple Silicon controllers: excluded by the AppleT prefix. The
         // M5 Pro/Max name ends in "AUSS", not "USBXHCI", so the suffix-based

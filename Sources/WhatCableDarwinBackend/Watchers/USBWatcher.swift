@@ -140,7 +140,12 @@ public final class USBWatcher: ObservableObject {
             raw[k] = stringify(v)
         }
 
-        let (busIdx, portName, tunnelled, behindInternalHub) = controllerInfo(for: service, fallback: locationID)
+        let (busIdx, portName, tunnelled, behindInternalHub) = controllerInfo(
+            for: service,
+            fallback: locationID,
+            ownUSBPortType: (dict["USBPortType"] as? NSNumber)?.intValue,
+            deviceClass: deviceClass
+        )
 
         // Read the Billboard Capability Descriptor (advertised Alt Modes and
         // their per-mode state) once, here at device-appearance. One-shot
@@ -198,6 +203,11 @@ public final class USBWatcher: ObservableObject {
         /// to `IOUSBHostDevice` (the hubs and devices), mirroring the
         /// conformance gate the live walk applies before reading the key.
         let usbPortType: Int?
+        /// Whether the node conforms to `IOUSBHostDevice` at all, i.e. is a
+        /// hub or device rather than port/controller plumbing. Used by the
+        /// embedded-branch plumbing rule: a hub with NO conforming ancestor
+        /// sits directly on the controller's root ports.
+        let conformsToUSBHostDevice: Bool
     }
 
     /// The decisions `controllerInfo` derives from the parent walk.
@@ -215,7 +225,13 @@ public final class USBWatcher: ObservableObject {
         let tunnelled: Bool
         /// The walk ended at a native Apple Silicon controller (`AppleT*USBXHCI`).
         let reachedNativeController: Bool
-        /// The device is on a desktop Mac's plain-USB built-in port (issue #348).
+        /// The walk ended at an Apple-embedded board controller
+        /// (`isEmbeddedBuiltInController`): the Mac's own extra built-in
+        /// plain-USB wiring (discussion #417).
+        let reachedEmbeddedController: Bool
+        /// The device is on a desktop Mac's plain-USB built-in port, either
+        /// via the no-port-node native path (issue #348) or behind an
+        /// Apple-embedded board controller (discussion #417).
         let behindInternalHub: Bool
     }
 
@@ -241,7 +257,20 @@ public final class USBWatcher: ObservableObject {
     /// Pure: no IOKit. This is the seam that makes the walk replayable from
     /// probe 38 corpus captures (`USBWatcherCorpusSweepTests`); the live half
     /// is `collectAncestors`, which only gathers, never decides.
-    nonisolated static func classifyAncestry(_ ancestors: [USBAncestor]) -> AncestryClassification {
+    /// - Parameter ownUSBPortType: the DEVICE's own `USBPortType` property
+    ///   (the kind of port the device itself is plugged into), read from its
+    ///   property dictionary in `makeDevice`. Used only in the embedded
+    ///   branch: a value of `internalHubPortType` (2) means the device is
+    ///   plugged into a port internal to the Mac's board, i.e. it IS the
+    ///   Mac's own hub silicon, not something the user attached.
+    /// - Parameter deviceClass: the device's own `bDeviceClass`. Used only in
+    ///   the embedded branch: class 9 (hub) with no hub ancestor is the
+    ///   Mac's own root fan-out silicon (see the plumbing rule below).
+    nonisolated static func classifyAncestry(
+        _ ancestors: [USBAncestor],
+        ownUSBPortType: Int? = nil,
+        deviceClass: UInt8? = nil
+    ) -> AncestryClassification {
         var portName: String?
         var bus: Int?
         var tunnelled = false
@@ -249,6 +278,10 @@ public final class USBWatcher: ObservableObject {
         // controller (`AppleT*USBXHCI`), as opposed to the tunnelled
         // `AppleUSBXHCITR`. Used below to gate the internal-hub classification.
         var reachedNativeController = false
+        // Set when the walk lands on an Apple-embedded third-party controller
+        // (`AppleEmbedded*USBXHCI*`): built-in plain-USB wiring, see the
+        // branch below.
+        var reachedEmbeddedController = false
         // `USBPortType` of the nearest USB hub this device hangs off (the first
         // `IOUSBHostDevice` ancestor we meet going up). It reports the kind of
         // port that hub is plugged into: the Mac's own internal hubs report
@@ -257,7 +290,13 @@ public final class USBWatcher: ObservableObject {
         // one behind an external hub (issue #373).
         var hubPortType: Int?
 
+        // Whether any ancestor before the terminating controller conforms to
+        // IOUSBHostDevice, i.e. the device hangs off a hub rather than
+        // sitting directly on the controller's root ports.
+        var hasHubAncestor = false
+
         for ancestor in ancestors {
+            if ancestor.conformsToUSBHostDevice { hasHubAncestor = true }
             if portName == nil, let portPath = ancestor.usbIOPortPath {
                 if let name = Self.portName(fromUSBIOPortPath: portPath) {
                     portName = name
@@ -297,34 +336,90 @@ public final class USBWatcher: ObservableObject {
                 if let loc = ancestor.locationID { bus = Self.busIndex(fromLocationID: loc) }
                 break
             }
+            // Apple-embedded third-party controller: the Mac's own extra
+            // built-in plain-USB wiring (Mac Studio front ports and back
+            // USB-A, M1 Mac mini USB-A block), soldered to the board but
+            // driven by third-party silicon (`AppleEmbeddedUSBXHCIASMedia3142`,
+            // `AppleEmbeddedUSBXHCIFL1100`). Before this branch existed these
+            // fell through to the dock rule below and were wrongly grouped
+            // under "reached through a Thunderbolt dock" (discussion #417 on
+            // a Mac Studio). The `AppleEmbedded` prefix is Apple's own marker
+            // for board-mounted controllers: across the whole customer-probe
+            // corpus every `AppleEmbedded*` stop is a desktop Mac and no real
+            // dock ever carries the prefix.
+            if Self.isEmbeddedBuiltInController(ancestor.className) {
+                reachedEmbeddedController = true
+                // Like the dock branch below, deliberately no `locationID`
+                // read: built-in devices are grouped by flag, never matched
+                // by bus index, so `bus` is left to the caller's fallback.
+                break
+            }
             // A Thunderbolt 3 dock (e.g. CalDigit TS3+) brings its own PCIe USB
             // host controller rather than tunnelling USB natively, so its
             // downstream devices enumerate under a third-party XHCI driver class
-            // (`AppleUSBXHCIFL1100`, `AppleASMediaUSBXHCI`,
-            // `AppleEmbeddedUSBXHCIASMedia3142`, `AppleUSBXHCIAR`, ...) instead of
-            // `AppleUSBXHCITR`. Those devices still reached the Mac over the
-            // Thunderbolt PCIe tunnel and have no `UsbIOPort` ancestor, so we flag
-            // them tunnelled and stop, exactly like the native-tunnel case above.
-            // Confirmed on TS3+ hardware (m4_macos27.0_c / m1pro_macos26.5.1_i in
-            // the customer-probe corpus). We do not read `locationID` here: a
-            // tunnelled device is attributed to its port by Thunderbolt topology,
-            // not bus index, so `bus` is left to the caller's fallback.
-            //
-            // KNOWN MISCLASSIFICATION (issue #417): desktop Macs with extra
-            // built-in plain-USB ports (Mac Studio front ports, Mac mini USB-A)
-            // wire them through an Apple-embedded third-party controller
-            // (`AppleEmbeddedUSBXHCIASMedia3142`, `AppleEmbeddedUSBXHCIFL1100`)
-            // that this rule cannot tell apart from a dock's, so their devices
-            // are wrongly flagged tunnelled and grouped under "reached through
-            // a Thunderbolt dock". Corpus-confirmed on two Mac Studios; pinned
-            // by the sweep tests until the fix lands.
+            // (`AppleUSBXHCIFL1100`, `AppleASMediaUSBXHCI`, `AppleUSBXHCIAR`,
+            // ...) instead of `AppleUSBXHCITR`. Those devices still reached the
+            // Mac over the Thunderbolt PCIe tunnel and have no `UsbIOPort`
+            // ancestor, so we flag them tunnelled and stop, exactly like the
+            // native-tunnel case above. Confirmed on TS3+ hardware
+            // (m4_macos27.0_c / m1pro_macos26.5.1_i in the customer-probe
+            // corpus). We do not read `locationID` here: a tunnelled device is
+            // attributed to its port by Thunderbolt topology, not bus index, so
+            // `bus` is left to the caller's fallback.
             if Self.isThunderboltDockController(ancestor.className) {
                 tunnelled = true
                 break
             }
         }
 
-        let behindInternalHub = Self.classifyBehindInternalHub(
+        // Everything behind an embedded controller is a built-in plain-USB
+        // port, so it belongs in the "Built-in USB ports" section (issue #348
+        // UX), not under a dock or a port card. Its `UsbIOPort` board node
+        // (e.g. "Port-USB-A@1") is KEPT on the record exactly as macOS
+        // reports it (owner rule: identifiers are never dropped; it is raw
+        // registry truth and a research join key). It is shared by every
+        // port on the controller, front USB-C and back USB-A alike, so it
+        // must never drive DISPLAY attribution: grouping routes these
+        // devices by the behindInternalHub flag, and the port-card matcher
+        // cannot match it (a Port-USB-A name never equals a Port-USB-C
+        // card, and a named device is excluded from the bus-index
+        // fallback), so no double-render is possible.
+        //
+        // One exclusion (raised across both PR 408 review rounds): the
+        // embedded controller's own hub silicon also enumerates as USB
+        // devices, and flagging THOSE would render the Mac's plumbing as
+        // permanently connected devices in the card. Two hardware signals
+        // identify plumbing, and BOTH are needed (verified over every
+        // embedded chain in the 524-machine corpus: 16 plumbing exclusions,
+        // all visibly Apple silicon; 33 user devices, all kept):
+        //   - own `USBPortType == internalHubPortType` (2): Apple marks its
+        //     internal hubs as plugged into board-internal ports (the
+        //     Studio ASMedia fan-out hubs).
+        //   - a hub-class device (bDeviceClass 9) with NO hub ancestor: it
+        //     sits directly on the controller's root ports, so it IS the
+        //     controller's own fan-out (the M1 mini FL1100 root-hub
+        //     personas, which do NOT carry USBPortType=2). Non-hub devices
+        //     directly on the controller are real user hardware (an iPhone
+        //     on an M1 mini USB-A port does exactly this) and are kept.
+        // Residual, documented: a USER hub plugged into a direct-wired
+        // USB-A port would match the second signal and be excluded; zero
+        // such cases exist in the corpus, and its children would still
+        // render (unnested), so the failure mode is mild. Excluded plumbing
+        // renders nowhere, exactly like the mini's internal hub on the
+        // native path.
+        //
+        // ASSUMPTION (same class as the AppleT-prefix note on
+        // isThunderboltDockController): AppleEmbedded* controllers only
+        // exist on desktop Macs (every corpus occurrence is a desktop; the
+        // sweep cross-checks this against probe-32 form factors). If a
+        // future LAPTOP shipped one, its devices would classify
+        // behind-internal-hub here and then be dropped by the desktop gate
+        // in TunnelledDeviceGrouping.group, vanishing from the UI. Revisit
+        // if the embedded-implies-desktop sweep ever fails.
+        let isOwnInternalPlumbing = ownUSBPortType == Self.internalHubPortType
+            || (deviceClass == 9 && !hasHubAncestor)
+        let behindInternalHub = (reachedEmbeddedController && !isOwnInternalPlumbing)
+            || Self.classifyBehindInternalHub(
             reachedNativeController: reachedNativeController,
             tunnelled: tunnelled,
             portName: portName,
@@ -336,18 +431,36 @@ public final class USBWatcher: ObservableObject {
             portName: portName,
             tunnelled: tunnelled,
             reachedNativeController: reachedNativeController,
+            reachedEmbeddedController: reachedEmbeddedController,
             behindInternalHub: behindInternalHub
         )
     }
 
+    /// True when `className` is an Apple-embedded third-party USB host
+    /// controller: board-mounted silicon driving a desktop Mac's extra
+    /// built-in plain-USB ports (Mac Studio front ports and back USB-A, M1
+    /// Mac mini USB-A block). Apple's own driver naming carries the
+    /// distinction: embedded controllers get the `AppleEmbedded` prefix
+    /// (`AppleEmbeddedUSBXHCIASMedia3142`, `AppleEmbeddedUSBXHCIFL1100`);
+    /// the same silicon inside a dock enumerates without it
+    /// (`AppleASMediaUSBXHCI`, `AppleUSBXHCIFL1100`). Verified across the
+    /// customer-probe corpus: every `AppleEmbedded*` stop is a desktop Mac,
+    /// and none of the 42 real-dock chains carries the prefix.
+    ///
+    /// Pure so it is unit-testable without IOKit.
+    nonisolated static func isEmbeddedBuiltInController(_ className: String) -> Bool {
+        className.hasPrefix("AppleEmbedded") && className.contains("USBXHCI")
+    }
+
     /// True when `className` is a host controller that ends the ancestor walk
-    /// (native, tunnel, or dock: the same three cases `classifyAncestry`
-    /// breaks on, composed from the same predicates so the two can't drift).
-    /// Used by `collectAncestors` to stop gathering at the controller, exactly
-    /// where the pure classification stops reading.
+    /// (native, tunnel, embedded, or dock: the same four cases
+    /// `classifyAncestry` breaks on, composed from the same predicates so the
+    /// two can't drift). Used by `collectAncestors` to stop gathering at the
+    /// controller, exactly where the pure classification stops reading.
     nonisolated static func isWalkTerminator(_ className: String) -> Bool {
         className.hasPrefix("AppleUSBXHCITR")
             || (className.hasPrefix("AppleT") && className.hasSuffix("USBXHCI"))
+            || isEmbeddedBuiltInController(className)
             || isThunderboltDockController(className)
     }
 
@@ -395,8 +508,9 @@ public final class USBWatcher: ObservableObject {
             // Conformance gate: only `IOUSBHostDevice` nodes (the hubs and
             // devices) carry a meaningful `USBPortType`; reading it elsewhere
             // would let an unrelated node shadow the nearest hub's value.
+            let conforms = IOObjectConformsTo(current, "IOUSBHostDevice") != 0
             var usbPortType: Int?
-            if IOObjectConformsTo(current, "IOUSBHostDevice") != 0 {
+            if conforms {
                 usbPortType = (IORegistryEntryCreateCFProperty(
                     current, "USBPortType" as CFString, kCFAllocatorDefault, 0
                 )?.takeRetainedValue() as? NSNumber)?.intValue
@@ -406,7 +520,8 @@ public final class USBWatcher: ObservableObject {
                 className: className,
                 locationID: locationID,
                 usbIOPortPath: usbIOPortPath,
-                usbPortType: usbPortType
+                usbPortType: usbPortType,
+                conformsToUSBHostDevice: conforms
             ))
 
             // Stop at the host controller, like the old in-line walk did:
@@ -420,8 +535,17 @@ public final class USBWatcher: ObservableObject {
     /// `classifyAncestry` for what is derived and how; this wrapper only pairs
     /// the live collector with the pure classifier and applies the bus-index
     /// fallback.
-    private func controllerInfo(for service: io_service_t, fallback locationID: UInt32) -> (Int?, String?, Bool, Bool) {
-        let classification = Self.classifyAncestry(Self.collectAncestors(of: service))
+    private func controllerInfo(
+        for service: io_service_t,
+        fallback locationID: UInt32,
+        ownUSBPortType: Int?,
+        deviceClass: UInt8?
+    ) -> (Int?, String?, Bool, Bool) {
+        let classification = Self.classifyAncestry(
+            Self.collectAncestors(of: service),
+            ownUSBPortType: ownUSBPortType,
+            deviceClass: deviceClass
+        )
         // Fallback: the device's own locationID upper byte mirrors its
         // controller's locationID upper byte on Apple Silicon.
         let bus = classification.busIndex ?? Self.busIndex(fromLocationID: locationID)
@@ -483,13 +607,15 @@ public final class USBWatcher: ObservableObject {
 
     /// True when `className` is the third-party USB host controller a
     /// Thunderbolt 3 dock brings over its PCIe tunnel (Fresco Logic
-    /// `AppleUSBXHCIFL1100`, `AppleASMediaUSBXHCI`,
-    /// `AppleEmbeddedUSBXHCIASMedia3142`, `AppleUSBXHCIAR`, and the like), as
-    /// opposed to a native Apple Silicon controller (`AppleT*`), the native USB
-    /// tunnel (`AppleUSBXHCITR`, handled separately), or an Intel built-in
+    /// `AppleUSBXHCIFL1100`, `AppleASMediaUSBXHCI`, `AppleUSBXHCIAR`, and the
+    /// like), as opposed to a native Apple Silicon controller (`AppleT*`),
+    /// the native USB tunnel (`AppleUSBXHCITR`, handled separately), an
+    /// Apple-embedded board controller (`AppleEmbedded*`, the Mac's own
+    /// built-in plain-USB wiring, see `isEmbeddedBuiltInController`; treating
+    /// these as docks was the discussion #417 bug), or an Intel built-in
     /// controller (Intel Macs are unsupported and do not enumerate these in
     /// practice). The match is structural: any `*USBXHCI` host controller that
-    /// is none of those three is a dock-supplied controller, so its devices
+    /// is none of those four is a dock-supplied controller, so its devices
     /// reached the Mac over Thunderbolt. Validated against every controller
     /// class name in the customer-probe corpus with zero false positives,
     /// including the M5 Pro/Max native `AppleT6050USBXHCIAUSS` (excluded by the
@@ -508,6 +634,7 @@ public final class USBWatcher: ObservableObject {
             && !className.hasPrefix("AppleT")
             && !className.hasPrefix("AppleUSBXHCITR")
             && !className.hasPrefix("AppleIntel")
+            && !isEmbeddedBuiltInController(className)
     }
 
     nonisolated static func busIndex(fromLocationID locationID: UInt32) -> Int {

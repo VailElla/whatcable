@@ -548,3 +548,5 @@
 "Controller confirms Thunderbolt cable (%@)" = "控制器已确认 Thunderbolt 线缆（%@）";
 "Thunderbolt link active at %@" = "Thunderbolt 链路以 %@ 速率保持连接";
 "The cable claims %@, and the link has run at least %@. There's no host or device data to compare against, so we can't tell if anything else is limiting it." = "该线缆声称可达 %1$@，且链路实际至少已以 %2$@ 运行过。目前没有端口或设备数据可供比对，因此无法判断是否还有其他因素在限制它。";
+
+"Shared controller port" = "控制器共享端口";

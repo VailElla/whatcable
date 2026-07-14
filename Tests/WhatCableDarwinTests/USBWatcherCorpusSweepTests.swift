@@ -101,6 +101,13 @@ struct USBWatcherCorpusSweepTests {
     struct DeviceBlock {
         let locationID: UInt32
         let ancestors: [Ancestor]
+        /// The device's own `bDeviceClass = N` line (9 = hub). Feeds the
+        /// embedded-branch plumbing rule.
+        let deviceClass: UInt8?
+        /// The device's own `USBPortType = N` line (new captures), or nil.
+        /// Older captures lack it; `ownPortTypes(in:)` then derives hub
+        /// values from other chains' ancestor rows.
+        let ownUSBPortType: Int?
         /// The class name from the probe's own "(reached host controller: X)"
         /// line, or nil when the capture's walk never found one. This is the
         /// probe's independent (C-side) stop decision, cross-checked against
@@ -157,6 +164,8 @@ struct USBWatcherCorpusSweepTests {
             var deviceLocationID: UInt32?
             var ancestors: [Ancestor] = []
             var probeStopClass: String?
+            var ownUSBPortType: Int?
+            var deviceClass: UInt8?
             var inAncestors = false
             for rawLine in block.split(separator: "\n", omittingEmptySubsequences: false) {
                 let line = String(rawLine)
@@ -166,6 +175,18 @@ struct USBWatcherCorpusSweepTests {
                         var hex = trimmed[trimmed.index(after: eq)...].trimmingCharacters(in: .whitespaces)
                         if hex.hasPrefix("0x") || hex.hasPrefix("0X") { hex = String(hex.dropFirst(2)) }
                         deviceLocationID = UInt32(hex, radix: 16)
+                    }
+                    continue
+                }
+                if !inAncestors, trimmed.hasPrefix("USBPortType =") {
+                    if let eq = trimmed.firstIndex(of: "=") {
+                        ownUSBPortType = Int(trimmed[trimmed.index(after: eq)...].trimmingCharacters(in: .whitespaces))
+                    }
+                    continue
+                }
+                if !inAncestors, trimmed.hasPrefix("bDeviceClass =") {
+                    if let eq = trimmed.firstIndex(of: "=") {
+                        deviceClass = UInt8(trimmed[trimmed.index(after: eq)...].trimmingCharacters(in: .whitespaces))
                     }
                     continue
                 }
@@ -182,8 +203,29 @@ struct USBWatcherCorpusSweepTests {
                 }
             }
             guard let loc = deviceLocationID else { return nil }
-            return DeviceBlock(locationID: loc, ancestors: ancestors, probeStopClass: probeStopClass)
+            return DeviceBlock(
+                locationID: loc, ancestors: ancestors, deviceClass: deviceClass,
+                ownUSBPortType: ownUSBPortType, probeStopClass: probeStopClass
+            )
         }
+    }
+
+    /// Own-`USBPortType` per locationID, derived from ancestor rows: an
+    /// `IOUSBHostDevice` ancestor at locationID X carrying `USBPortType=N`
+    /// IS device X's node, so N is X's own value. Pre-marker captures have
+    /// no per-device `USBPortType =` line; this map recovers it for hubs
+    /// (the only devices whose own value matters to the classifier).
+    private static func ownPortTypes(in blocks: [DeviceBlock]) -> [UInt32: Int] {
+        var map: [UInt32: Int] = [:]
+        for block in blocks {
+            for a in block.ancestors {
+                if a.className == "IOUSBHostDevice" || a.usbHostDevice,
+                   let loc = a.locationID, let pt = a.usbPortType {
+                    map[loc] = pt
+                }
+            }
+        }
+        return map
     }
 
     // MARK: - Replay through the production classifier
@@ -197,6 +239,7 @@ struct USBWatcherCorpusSweepTests {
         let portName: String?
         let tunnelled: Bool
         let reachedNativeController: Bool
+        let reachedEmbeddedController: Bool
         let bus: Int
         let behindInternalHub: Bool
     }
@@ -215,17 +258,28 @@ struct USBWatcherCorpusSweepTests {
                 className: a.className,
                 locationID: a.locationID,
                 usbIOPortPath: a.usbIOPort,
-                usbPortType: conforms ? a.usbPortType : nil
+                usbPortType: conforms ? a.usbPortType : nil,
+                conformsToUSBHostDevice: conforms
             )
         }
     }
 
-    private static func replayWalk(deviceLocationID: UInt32, ancestors: [Ancestor]) -> WalkResult {
-        let c = USBWatcher.classifyAncestry(productionAncestors(ancestors))
+    private static func replayWalk(
+        deviceLocationID: UInt32,
+        ancestors: [Ancestor],
+        ownUSBPortType: Int? = nil,
+        deviceClass: UInt8? = nil
+    ) -> WalkResult {
+        let c = USBWatcher.classifyAncestry(
+            productionAncestors(ancestors),
+            ownUSBPortType: ownUSBPortType,
+            deviceClass: deviceClass
+        )
         return WalkResult(
             portName: c.portName,
             tunnelled: c.tunnelled,
             reachedNativeController: c.reachedNativeController,
+            reachedEmbeddedController: c.reachedEmbeddedController,
             bus: c.busIndex ?? USBWatcher.busIndex(fromLocationID: deviceLocationID),
             behindInternalHub: c.behindInternalHub
         )
@@ -252,10 +306,16 @@ struct USBWatcherCorpusSweepTests {
             let blocks = Self.parseDeviceBlocks(text)
             guard !blocks.isEmpty else { continue }
             foldersScanned += 1
+            let ownPT = Self.ownPortTypes(in: blocks)
 
             for block in blocks {
                 devicesTotal += 1
-                let result = Self.replayWalk(deviceLocationID: block.locationID, ancestors: block.ancestors)
+                let result = Self.replayWalk(
+                    deviceLocationID: block.locationID,
+                    ancestors: block.ancestors,
+                    ownUSBPortType: block.ownUSBPortType ?? ownPT[block.locationID],
+                    deviceClass: block.deviceClass
+                )
 
                 if result.tunnelled { tunnelledCount += 1 }
                 if result.reachedNativeController { nativeCount += 1 }
@@ -266,13 +326,16 @@ struct USBWatcherCorpusSweepTests {
                 }
 
                 // Cross-check against the probe's own stop decision: the C
-                // probe implements the same stop rules (tunnel / native / dock)
-                // independently and records which class ended its walk. When it
-                // recorded one, the Swift classification must have terminated
-                // too (tunnelled or native); when it didn't, neither may fire.
-                // This is a genuine two-implementation check: C in the probe,
-                // Swift in classifyAncestry.
+                // probe implements the same stop boundary (tunnel / native /
+                // dock; its dock rule also covers the embedded controllers
+                // Swift now categorises separately) independently and records
+                // which class ended its walk. When it recorded one, the Swift
+                // classification must have terminated too; when it didn't,
+                // none of the outcomes may fire. This is a genuine
+                // two-implementation check: C in the probe, Swift in
+                // classifyAncestry.
                 let swiftStopped = result.tunnelled || result.reachedNativeController
+                    || result.reachedEmbeddedController
                 #expect(swiftStopped == (block.probeStopClass != nil),
                     "\(folder): device at 0x\(String(block.locationID, radix: 16)): probe stop \(block.probeStopClass ?? "none") disagrees with Swift classification (tunnelled=\(result.tunnelled), native=\(result.reachedNativeController))")
 
@@ -281,15 +344,21 @@ struct USBWatcherCorpusSweepTests {
                 #expect(!(result.tunnelled && result.behindInternalHub),
                     "\(folder): device at 0x\(String(block.locationID, radix: 16)) is both tunnelled and behind-internal-hub")
 
-                // Invariant 2: a device with a resolved port name is never
-                // classified behind the internal hub (requires portName == nil).
-                #expect(!(result.portName != nil && result.behindInternalHub),
-                    "\(folder): device at 0x\(String(block.locationID, radix: 16)) has portName \(result.portName ?? "?") but is behind-internal-hub")
+                // Invariant 2: on non-embedded walks, a device with a
+                // resolved port name is never classified behind the internal
+                // hub (classifyBehindInternalHub requires portName == nil).
+                // Embedded walks are the exception by design: the shared
+                // board node (Port-USB-A@1) stays on the record as raw
+                // registry truth, and the built-in classification comes from
+                // the controller, not the name.
+                #expect(!(result.portName != nil && result.behindInternalHub && !result.reachedEmbeddedController),
+                    "\(folder): device at 0x\(String(block.locationID, radix: 16)) has portName \(result.portName ?? "?") but is behind-internal-hub via the native path")
 
-                // Invariant 3: a device that never reached a native controller
-                // is never classified behind the internal hub.
-                #expect(!(!result.reachedNativeController && result.behindInternalHub),
-                    "\(folder): device at 0x\(String(block.locationID, radix: 16)) did not reach a native controller but is behind-internal-hub")
+                // Invariant 3: behind-internal-hub requires having reached
+                // either a native controller (the #348 no-port-node path) or
+                // an Apple-embedded board controller (the #417 path).
+                #expect(!(!result.reachedNativeController && !result.reachedEmbeddedController && result.behindInternalHub),
+                    "\(folder): device at 0x\(String(block.locationID, radix: 16)) reached no native or embedded controller but is behind-internal-hub")
 
                 // Invariant 4: bus index is always a plausible byte value
                 // (busIndex(fromLocationID:) masks to 0xFF by construction, so
@@ -346,12 +415,12 @@ struct USBWatcherCorpusSweepTests {
 
     // MARK: - Fixture: the #375/#348 desktop front-port scenario
     //
-    // The real corpus (probe 38, 64 folders as of 2026-07-14) happens to
-    // contain no device that classifies behind-internal-hub: every
-    // USBPortType==2 case on disk either resolves a named board port first
-    // (M4 mini on Tahoe: Port-USB-C@6; Mac Studio: Port-USB-A@1) or sits
-    // behind an AppleEmbedded* controller and is classified tunnelled (the
-    // issue #417 misclassification pinned in the named-machine tests below).
+    // In the real corpus (probe 38, 64 folders as of 2026-07-14) the devices
+    // that classify behind-internal-hub are exactly the AppleEmbedded*
+    // chains (Mac Studio front/USB-A, M1 mini USB-A; the #417 fix, see the
+    // named-machine tests below). No corpus device reaches the gate via the
+    // native-controller path: every USBPortType==2 case on a native chain
+    // resolves a named board port first (M4 mini on Tahoe: Port-USB-C@6).
     // The one true "no port node at all" front-port case (issue #348: a front
     // USB-C port wired to the internal hub with no board port node, the shape
     // the original #348 reporter's Sequoia mini had) is documented in
@@ -458,59 +527,134 @@ struct USBWatcherCorpusSweepTests {
         blocks.filter { $0.probeStopClass?.hasPrefix("AppleEmbedded") == true }
     }
 
-    // ISSUE #417 PIN (Mac Studio, M2 Max, submitted 2026-07-04; and M4 Max,
+    /// Expected-plumbing derivation from the RAW capture traits (own
+    /// USBPortType 2, or a hub-class device with no IOUSBHostDevice ancestor
+    /// row), computed from parsed probe text without calling production
+    /// code. Mirrors the production rule by design; the mutation checks
+    /// prove the pairing is non-vacuous (disable the production rule and
+    /// these tests go red).
+    private static func expectedPlumbing(_ block: DeviceBlock, own: Int?) -> Bool {
+        let hasHubAncestorRow = block.ancestors.contains {
+            $0.usbHostDevice || $0.className == "IOUSBHostDevice"
+        }
+        return own == USBWatcher.internalHubPortType
+            || (block.deviceClass == 9 && !hasHubAncestorRow)
+    }
+
+    // ISSUE #417 FIX (Mac Studio, M2 Max, submitted 2026-07-04; and M4 Max,
     // submitted 2026-06-26): the Studio's front USB-C ports and back USB-A
     // ports hang off an Apple-embedded ASMedia controller
-    // (`AppleEmbeddedUSBXHCIASMedia3142`) that `isThunderboltDockController`
-    // cannot tell apart from a Thunderbolt dock's controller, so their
-    // devices are classified tunnelled and the app groups them under
-    // "reached through a Thunderbolt dock or display". That is the wrong
-    // answer a user reported in discussion #417 ("presented like my
-    // Thunderbolt Hub ... connected to the back USBA port": the shared
-    // board port node is literally Port-USB-A@1).
-    //
-    // These expectations pin the CURRENT behaviour so the eventual fix has
-    // to flip them deliberately (test-first evidence in both directions).
-    // When fixing #417: these devices must stop classifying as tunnelled,
-    // this test must be updated to the corrected expectation, and the C
-    // probe's stop-rule comment plus the probe cross-check in the sweep
-    // above must stay in lock-step with the new walk semantics.
-    @Test("Mac Studio pin (#417): embedded-controller devices currently classify as tunnelled")
-    func macStudioEmbeddedControllerPin() throws {
+    // (`AppleEmbeddedUSBXHCIASMedia3142`). These devices used to classify as
+    // Thunderbolt-dock tunnelled, so the app grouped a Studio's own front
+    // ports under "reached through a Thunderbolt dock or display", which is
+    // what the discussion #417 reporter saw. They now classify
+    // behind-internal-hub and render in the "Built-in USB ports" section.
+    // The shared board port node (`Port-USB-A@1`, the "connected to the back
+    // USBA port" detail in the report) is KEPT on the record as raw registry
+    // truth (owner rule: identifiers are never dropped); display attribution
+    // routes by the behindInternalHub flag, and the port-card matcher cannot
+    // match a Port-USB-A name, so keeping it cannot double-render.
+    @Test("Mac Studio (#417 fix): embedded-controller devices classify as built-in, not tunnelled; the Mac's own hub silicon is excluded")
+    func macStudioEmbeddedControllerFix() throws {
         for folder in ["m2max_macos26.5.2", "m4max_macos26.5.1_f"] {
-            let embedded = Self.embeddedChains(try Self.requireBlocks(folder))
+            let blocks = try Self.requireBlocks(folder)
+            let ownPT = Self.ownPortTypes(in: blocks)
+            let embedded = Self.embeddedChains(blocks)
             #expect(!embedded.isEmpty, "\(folder): expected embedded-controller chains in this Studio fixture")
+
+            var plumbing = 0
+            var userDevices = 0
+            var namedBuiltIn = 0
             for block in embedded {
-                let result = Self.replayWalk(deviceLocationID: block.locationID, ancestors: block.ancestors)
-                #expect(result.tunnelled,
-                    "\(folder): 0x\(String(block.locationID, radix: 16)) no longer classifies tunnelled; if this is the #417 fix landing, update this pin to the corrected expectation")
-                #expect(!result.behindInternalHub)
-                #expect(!result.reachedNativeController)
+                let own = block.ownUSBPortType ?? ownPT[block.locationID]
+                let result = Self.replayWalk(
+                    deviceLocationID: block.locationID,
+                    ancestors: block.ancestors,
+                    ownUSBPortType: own,
+                    deviceClass: block.deviceClass
+                )
+                #expect(result.reachedEmbeddedController)
+                #expect(!result.tunnelled,
+                    "\(folder): 0x\(String(block.locationID, radix: 16)) classified tunnelled; the #417 fix regressed")
+                if Self.expectedPlumbing(block, own: own) {
+                    // The Mac's own hub silicon: must NOT render as a
+                    // connected device in the Built-in USB ports card
+                    // (PR 408 review rounds one and two).
+                    plumbing += 1
+                    #expect(!result.behindInternalHub,
+                        "\(folder): internal hub 0x\(String(block.locationID, radix: 16)) would render as a built-in device")
+                } else {
+                    userDevices += 1
+                    #expect(result.behindInternalHub,
+                        "\(folder): 0x\(String(block.locationID, radix: 16)) must land in the Built-in USB ports section")
+                    // Same-device coexistence (PR 408 round-two Codex): the
+                    // kept board node and the routing flag must both hold on
+                    // one record, not on different devices.
+                    if result.portName == "Port-USB-A@1" { namedBuiltIn += 1 }
+                }
             }
-            // The shared board port node both Studios expose: the walk resolves
-            // Port-USB-A@1 for at least one front/back built-in device, which is
-            // exactly the "connected to the back USB-A port" detail in #417.
-            let portNames = embedded.map {
-                Self.replayWalk(deviceLocationID: $0.locationID, ancestors: $0.ancestors).portName
-            }
-            #expect(portNames.contains("Port-USB-A@1"),
-                "\(folder): expected at least one embedded chain to resolve Port-USB-A@1")
+            // Both Studio fixtures carry both cases, so neither branch can
+            // pass vacuously: m2max has 1 own==2 hub derivable from chains
+            // (0x8300000), m4max has 2 (0x8100000, 0x8300000), and both
+            // have user devices behind them. Replay-data limit, documented:
+            // m2max's 0x8100000 hub has no captured children, so its own
+            // USBPortType is unknowable from that capture and it replays as
+            // a user device; live, makeDevice reads the property directly,
+            // and post-fix captures print a per-device "USBPortType =" line.
+            #expect(plumbing >= 1, "\(folder): expected the internal hub boundary case in this fixture")
+            #expect(userDevices >= 1, "\(folder): expected user devices behind the embedded controller")
+
+            // The shared board node must survive on the same record that
+            // carries the built-in flag (owner rule: never drop
+            // identifiers; PR 408 round-two Codex on coexistence). Both
+            // Studio fixtures have user devices that resolve it.
+            #expect(namedBuiltIn >= 1,
+                "\(folder): expected at least one BUILT-IN device to keep Port-USB-A@1 on its own record")
         }
     }
 
-    // Same misclassification class, older silicon (M1 Mac mini, submitted
-    // 2026-07-11): its back USB-A block sits behind an embedded Fresco Logic
-    // controller (`AppleEmbeddedUSBXHCIFL1100`), no board port node at all.
-    @Test("M1 Mac mini pin (#417 class): embedded FL1100 devices currently classify as tunnelled")
-    func m1MiniEmbeddedFL1100Pin() throws {
-        let embedded = Self.embeddedChains(try Self.requireBlocks("m1_macos15.7.7_c"))
+    // Same wiring class, older silicon (M1 Mac mini, submitted 2026-07-11):
+    // its back USB-A block sits behind an embedded Fresco Logic controller
+    // (`AppleEmbeddedUSBXHCIFL1100`), no board port node at all. The FL1100
+    // exposes two root-hub personas directly on the controller (hub class,
+    // no descriptor strings, and crucially NO USBPortType=2 marking, which
+    // is why the round-two review caught the Studios-only exclusion missing
+    // them). User devices, including an iPhone attached DIRECTLY to the
+    // controller with no hub in between, must stay built-in.
+    @Test("M1 Mac mini (#417 fix): user devices are built-in; the FL1100 root personas are excluded")
+    func m1MiniEmbeddedFL1100Fix() throws {
+        let blocks = try Self.requireBlocks("m1_macos15.7.7_c")
+        let ownPT = Self.ownPortTypes(in: blocks)
+        let embedded = Self.embeddedChains(blocks)
         #expect(!embedded.isEmpty, "expected embedded FL1100 chains in the M1 mini fixture")
+        var personas = 0
+        var userDevices = 0
         for block in embedded {
-            let result = Self.replayWalk(deviceLocationID: block.locationID, ancestors: block.ancestors)
-            #expect(result.tunnelled)
-            #expect(result.portName == nil, "M1 mini embedded chains carry no board port node")
-            #expect(!result.behindInternalHub)
+            let own = block.ownUSBPortType ?? ownPT[block.locationID]
+            let result = Self.replayWalk(
+                deviceLocationID: block.locationID,
+                ancestors: block.ancestors,
+                ownUSBPortType: own,
+                deviceClass: block.deviceClass
+            )
+            #expect(result.reachedEmbeddedController)
+            #expect(!result.tunnelled, "M1 mini USB-A devices classified tunnelled; the #417 fix regressed")
+            #expect(result.portName == nil)
+            if Self.expectedPlumbing(block, own: own) {
+                personas += 1
+                #expect(!result.behindInternalHub,
+                    "FL1100 persona 0x\(String(block.locationID, radix: 16)) would render as a permanent Unknown device")
+            } else {
+                userDevices += 1
+                #expect(result.behindInternalHub,
+                    "0x\(String(block.locationID, radix: 16)) must land in the Built-in USB ports section")
+            }
         }
+        // The fixture carries both cases (2 personas, 3 user devices
+        // including the directly-attached iPhone), so neither branch can
+        // pass vacuously.
+        #expect(personas >= 2, "expected the two FL1100 root personas in the fixture")
+        #expect(userDevices >= 3, "expected the three user devices in the fixture")
     }
 
     // Real Thunderbolt docks (M4 Pro Mac mini on Sequoia, submitted
