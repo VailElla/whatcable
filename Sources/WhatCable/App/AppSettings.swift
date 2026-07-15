@@ -3,6 +3,7 @@ import ServiceManagement
 import os.log
 import WhatCableAppKit
 import WhatCableCore
+import WhatCableDarwinBackend
 
 /// How the menu bar shows charger power when `showChargingWatts` is on: the
 /// numeric "NNW" readout, or a calmer fill bar that shows power as a fraction of
@@ -34,6 +35,7 @@ final class AppSettings: ObservableObject {
         static let hasCompletedOnboarding = "hasCompletedOnboarding"
         static let showChargingWatts = "showChargingWatts"
         static let menuBarWattsStyle = "menuBarWattsStyle"
+        static let skipDeepUSBProbing = "skipDeepUSBProbing"
     }
 
 
@@ -90,6 +92,19 @@ final class AppSettings: ObservableObject {
         didSet {
             guard showTechnicalDetails != oldValue else { return }
             UserDefaults.standard.set(showTechnicalDetails, forKey: Keys.showTechnicalDetails)
+        }
+    }
+
+    /// Compatibility switch for USB probing, off by default. When off (the
+    /// default), WhatCable reads each USB device's capability descriptor so the
+    /// Pro diagnostics can show alt modes. That read is a real USB control
+    /// transfer, and a few KVM switches and hubs react badly to it (issue #429),
+    /// so turning this switch on makes `USBWatcher` issue no USB traffic at all.
+    @Published var skipDeepUSBProbing: Bool {
+        didSet {
+            guard skipDeepUSBProbing != oldValue else { return }
+            UserDefaults.standard.set(skipDeepUSBProbing, forKey: Keys.skipDeepUSBProbing)
+            USBWatcher.probeBillboardDescriptors = !skipDeepUSBProbing
         }
     }
 
@@ -229,6 +244,12 @@ final class AppSettings: ObservableObject {
             self.useMenuBarMode = UserDefaults.standard.bool(forKey: Keys.useMenuBarMode)
         }
         self.showTechnicalDetails = UserDefaults.standard.bool(forKey: Keys.showTechnicalDetails)
+        // Deep USB probing is on by default; absent key reads as false (don't
+        // skip). Seed the watcher's static so the very first enumeration honours
+        // the saved preference, before the settings UI is ever opened.
+        let skipProbing = UserDefaults.standard.bool(forKey: Keys.skipDeepUSBProbing)
+        self.skipDeepUSBProbing = skipProbing
+        USBWatcher.probeBillboardDescriptors = !skipProbing
         let savedLanguage = UserDefaults.standard.string(forKey: Keys.preferredLanguage) ?? ""
         self.preferredLanguage = savedLanguage
         setCoreLocale(savedLanguage)

@@ -103,6 +103,13 @@ struct CableTimelineProvider: AppIntentTimelineProvider {
             displayWatcher.stop()
         }
 
+        // The widget is a separate process, so the app's "Skip deep USB
+        // probing" setting (issue #429) cannot reach it. The widget never
+        // renders Billboard / alt-mode data, so it has no reason to issue the
+        // BOS control transfer that upsets some KVMs and hubs. Disable it here
+        // unconditionally: a background snapshot should never poke the bus.
+        USBWatcher.probeBillboardDescriptors = false
+
         portWatcher.start()
         powerWatcher.start()
         pdWatcher.start()

@@ -165,3 +165,7 @@
 "Watts display" = "Vatu attēlojums";
 "Number" = "Skaitlis";
 "Bar" = "Josla";
+
+/* USB probing compatibility toggle (issue #429). */
+"Skip deep USB probing" = "Izlaist padziļinātu USB izpēti";
+"Stops WhatCable reading capability info from USB devices. Turn on if a KVM switch or hub misbehaves (relay clicking, or keyboard and mouse dropping) when WhatCable runs." = "Neļauj WhatCable nolasīt USB ierīču iespēju informāciju. Ieslēdziet, ja KVM slēdzis vai centrmezgls darbojas nepareizi (releja klikšķi vai tastatūras un peles atvienošanās), kad darbojas WhatCable.";

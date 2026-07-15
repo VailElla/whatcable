@@ -101,6 +101,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSW
 
         ProcessInfo.processInfo.setValue(AppInfo.name, forKey: "processName")
 
+        // Apply the USB-probing preference BEFORE the watchers start. Their
+        // first act is to enumerate the devices already plugged in, which fires
+        // the Billboard probe; on a machine that must not be probed (issue #429)
+        // that one launch-time burst is enough to restart the loop. Touching
+        // AppSettings.shared also runs its init, which seeds the same gate.
+        USBWatcher.probeBillboardDescriptors = !AppSettings.shared.skipDeepUSBProbing
         WatcherHub.shared.start()
         NotificationManager.shared.start()
         WidgetDataWriter.shared.start()

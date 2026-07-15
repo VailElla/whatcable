@@ -56,6 +56,13 @@ struct SettingsForm: View {
                 Toggle(String(localized: "Show technical details", bundle: _appLocalizedBundle), isOn: $settings.showTechnicalDetails)
                 Toggle(String(localized: "Hide empty ports", bundle: _appLocalizedBundle), isOn: $settings.hideEmptyPorts)
 
+                VStack(alignment: .leading, spacing: 4) {
+                    Toggle(String(localized: "Skip deep USB probing", bundle: _appLocalizedBundle), isOn: $settings.skipDeepUSBProbing)
+                    Text(String(localized: "Stops WhatCable reading capability info from USB devices. Turn on if a KVM switch or hub misbehaves (relay clicking, or keyboard and mouse dropping) when WhatCable runs.", bundle: _appLocalizedBundle))
+                        .scaledFont(.caption)
+                        .foregroundStyle(.secondary)
+                }
+
                 VStack(alignment: .leading, spacing: 6) {
                     HStack {
                         Text(String(localized: "Font size", bundle: _appLocalizedBundle))

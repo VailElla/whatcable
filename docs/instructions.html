@@ -789,6 +789,7 @@
 <ul>
   <li><strong>Show technical details:</strong> shows the raw hardware data underneath each port card. Mainly useful for developers or when filing a bug report.</li>
   <li><strong>Hide empty ports:</strong> only show ports that have something plugged in.</li>
+  <li><strong>Skip deep USB probing:</strong> off by default. WhatCable reads a small capability descriptor from each USB device so the Pro diagnostics can show what alt modes it supports. That read puts a tiny bit of traffic on the USB bus, and a few KVM switches and hubs react badly to it (a relay clicking, or the keyboard and mouse dropping out). Turn this on to stop that read entirely. You lose the alt-mode detail for that device, nothing else.</li>
   <li><strong>Font size:</strong> make the text bigger or smaller (80% to 140%).</li>
   <li><strong>Show charging watts in the menu bar:</strong> when something is charging, show the live wattage next to the menu bar icon. Pick <strong>Number</strong> (a watts readout) or <strong>Bar</strong> (a small fill gauge).</li>
   <li><strong>Language:</strong> override the system language. 19 languages available: Deutsch, English, Espa&ntilde;ol, Fran&ccedil;ais, Italiano, Latvie&scaron;u, Nederlands, Norsk Bokm&aring;l, Polski, Portugu&ecirc;s (Brasil), T&uuml;rk&ccedil;e, &#1056;&#1091;&#1089;&#1089;&#1082;&#1080;&#1081;, &#1059;&#1082;&#1088;&#1072;&#1111;&#1085;&#1089;&#1100;&#1082;&#1072;, &#2361;&#2367;&#2344;&#2381;&#2342;&#2368;, &#26085;&#26412;&#35486;, &#54620;&#44397;&#50612;, &#20013;&#25991; (&#31616;&#20307;), &#20013;&#25991; (&#32321;&#39636;), and &#1344;&#1377;&#1397;&#1381;&#1408;&#1381;&#1398;. Takes effect on next launch.</li>
@@ -1027,6 +1028,11 @@
 <h3>Doesn't work on my Intel Mac</h3>
 <p>
   WhatCable only works on Macs with Apple Silicon (M1, M2, M3, M4, M5). Intel Macs use a different USB-C controller that doesn't expose the cable data WhatCable reads. There's no workaround for this.
+</p>
+
+<h3>My keyboard or mouse stops working, or a KVM switch keeps clicking, when WhatCable runs</h3>
+<p>
+  A small number of KVM switches and USB hubs react badly to WhatCable reading capability information from the devices behind them. The switch may click its relay over and over, or your keyboard and mouse may drop out while WhatCable is open. If that happens, go to Settings and turn on <strong>Skip deep USB probing</strong>. WhatCable will stop putting any traffic on the USB bus, which fixes it. In the CLI, run <code>whatcable --no-usb-probe</code>. The only thing you lose is the alt-mode detail in the Pro diagnostics for those devices.
 </p>
 
 <h3>I can't see the icon in the menu bar</h3>

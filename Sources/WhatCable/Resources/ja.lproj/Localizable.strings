@@ -166,3 +166,7 @@
 "Watts display" = "ワット表示";
 "Number" = "数値";
 "Bar" = "バー";
+
+/* USB probing compatibility toggle (issue #429). */
+"Skip deep USB probing" = "詳細なUSBプローブをスキップ";
+"Stops WhatCable reading capability info from USB devices. Turn on if a KVM switch or hub misbehaves (relay clicking, or keyboard and mouse dropping) when WhatCable runs." = "WhatCableがUSBデバイスから機能情報を読み取るのを停止します。WhatCableの実行中にKVMスイッチやハブが誤動作する（リレーがカチカチ鳴る、またはキーボードとマウスが切断される）場合にオンにしてください。";

@@ -41,6 +41,12 @@ struct WhatCableCLI {
                 FileHandle.standardError.write(Data("whatcable: --desktop and --popover are mutually exclusive\n".utf8))
                 exit(2)
             }
+            // These launch the GUI app as a separate process, which reads its
+            // own Settings, not our CLI flags. --no-usb-probe can't reach it, so
+            // say so rather than silently ignoring it (issue #429).
+            if args.contains("--no-usb-probe") {
+                FileHandle.standardError.write(Data("whatcable: --no-usb-probe has no effect when launching the app; use the app's \"Skip deep USB probing\" setting instead\n".utf8))
+            }
             launchApp(menuBarMode: wantsPopover)
             return
         }
@@ -48,7 +54,7 @@ struct WhatCableCLI {
         // Validate unknown flags BEFORE dispatching plugin commands. Otherwise
         // a typo alongside a plugin flag (e.g. `whatcable --pro --bogus`) would
         // silently run the plugin instead of complaining about the typo.
-        var knownFlags: Set<String> = ["--raw", "--json", "--watch", "--report", "--tb-debug", "--desktop", "--popover", "-h", "--help", "--version"]
+        var knownFlags: Set<String> = ["--raw", "--json", "--watch", "--report", "--tb-debug", "--desktop", "--popover", "--no-usb-probe", "-h", "--help", "--version"]
         for cmd in PluginRegistry.shared.cliCommands {
             knownFlags.formUnion(cmd.flagNames)
         }
@@ -57,6 +63,13 @@ struct WhatCableCLI {
             FileHandle.standardError.write(Data(helpText.utf8))
             exit(2)
         }
+
+        // Compatibility escape hatch (issue #429): when set, WhatCable issues no
+        // USB control transfers, which stops a KVM switch or hub that reacts to
+        // the capability probe by resetting. Applied here, BEFORE plugin-command
+        // dispatch, so live-reading plugin modes (--dashboard, --monitor) honour
+        // it too, not just the plain/--watch snapshot below.
+        USBWatcher.probeBillboardDescriptors = !args.contains("--no-usb-probe")
 
         // Plugin commands are program-modes, not flags that combine. If the
         // user typed two at once (e.g. `--activate KEY --silence-pro-hints`)
@@ -127,6 +140,8 @@ struct WhatCableCLI {
           --popover      Open WhatCable in the menu bar (popover mode)
           --tb-debug     Dump the IOThunderboltSwitch tree (for contributors helping
                          us design the Thunderbolt fabric feature). See issue tracker.
+          --no-usb-probe Skip deep USB probing. Issues no USB control transfers; use
+                         if a KVM switch or hub misbehaves when WhatCable runs.
           --version      Print version and exit
           -h, --help     Show this help and exit
 

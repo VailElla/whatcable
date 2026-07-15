@@ -12,6 +12,24 @@ public final class USBWatcher: ObservableObject {
     // can log from off the main actor. Logger is a Sendable struct.
     nonisolated private static let log = Logger(subsystem: "uk.whatcable.whatcable", category: "usb")
 
+    /// Master switch for the one and only thing WhatCable puts on the USB bus:
+    /// the Billboard BOS descriptor read in `makeDevice`. When false, that read
+    /// is skipped and the app issues no USB control transfers at all.
+    ///
+    /// This backs the "Skip deep USB probing" compatibility setting (issue
+    /// #429). Some KVM switches and USB hubs react to the BOS control transfer
+    /// by resetting or flipping their relay. That re-enumerates the bus, which
+    /// re-fires the probe, which flips it again: a self-sustaining loop (about
+    /// one cycle per enumeration round-trip) that leaves the attached keyboard
+    /// and mouse unusable. Turning this off breaks the loop on the next
+    /// enumeration. It is read fresh on every device appearance, so flipping it
+    /// at runtime takes effect immediately; all `USBWatcher` instances (menu
+    /// bar, CLI snapshot, Pro diagnostics) honour the one value.
+    ///
+    /// Defaults true so everyone keeps the alt-mode / dock capability data. The
+    /// app writes it from `AppSettings`; the CLI from `--no-usb-probe`.
+    public static var probeBillboardDescriptors = true
+
     private var notifyPort: IONotificationPortRef?
     private var addedIter: io_iterator_t = 0
     private var removedIter: io_iterator_t = 0
@@ -157,9 +175,15 @@ public final class USBWatcher: ObservableObject {
         // 71 machines in the customer-probe corpus), and the Pro Cable
         // Diagnostics screen surfaces those alt modes; gating to Billboard-class
         // devices would blank that table for them. The freeze in issue #370
-        // came purely from a force-open fallback that no longer exists; the
-        // no-open read here is harmless on a device a kernel driver holds.
-        let billboard = BillboardDescriptorReader.read(from: service)
+        // came purely from a force-open fallback that no longer exists.
+        //
+        // The no-open read is safe on a device a kernel driver holds, but it is
+        // NOT invisible: it is a real control transfer on the bus, and some KVM
+        // switches and hubs react to it (issue #429). `probeBillboardDescriptors`
+        // is the user's escape hatch for that; when off, we issue nothing.
+        let billboard = Self.probeBillboardDescriptors
+            ? BillboardDescriptorReader.read(from: service)
+            : nil
 
         return USBDevice(
             id: entryID,

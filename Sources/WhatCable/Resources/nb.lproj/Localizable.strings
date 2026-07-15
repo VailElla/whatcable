@@ -166,3 +166,7 @@
 "Watts display" = "Watt-visning";
 "Number" = "Tall";
 "Bar" = "Stolpe";
+
+/* USB probing compatibility toggle (issue #429). */
+"Skip deep USB probing" = "Hopp over dyp USB-sondering";
+"Stops WhatCable reading capability info from USB devices. Turn on if a KVM switch or hub misbehaves (relay clicking, or keyboard and mouse dropping) when WhatCable runs." = "Hindrer WhatCable i å lese kapasitetsinformasjon fra USB-enheter. Slå på hvis en KVM-svitsj eller hub oppfører seg feil (relé som klikker, eller tastatur og mus som faller ut) mens WhatCable kjører.";

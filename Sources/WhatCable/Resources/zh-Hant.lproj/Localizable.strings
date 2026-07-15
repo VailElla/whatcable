@@ -166,3 +166,7 @@
 "Watts display" = "功率顯示方式";
 "Number" = "數值";
 "Bar" = "長條";
+
+/* USB probing compatibility toggle (issue #429). */
+"Skip deep USB probing" = "跳過深度 USB 探測";
+"Stops WhatCable reading capability info from USB devices. Turn on if a KVM switch or hub misbehaves (relay clicking, or keyboard and mouse dropping) when WhatCable runs." = "阻止 WhatCable 讀取 USB 裝置的功能資訊。若 WhatCable 執行時 KVM 切換器或集線器出現異常（繼電器喀噠響，或鍵盤與滑鼠斷線），請開啟此項。";
