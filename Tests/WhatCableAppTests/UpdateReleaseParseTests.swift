@@ -63,4 +63,43 @@ final class UpdateReleaseParseTests: XCTestCase {
         XCTAssertEqual(release?.version, "1.2.0", "Tag without a v prefix is taken as-is")
         XCTAssertNil(release?.downloadURL, "Only the WhatCable.zip asset counts as the app download")
     }
+
+    // MARK: - Pre-release backstop
+
+    func testRejectsPrerelease() {
+        let json = """
+        {
+          "tag_name": "v1.2.0-beta.1",
+          "html_url": "https://github.com/darrylmorley/whatcable/releases/tag/v1.2.0-beta.1",
+          "prerelease": true
+        }
+        """
+        XCTAssertNil(
+            UpdateChecker.parseRelease(from: data(json)),
+            "A pre-release must never be offered as an update, even if it somehow reaches this parser"
+        )
+    }
+
+    func testParsesWhenPrereleaseIsExplicitlyFalse() {
+        let json = """
+        {
+          "tag_name": "v1.1.6",
+          "html_url": "https://github.com/darrylmorley/whatcable/releases/tag/v1.1.6",
+          "prerelease": false
+        }
+        """
+        let release = UpdateChecker.parseRelease(from: data(json))
+        XCTAssertEqual(release?.version, "1.1.6", "Leading v must be stripped")
+    }
+
+    func testParsesWhenPrereleaseKeyAbsent() {
+        let json = """
+        {
+          "tag_name": "v1.1.6",
+          "html_url": "https://github.com/darrylmorley/whatcable/releases/tag/v1.1.6"
+        }
+        """
+        let release = UpdateChecker.parseRelease(from: data(json))
+        XCTAssertEqual(release?.version, "1.1.6", "Missing prerelease key must still parse, for backwards compatibility")
+    }
 }

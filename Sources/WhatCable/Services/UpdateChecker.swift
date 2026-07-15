@@ -176,6 +176,11 @@ final class UpdateChecker: ObservableObject {
               let url = URL(string: urlString) else {
             return nil
         }
+        // releases/latest never returns pre-releases, but this is a client-side
+        // backstop so a mis-flagged release can never be offered as an update.
+        if json["prerelease"] as? Bool == true {
+            return nil
+        }
         let remote = tag.hasPrefix("v") ? String(tag.dropFirst()) : tag
         let notes = json["body"] as? String
         let downloadURL = (json["assets"] as? [[String: Any]])?

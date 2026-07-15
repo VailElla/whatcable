@@ -45,19 +45,80 @@ public enum AppInfo {
         return URL(string: "https://github.com/darrylmorley/whatcable/releases/tag/v\(version)")!
     }
 
-    /// Compare dot-separated numeric versions. Non-numeric segments compare as 0.
+    /// Compare dot-separated numeric versions, with optional semver-style
+    /// pre-release suffixes (e.g. "1.2.0-beta.1"). Non-numeric segments in
+    /// the core version compare as 0. A plain release beats any pre-release
+    /// of the same core version (so a stable build outranks its own betas).
     public static func isNewer(remote: String, current: String) -> Bool {
-        let r = parts(remote)
-        let c = parts(current)
+        let (rCore, rSuffix) = splitPrerelease(remote)
+        let (cCore, cSuffix) = splitPrerelease(current)
+
+        let r = parts(rCore)
+        let c = parts(cCore)
         for i in 0..<max(r.count, c.count) {
             let rv = i < r.count ? r[i] : 0
             let cv = i < c.count ? c[i] : 0
             if rv != cv { return rv > cv }
         }
+
+        // Cores are equal. No suffix beats any suffix (a release beats its
+        // own betas). Two suffixes compare identifier by identifier.
+        switch (rSuffix, cSuffix) {
+        case (nil, nil):
+            return false
+        case (nil, .some):
+            return true
+        case (.some, nil):
+            return false
+        case let (.some(rs), .some(cs)):
+            return isPrereleaseNewer(rs, cs)
+        }
+    }
+
+    /// Split a version string at the first "-" into its core and an
+    /// optional pre-release suffix. "1.2.0-beta.1" -> ("1.2.0", "beta.1").
+    /// "1.2.0" -> ("1.2.0", nil).
+    private static func splitPrerelease(_ version: String) -> (core: Substring, suffix: Substring?) {
+        guard let dashIndex = version.firstIndex(of: "-") else {
+            return (Substring(version), nil)
+        }
+        let core = version[version.startIndex..<dashIndex]
+        let suffix = version[version.index(after: dashIndex)...]
+        return (core, suffix)
+    }
+
+    /// Compare two pre-release suffixes identifier by identifier, following
+    /// semver's rule: numeric identifiers compare numerically, non-numeric
+    /// identifiers compare lexically, a numeric identifier is always older
+    /// than a non-numeric one, and a suffix that runs out of identifiers
+    /// first is older ("beta" is older than "beta.1").
+    private static func isPrereleaseNewer(_ remote: Substring, _ current: Substring) -> Bool {
+        let rParts = remote.split(separator: ".")
+        let cParts = current.split(separator: ".")
+        for i in 0..<max(rParts.count, cParts.count) {
+            guard i < rParts.count else { return false }
+            guard i < cParts.count else { return true }
+
+            let rPart = rParts[i]
+            let cPart = cParts[i]
+            let rNum = Int(rPart)
+            let cNum = Int(cPart)
+
+            switch (rNum, cNum) {
+            case let (.some(rv), .some(cv)):
+                if rv != cv { return rv > cv }
+            case (.some, .none):
+                return false
+            case (.none, .some):
+                return true
+            case (.none, .none):
+                if rPart != cPart { return rPart > cPart }
+            }
+        }
         return false
     }
 
-    private static func parts(_ version: String) -> [Int] {
+    private static func parts(_ version: Substring) -> [Int] {
         version.split(separator: ".").map { Int($0) ?? 0 }
     }
 }

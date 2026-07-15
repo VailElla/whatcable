@@ -55,6 +55,12 @@ if [[ -z "${BUILD_NUMBER}" ]]; then
     BUILD_NUMBER=$((CURRENT_BUILD + 1))
 fi
 
+# BUILD_NUMBER gets sed-spliced into smoke-test.sh, which is then executed, so it must be a plain integer.
+if [[ ! "${BUILD_NUMBER}" =~ ^[0-9]+$ ]]; then
+    echo "ERROR: build number '${BUILD_NUMBER}' is not a plain integer." >&2
+    exit 1
+fi
+
 # Validate version looks semver-ish.
 if [[ ! "${VERSION}" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
     echo "ERROR: version '${VERSION}' is not a dotted triple (e.g. 0.5.3)." >&2
@@ -98,13 +104,25 @@ if git rev-parse "v${VERSION}" >/dev/null 2>&1; then
     echo "ERROR: tag v${VERSION} already exists locally." >&2
     exit 1
 fi
-if git ls-remote --tags origin "v${VERSION}" | grep -q "v${VERSION}"; then
+ORIGIN_TAGS=$(git ls-remote --tags origin "v${VERSION}") || {
+    echo "ERROR: could not check tags on origin." >&2
+    exit 1
+}
+if echo "${ORIGIN_TAGS}" | grep -q "refs/tags/v${VERSION}$"; then
     echo "ERROR: tag v${VERSION} already exists on private origin." >&2
     exit 1
 fi
-if git ls-remote --tags public "v${VERSION}" 2>/dev/null | grep -q "v${VERSION}"; then
-    echo "ERROR: tag v${VERSION} already exists on public repo." >&2
-    exit 1
+if git remote get-url public >/dev/null 2>&1; then
+    PUBLIC_TAGS=$(git ls-remote --tags public "v${VERSION}") || {
+        echo "ERROR: could not check tags on public." >&2
+        exit 1
+    }
+    if echo "${PUBLIC_TAGS}" | grep -q "refs/tags/v${VERSION}$"; then
+        echo "ERROR: tag v${VERSION} already exists on public repo." >&2
+        exit 1
+    fi
+else
+    echo "    no 'public' remote configured, skipping public tag check (the mirror-wait step later still guards against collisions)"
 fi
 
 # gh CLI required for release creation.
@@ -267,7 +285,11 @@ fi
 # suffix is ignored.
 # `|| true` keeps a no-match grep (exit 1) from aborting the whole release
 # under `set -euo pipefail`; the empty result then trips the guards below.
-PREV_TAG=$(git tag --list 'v*' --sort=-version:refname | grep -vxF "v${VERSION}" | head -1 || true)
+# Beta tags (e.g. v1.2.0-beta.1) sort ahead of the stable they precede, so
+# the previous tag must be the last STABLE release: positively select
+# dotted-triple tags rather than excluding known pre-release spellings, so
+# the issue scan can't be fooled by a future pre-release naming scheme.
+PREV_TAG=$(git tag --list 'v*' --sort=-version:refname | grep -vxF "v${VERSION}" | grep -Ex 'v[0-9]+\.[0-9]+\.[0-9]+' | head -1 || true)
 if [[ -z "${PREV_TAG}" ]]; then
     echo "==> No previous tag found; skipping issue auto-close"
 else
