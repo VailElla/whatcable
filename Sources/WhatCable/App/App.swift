@@ -233,11 +233,25 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSW
             .store(in: &cancellables)
     }
 
+    /// Bring WhatCable to the foreground when the user explicitly opened a
+    /// window (launch in window mode, onboarding, Settings, About, or a
+    /// navigation request from outside the popover).
+    ///
+    /// The no-arg `NSApp.activate()` added in macOS 14 is *cooperative*: it
+    /// will not pull the app in front of whatever the user was already using,
+    /// so in window mode the window opened behind every time (issue #419).
+    /// The `ignoringOtherApps: true` form is the forceful version: it honours
+    /// an explicit user request to come forward. Confined to this one helper
+    /// so the reasoning lives in a single place rather than scattered.
+    private func activateApp() {
+        NSApp.activate(ignoringOtherApps: true)
+    }
+
     /// Bring the single content surface forward (popover in menu-bar
     /// mode, window in desktop mode) without changing any navigation
     /// state. Used when navigation is triggered from outside the popover.
     private func presentMainSurface() {
-        NSApp.activate()
+        activateApp()
         if AppSettings.shared.useMenuBarMode {
             if let button = statusItem?.button, let popover, !popover.isShown {
                 togglePopover(from: button)
@@ -285,7 +299,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSW
         w.center()
         welcomeWindow = w
         w.makeKeyAndOrderFront(nil)
-        NSApp.activate()
+        activateApp()
         log.notice("launch: showing onboarding window")
     }
 
@@ -328,7 +342,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSW
             tearDownMenuBarMode()
             NSApp.setActivationPolicy(.regular)
             setUpWindowMode()
-            NSApp.activate()
+            activateApp()
         }
     }
 
@@ -726,7 +740,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSW
 
 
     private func showSettings() {
-        NSApp.activate()
+        activateApp()
         Self.refreshSignal.showSettings = true
         if AppSettings.shared.useMenuBarMode {
             if let button = statusItem?.button, let popover, !popover.isShown {
@@ -742,7 +756,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSW
     }
 
     @objc func showAboutPanel() {
-        NSApp.activate()
+        activateApp()
         let credits = NSAttributedString(
             string: "\(AppInfo.tagline)\n\n\(AppInfo.credit)",
             attributes: [
