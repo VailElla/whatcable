@@ -163,6 +163,8 @@ struct ContentView: View {
                 }
             } else {
                 let activePortCount = portWatcher.ports.filter { $0.connectionActive == true }.count
+                let chargerSourceCount = ChargerWattageSource.chargerSourceCount(
+                    ports: portWatcher.ports, sources: powerWatcher.sources)
                 let adapter = SystemPower.currentAdapter()
                 let batteryFull = SystemPower.batteryFullyCharged()
                 let batteryCharging = SystemPower.batteryIsCharging()
@@ -179,6 +181,7 @@ struct ContentView: View {
                             let wattageSource = ChargerWattageSource.resolve(
                                 portSources: portSources,
                                 activePortCount: activePortCount,
+                                chargerSourceCount: chargerSourceCount,
                                 adapter: adapter
                             )
                             PortCard(

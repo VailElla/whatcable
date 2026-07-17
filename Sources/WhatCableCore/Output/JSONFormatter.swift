@@ -20,6 +20,8 @@ public enum JSONFormatter {
         builtInDisplayPorts: [BuiltInDisplayPort] = []
     ) throws -> String {
         let activePortCount = ports.filter { $0.connectionActive == true }.count
+        let chargerSourceCount = ChargerWattageSource.chargerSourceCount(
+            ports: ports, sources: sources)
         // Map each switch's hardware UID to its position in the encoded
         // array. The JSON exposes only these per-snapshot indices; the raw
         // UID is a stable hardware identifier and stays internal (it would
@@ -53,6 +55,7 @@ public enum JSONFormatter {
                 let wattageSource = ChargerWattageSource.resolve(
                     portSources: portSources,
                     activePortCount: activePortCount,
+                    chargerSourceCount: chargerSourceCount,
                     adapter: adapter
                 )
                 let anotherPortActivelyCharging = port.portKey.map { key in chargingPortKeys.contains { $0 != key } } ?? false

@@ -185,6 +185,8 @@ final class WidgetDataWriter {
         let adapter = SystemPower.currentAdapter()
         let chargerAttached = (adapter?.watts ?? 0) > 0
         let activePortCount = portWatcher.ports.filter { $0.connectionActive == true }.count
+        let chargerSourceCount = ChargerWattageSource.chargerSourceCount(
+            ports: portWatcher.ports, sources: powerWatcher.sources)
 
         // Native HDMI / built-in display port entries. Synthesized as widget
         // PortEntry rows so the existing widget layout (which already shows
@@ -251,6 +253,7 @@ final class WidgetDataWriter {
             let wattageSource = ChargerWattageSource.resolve(
                 portSources: sources,
                 activePortCount: activePortCount,
+                chargerSourceCount: chargerSourceCount,
                 adapter: adapter
             )
 

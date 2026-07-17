@@ -228,15 +228,62 @@ struct ChargingDiagnosticProbeSweepTests {
         )
     }
 
+    /// Parse the real port list from `01_walk_pd_tree.json`: every
+    /// `=== IOAccessoryManager[...] ===` block, keeping its type, number, and
+    /// live `ConnectionActive` flag. This is what the charger-source count and
+    /// the active-port count consume on real hardware.
+    private static func loadProbe01Ports(folder: String) -> [USBCPort] {
+        guard let text = ProbeCorpus.loadText(folder: folder, probe: "01_walk_pd_tree") else { return [] }
+        var ports: [USBCPort] = []
+        for chunk in text.components(separatedBy: "=== IOAccessoryManager[").dropFirst() {
+            guard let typeDesc = quotedValue(chunk, key: "PortTypeDescription") else { continue }
+            let number = intValue(chunk, key: "PortNumber") ?? 0
+            let active = chunk.contains("ConnectionActive = true")
+            let rawType = typeDesc.hasPrefix("MagSafe") ? "17" : "2"
+            ports.append(USBCPort(
+                id: UInt64(number),
+                serviceName: "Port-\(typeDesc)@\(number)",
+                className: typeDesc.hasPrefix("MagSafe") ? "AppleHPMInterfaceType11" : "AppleHPMInterfaceType10",
+                portDescription: nil,
+                portTypeDescription: typeDesc,
+                portNumber: number,
+                connectionActive: active,
+                activeCable: nil, opticalCable: nil, usbActive: nil,
+                superSpeedActive: nil, usbModeType: nil, usbConnectString: nil,
+                transportsSupported: [], transportsActive: [], transportsProvisioned: [],
+                plugOrientation: nil, plugEventCount: nil, connectionCount: nil,
+                overcurrentCount: nil, pinConfiguration: [:], powerCurrentLimits: [],
+                firmwareVersion: nil, bootFlagsHex: nil, rawProperties: ["PortType": rawType]
+            ))
+        }
+        return ports
+    }
+
+    private static func quotedValue(_ block: String, key: String) -> String? {
+        guard let r = block.range(of: "\(key) = \"") else { return nil }
+        let after = block[r.upperBound...]
+        guard let close = after.firstIndex(of: "\"") else { return nil }
+        return String(after[..<close])
+    }
+
+    private static func intValue(_ block: String, key: String) -> Int? {
+        guard let r = block.range(of: "\(key) = ") else { return nil }
+        let digits = block[r.upperBound...].prefix { $0.isNumber }
+        return Int(digits)
+    }
+
     // MARK: - Specific machine tests
 
-    // MARK: m1pro_macos15.7.4 -- 140W EPR, MagSafe, Brick ID only (no USB-PD)
+    // MARK: m1pro_macos15.7.4 -- 140W EPR, MagSafe Brick ID + a second active USB-C port
     //
-    // Ground truth (inspection.md): charging, adapter 140W, not fully charged.
-    // Expected path: Brick ID + adapter fallback (single port) -> chargerLimit(140)
-    // or systemAdapterFallback(140).
+    // Ground truth (probe 01): FOUR ports, TWO active at once -- MagSafe 3@1
+    // (charging) AND USB-C@1 (an Apple data device attached, no power source).
+    // Probe 17: exactly ONE power-source node ("Brick ID", on MagSafe).
+    // This is the real-hardware #443 shape: a second active port with no source
+    // must NOT inflate the charger count, and must NOT borrow the charger's
+    // wattage. Counts are computed from the real probes, not hardcoded.
 
-    @Test("m1pro_macos15.7.4: 140W MagSafe Brick-ID-only -> chargerLimit via adapter fallback")
+    @Test("m1pro_macos15.7.4: MagSafe Brick ID reads 140W; the second active USB-C port is not a charger (#443)")
     func m1pro_macos15_7_4_140w_magsafe_brickid() {
         guard let text17 = ProbeCorpus.loadText(
             folder: "m1pro_macos15.7.4", probe: "17_deep_property_dump")
@@ -245,39 +292,63 @@ struct ChargingDiagnosticProbeSweepTests {
         let sources = Self.allPowerSources(probe17Text: text17)
         #expect(!sources.isEmpty, "Expected at least one PowerSource in probe 17")
 
+        let ports = Self.loadProbe01Ports(folder: "m1pro_macos15.7.4")
+        guard !ports.isEmpty else {
+            Issue.record("Could not parse probe-01 ports"); return
+        }
+
+        // Real counts from the corpus, not hardcoded. Two ports are active;
+        // only one (MagSafe) exposes a power source.
+        let activePortCount = ports.filter { $0.connectionActive == true }.count
+        let chargerSourceCount = ChargerWattageSource.chargerSourceCount(ports: ports, sources: sources)
+        #expect(activePortCount == 2, "Expected 2 active ports (MagSafe + USB-C); got \(activePortCount)")
+        #expect(chargerSourceCount == 1, "Expected 1 port with a power source (MagSafe); got \(chargerSourceCount)")
+
         let (adapterW, fullyCharged) = Self.parseBatteryState(folder: "m1pro_macos15.7.4")
         #expect(adapterW == 140, "Expected adapter 140W from probe 32; got \(adapterW as Any)")
+        let adapter = adapterW.map { AdapterInfo(watts: $0, isCharging: nil, source: "AC") }
 
-        guard let port = Self.chargingPort(sources: sources) else {
-            Issue.record("Could not resolve charging port from PowerSource blocks")
-            return
+        // Locate the two active ports by role.
+        guard let magsafe = ports.first(where: { $0.portTypeDescription?.hasPrefix("MagSafe") == true && $0.connectionActive == true }),
+              let dataPort = ports.first(where: { $0.portTypeDescription == "USB-C" && $0.connectionActive == true })
+        else {
+            Issue.record("Expected an active MagSafe port and an active USB-C port"); return
         }
 
-        // Single active port + Brick ID only -> adapter fallback
-        let wattageSource = ChargerWattageSource.resolve(
-            portSources: sources.filter { $0.canonicallyMatches(port: port) },
-            activePortCount: 1,
-            adapter: adapterW.map { AdapterInfo(watts: $0, isCharging: nil, source: "AC") }
+        // MagSafe: the Brick ID divert must fire even with a second active port,
+        // because that second port has no power source (chargerSourceCount == 1).
+        let magsafeWattage = ChargerWattageSource.resolve(
+            portSources: sources.filter { $0.canonicallyMatches(port: magsafe) },
+            activePortCount: activePortCount,
+            chargerSourceCount: chargerSourceCount,
+            adapter: adapter
         )
+        #expect(magsafeWattage == .systemAdapterFallback(watts: 140))
+
         let diag = ChargingDiagnostic(
-            port: port,
+            port: magsafe,
             sources: sources,
             identities: [],
-            wattageSource: wattageSource,
+            wattageSource: magsafeWattage,
             batteryFullyCharged: fullyCharged
         )
-        guard let diag else {
-            Issue.record("Expected a ChargingDiagnostic, got nil (wattageSource=\(wattageSource))")
-            return
-        }
-        // The charger ceiling is 140W (EPR). No negotiated contract visible in
-        // IOPortFeaturePowerSource blocks, so this should be chargerLimit.
-        guard case .chargerLimit(let w) = diag.bottleneck else {
-            Issue.record("Expected .chargerLimit, got \(diag.bottleneck)")
+        guard case .chargerLimit(let w) = diag?.bottleneck else {
+            Issue.record("Expected .chargerLimit, got \(String(describing: diag?.bottleneck))")
             return
         }
         #expect(w == 140, "Expected 140W charger ceiling; got \(w)")
-        #expect(diag.isWarning == false)
+        #expect(diag?.isWarning == false)
+
+        // The second active USB-C port has no power source of its own. The
+        // adapter reading must NOT be attributed to it (the Codex-caught
+        // regression on real data): resolve returns .unknown, no charger watts.
+        let dataWattage = ChargerWattageSource.resolve(
+            portSources: sources.filter { $0.canonicallyMatches(port: dataPort) },
+            activePortCount: activePortCount,
+            chargerSourceCount: chargerSourceCount,
+            adapter: adapter
+        )
+        #expect(dataWattage == .unknown, "Second active port must not borrow the charger wattage; got \(dataWattage)")
     }
 
     // MARK: m1pro_macos26.5_k -- 140W EPR, MagSafe USB-PD, battery full
@@ -305,6 +376,7 @@ struct ChargingDiagnosticProbeSweepTests {
         let wattageSource = ChargerWattageSource.resolve(
             portSources: portSources,
             activePortCount: 1,
+            chargerSourceCount: 1,
             adapter: adapterW.map { AdapterInfo(watts: $0, isCharging: nil, source: "AC") }
         )
         let diag = ChargingDiagnostic(
@@ -352,6 +424,7 @@ struct ChargingDiagnosticProbeSweepTests {
         let wattageSource = ChargerWattageSource.resolve(
             portSources: portSources,
             activePortCount: 1,
+            chargerSourceCount: 1,
             adapter: adapterW.map { AdapterInfo(watts: $0, isCharging: nil, source: "AC") }
         )
         let diag = ChargingDiagnostic(
@@ -396,6 +469,7 @@ struct ChargingDiagnosticProbeSweepTests {
         let wattageSource = ChargerWattageSource.resolve(
             portSources: portSources,
             activePortCount: 1,
+            chargerSourceCount: 1,
             adapter: adapterW.map { AdapterInfo(watts: $0, isCharging: nil, source: "AC") }
         )
         let diag = ChargingDiagnostic(
@@ -439,6 +513,7 @@ struct ChargingDiagnosticProbeSweepTests {
         let wattageSource = ChargerWattageSource.resolve(
             portSources: portSources,
             activePortCount: 1,
+            chargerSourceCount: 1,
             adapter: adapterW.map { AdapterInfo(watts: $0, isCharging: nil, source: "AC") }
         )
         let diag = ChargingDiagnostic(
@@ -487,6 +562,7 @@ struct ChargingDiagnosticProbeSweepTests {
         let wattageSource = ChargerWattageSource.resolve(
             portSources: portSources,
             activePortCount: 1,
+            chargerSourceCount: 1,
             adapter: adapterW.map { AdapterInfo(watts: $0, isCharging: nil, source: "AC") }
         )
         let diag = ChargingDiagnostic(
@@ -536,6 +612,7 @@ struct ChargingDiagnosticProbeSweepTests {
         let wattageSource = ChargerWattageSource.resolve(
             portSources: portSources,
             activePortCount: 1,
+            chargerSourceCount: 1,
             adapter: adapterW.map { AdapterInfo(watts: $0, isCharging: nil, source: "AC") }
         )
         let diag = ChargingDiagnostic(
@@ -577,6 +654,7 @@ struct ChargingDiagnosticProbeSweepTests {
         let wattageSource = ChargerWattageSource.resolve(
             portSources: portSources,
             activePortCount: 1,
+            chargerSourceCount: 1,
             adapter: adapterW.map { AdapterInfo(watts: $0, isCharging: nil, source: "AC") }
         )
         let diag = ChargingDiagnostic(
@@ -627,6 +705,7 @@ struct ChargingDiagnosticProbeSweepTests {
         let wattageSource = ChargerWattageSource.resolve(
             portSources: portSources,
             activePortCount: 1,
+            chargerSourceCount: 1,
             adapter: adapterW.map { AdapterInfo(watts: $0, isCharging: nil, source: "AC") }
         )
         let diag = ChargingDiagnostic(
@@ -673,6 +752,7 @@ struct ChargingDiagnosticProbeSweepTests {
         let wattageSource = ChargerWattageSource.resolve(
             portSources: portSources,
             activePortCount: 1,
+            chargerSourceCount: 1,
             adapter: adapterW.map { AdapterInfo(watts: $0, isCharging: nil, source: "AC") }
         )
         let diag = ChargingDiagnostic(
@@ -714,6 +794,7 @@ struct ChargingDiagnosticProbeSweepTests {
         let wattageSource = ChargerWattageSource.resolve(
             portSources: portSources,
             activePortCount: 1,
+            chargerSourceCount: 1,
             adapter: adapterW.map { AdapterInfo(watts: $0, isCharging: nil, source: "AC") }
         )
         let diag = ChargingDiagnostic(
@@ -756,6 +837,7 @@ struct ChargingDiagnosticProbeSweepTests {
         let wattageSource = ChargerWattageSource.resolve(
             portSources: portSources,
             activePortCount: 1,
+            chargerSourceCount: 1,
             adapter: adapterW.map { AdapterInfo(watts: $0, isCharging: nil, source: "AC") }
         )
         let diag = ChargingDiagnostic(
@@ -812,6 +894,7 @@ struct ChargingDiagnosticProbeSweepTests {
             let wattageSource = ChargerWattageSource.resolve(
                 portSources: portSources,
                 activePortCount: 1,
+                chargerSourceCount: 1,
                 adapter: adapterW.map { AdapterInfo(watts: $0, isCharging: nil, source: "AC") }
             )
             let diag = ChargingDiagnostic(

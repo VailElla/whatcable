@@ -19,17 +19,62 @@ public enum ChargerWattageSource: Hashable {
         }
     }
 
+    /// Number of active ports that expose a power-source node of their own,
+    /// i.e. a port through which the Mac is actually pulling a charging
+    /// contract (Brick ID, USB-PD, Type-C, or a synthesized source on M1
+    /// Pro/Max).
+    ///
+    /// This is the count that gates the **Brick ID divert** below (issue #154:
+    /// a MagSafe third-party brick shows a junk ~3W Brick ID and the real
+    /// wattage is in the system adapter reading). Counting every
+    /// `connectionActive` port there let a plain USB-C display cable, or any
+    /// data-only device, pose as a second charger and block the divert, so the
+    /// port stayed frozen at 3W while the Mac charged at full wattage (issue
+    /// #443). A display or data port has no power-source node, so it no longer
+    /// counts. Two real chargers each expose a source node, so both still
+    /// count and the #46 multi-charger protection holds.
+    ///
+    /// Deliberately does NOT special-case MagSafe: a MagSafe port that is
+    /// actually charging already has a Brick ID / USB-PD source node and is
+    /// counted through `hasSourceNode`. A MagSafe cable plugged in but not
+    /// into a charger has no source node and correctly does not count (it is
+    /// not a competing charger). The source-less legacy fallback for docks
+    /// that deliver power without any node (issue #141) is gated on the plain
+    /// active-port count instead, not this one.
+    ///
+    /// - Parameters:
+    ///   - ports: Every port on the machine.
+    ///   - sources: Every power source on the machine (matched to ports by
+    ///     `PowerSource.canonicallyMatches(port:)`).
+    public static func chargerSourceCount(
+        ports: [AppleHPMInterface],
+        sources: [PowerSource]
+    ) -> Int {
+        ports.filter { port in
+            guard port.connectionActive == true else { return false }
+            return sources.contains { $0.canonicallyMatches(port: port) }
+        }.count
+    }
+
     /// Resolve the charger wattage for a single port.
     ///
     /// - Parameters:
     ///   - portSources: Power sources belonging to this port only.
     ///   - activePortCount: Number of ports with `connectionActive == true`
-    ///     across the whole machine. Used to guard against multi-charger
-    ///     cross-contamination (see issue #46).
+    ///     across the whole machine. Gates the source-less adapter fallback
+    ///     (issue #141: a dock delivers power with no per-port source node, so
+    ///     the only signal that this port is the charger is that it is the sole
+    ///     active port). Kept as the plain active count so that fallback, and
+    ///     the #46 protection built on it, are unchanged.
+    ///   - chargerSourceCount: Number of active ports that expose a power-
+    ///     source node (see `chargerSourceCount(ports:sources:)`). Gates the
+    ///     Brick ID divert only. A data/display port no longer inflates it
+    ///     (issue #443).
     ///   - adapter: System-wide adapter info from `IOPSCopyExternalPowerAdapterDetails`.
     public static func resolve(
         portSources: [PowerSource],
         activePortCount: Int,
+        chargerSourceCount: Int,
         adapter: AdapterInfo?
     ) -> ChargerWattageSource {
         let source = PowerSource.preferredChargingSource(in: portSources)
@@ -40,12 +85,24 @@ public enum ChargerWattageSource: Hashable {
         // sits in the system adapter reading. Same situation as the
         // TB-dock case in #141, extended to a Brick ID that does carry a
         // tiny wattage (so the check below would otherwise accept it as
-        // authoritative). When Brick ID is the only source, one port is
-        // active, and the system adapter reports a higher wattage, trust
-        // the adapter. The single-active-port guard preserves the #46
-        // multi-charger protection. See issue #154.
+        // authoritative). When Brick ID is the only source, one charger is
+        // in play (this port is the sole port with a power-source node), and
+        // the system adapter reports a higher wattage, trust the adapter. The
+        // single-source guard preserves the #46 multi-charger protection. See
+        // issue #154.
+        //
+        // Accepted trade-off (issue #443 vs #46): a second active port that
+        // has no power-source node does NOT block this divert. From the port
+        // data alone, a source-less display cable (the everyday #443 case) is
+        // indistinguishable from a source-less dock that is itself delivering
+        // power (the rare #141-shape twin-charger case). We favour the common
+        // case: the divert fires on chargerSourceCount == 1 even when another
+        // source-less port is active. The narrow residual (Brick ID MagSafe +
+        // a simultaneously-charging source-less dock) can misattribute the
+        // adapter reading to MagSafe; it is pinned by a regression test so a
+        // future change here is a conscious one.
         if let source, source.name == "Brick ID",
-           activePortCount == 1,
+           chargerSourceCount == 1,
            let adapterW = adapter?.watts, adapterW > 0 {
             let brickW = Int((Double(source.maxPowerMW) / 1000).rounded())
             if adapterW > brickW {
@@ -65,15 +122,19 @@ public enum ChargerWattageSource: Hashable {
         let hasUSBPD = portSources.contains { $0.name == "USB-PD" }
         if hasUSBPD { return .unknown }
 
-        // Brick ID is the sole source type (no USB-PD). The charger is
-        // delivering power through a path that bypasses per-port PD
-        // negotiation (e.g. a Thunderbolt dock, see issue #141).
-        // Fall back to the system adapter under two conditions:
+        // No usable per-port source (either none at all, or a Brick ID at 0W).
+        // The charger is delivering power through a path that bypasses per-port
+        // PD negotiation (e.g. a Thunderbolt dock, see issue #141). Fall back to
+        // the system adapter under two conditions:
         //
-        // (a) Only one port is active. If two ports are active, we
-        //     can't tell which one the system adapter reading belongs
-        //     to. This guards against a hypothetical where two TB
-        //     docks both deliver power on separate chains.
+        // (a) Only one port is active on the whole machine. A source-less
+        //     charger leaves no per-port evidence, so the sole-active-port test
+        //     is the only signal that this port is the one the adapter reading
+        //     belongs to. This deliberately stays the plain active-port count,
+        //     NOT chargerSourceCount: a dock has no source node, so a source
+        //     count would be 0 here and the fallback would never fire. If two
+        //     ports are active we can't attribute the reading, which also
+        //     guards against two docks delivering power on separate chains (#46).
         //
         // (b) The system adapter reports a positive wattage.
         if activePortCount == 1,

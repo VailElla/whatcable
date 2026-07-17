@@ -264,6 +264,8 @@ extension WidgetSnapshot {
         let adapter = cable.adapter
         let chargerAttached = (adapter?.watts ?? 0) > 0
         let activePortCount = cable.ports.filter { $0.connectionActive == true }.count
+        let chargerSourceCount = ChargerWattageSource.chargerSourceCount(
+            ports: cable.ports, sources: cable.powerSources)
 
         let entries: [PortEntry] = cable.ports.map { port in
             let devices = port.matchingDevices(from: cable.usbDevices)
@@ -299,6 +301,7 @@ extension WidgetSnapshot {
             let wattageSource = ChargerWattageSource.resolve(
                 portSources: sources,
                 activePortCount: activePortCount,
+                chargerSourceCount: chargerSourceCount,
                 adapter: adapter
             )
 

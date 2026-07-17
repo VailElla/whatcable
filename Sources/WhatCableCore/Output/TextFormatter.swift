@@ -27,6 +27,8 @@ public enum TextFormatter {
             out += ANSI.wrap(ANSI.dim, "Desktop Mac: charger identity (FedDetails) is not available (no battery controller).") + "\n\n"
         }
         let activePortCount = ports.filter { $0.connectionActive == true }.count
+        let chargerSourceCount = ChargerWattageSource.chargerSourceCount(
+            ports: ports, sources: sources)
         // Port keys actually drawing charging power, so a connected-but-idle
         // second charger can tell another port is the active source (#264).
         let chargingPortKeys = Set(ports.compactMap { port -> String? in
@@ -47,6 +49,7 @@ public enum TextFormatter {
             let wattageSource = ChargerWattageSource.resolve(
                 portSources: portSources,
                 activePortCount: activePortCount,
+                chargerSourceCount: chargerSourceCount,
                 adapter: adapter
             )
             out += renderPort(

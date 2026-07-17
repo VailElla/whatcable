@@ -461,6 +461,7 @@ struct ChargingDiagnosticTests {
         let wattageSource = ChargerWattageSource.resolve(
             portSources: [brickIDWithoutPDOs()],
             activePortCount: 1,
+            chargerSourceCount: 1,
             adapter: AdapterInfo(watts: 96, isCharging: nil, source: "AC")
         )
         #expect(wattageSource == .systemAdapterFallback(watts: 96))
@@ -491,18 +492,22 @@ struct ChargingDiagnosticTests {
         let wattageSource = ChargerWattageSource.resolve(
             portSources: [bareUSBPD],
             activePortCount: 1,
+            chargerSourceCount: 1,
             adapter: AdapterInfo(watts: 87, isCharging: nil, source: "AC")
         )
         #expect(wattageSource == .unknown)
     }
 
-    @Test("System adapter fallback blocked when multiple ports active")
+    @Test("System adapter fallback blocked with two charger candidates")
     func systemAdapterFallbackBlockedWhenMultiplePortsActive() {
-        // Two active ports, both with Brick ID only. We can't tell which
-        // port the system adapter reading belongs to.
+        // Two ports could be feeding power in, both with Brick ID only. We
+        // can't tell which one the system adapter reading belongs to. A count
+        // of 2 here means two real charger candidates, not a charger plus a
+        // data/display port (issue #443, which no longer inflates the count).
         let wattageSource = ChargerWattageSource.resolve(
             portSources: [brickIDWithoutPDOs()],
             activePortCount: 2,
+            chargerSourceCount: 2,
             adapter: AdapterInfo(watts: 96, isCharging: nil, source: "AC")
         )
         #expect(wattageSource == .unknown)
@@ -513,6 +518,7 @@ struct ChargingDiagnosticTests {
         let wattageSource = ChargerWattageSource.resolve(
             portSources: [usbPD(maxW: 96, winningW: 96)],
             activePortCount: 1,
+            chargerSourceCount: 1,
             adapter: nil
         )
         #expect(wattageSource == .portNegotiated(watts: 96))
@@ -536,6 +542,7 @@ struct ChargingDiagnosticTests {
         let wattageSource = ChargerWattageSource.resolve(
             portSources: [lowMagSafeBrickID()],
             activePortCount: 1,
+            chargerSourceCount: 1,
             adapter: AdapterInfo(watts: 100, isCharging: nil, source: "AC")
         )
         #expect(wattageSource == .systemAdapterFallback(watts: 100))
@@ -548,18 +555,22 @@ struct ChargingDiagnosticTests {
         let wattageSource = ChargerWattageSource.resolve(
             portSources: [brickID(maxW: 100, winningW: 100)],
             activePortCount: 1,
+            chargerSourceCount: 1,
             adapter: AdapterInfo(watts: 100, isCharging: nil, source: "AC")
         )
         #expect(wattageSource == .portNegotiated(watts: 100))
     }
 
-    @Test("Brick ID divert blocked with multiple active ports")
+    @Test("Brick ID divert blocked with two charger candidates")
     func brickIDDivertBlockedWhenMultiplePortsActive() {
-        // #46 protection: with two active ports we can't attribute the
-        // system adapter reading, so the low Brick ID stands.
+        // #46 protection: with two ports that could each be feeding power in,
+        // we can't attribute the system adapter reading, so the low Brick ID
+        // stands. The count of 2 is two real charger candidates. A data or
+        // display port no longer counts here (issue #443).
         let wattageSource = ChargerWattageSource.resolve(
             portSources: [lowMagSafeBrickID()],
             activePortCount: 2,
+            chargerSourceCount: 2,
             adapter: AdapterInfo(watts: 100, isCharging: nil, source: "AC")
         )
         #expect(wattageSource == .portNegotiated(watts: 3))
@@ -573,6 +584,7 @@ struct ChargingDiagnosticTests {
         let wattageSource = ChargerWattageSource.resolve(
             portSources: [lowMagSafeBrickID()],
             activePortCount: 1,
+            chargerSourceCount: 1,
             adapter: adapter
         )
         #expect(wattageSource == .systemAdapterFallback(watts: 100))
@@ -590,6 +602,183 @@ struct ChargingDiagnosticTests {
         }
         #expect(w == 100)
         #expect(diag?.summary == "System reports charger at 100W")
+    }
+
+    // MARK: - Charger source count (issue #443)
+
+    /// Build a port with just the fields the charger-source count reads.
+    /// No `hpmControllerUUID` (rawProperties empty), so joins fall back to the
+    /// portKey string comparison, which is exactly the M1/M2 path.
+    private func makePort(
+        number: Int, type: String, active: Bool
+    ) -> USBCPort {
+        USBCPort(
+            id: UInt64(number),
+            serviceName: "Port-\(type)@\(number)",
+            className: "AppleHPMInterfaceType10",
+            portDescription: nil,
+            portTypeDescription: type,
+            portNumber: number,
+            connectionActive: active,
+            activeCable: nil, opticalCable: nil, usbActive: nil,
+            superSpeedActive: nil, usbModeType: nil, usbConnectString: nil,
+            transportsSupported: [], transportsActive: [], transportsProvisioned: [],
+            plugOrientation: nil, plugEventCount: nil, connectionCount: nil,
+            overcurrentCount: nil, pinConfiguration: [:], powerCurrentLimits: [],
+            firmwareVersion: nil, bootFlagsHex: nil, rawProperties: [:]
+        )
+    }
+
+    /// A Brick ID source bound to a specific port (type/number join key).
+    private func brickIDOnPort(type: Int, number: Int) -> PowerSource {
+        PowerSource(
+            id: UInt64(100 + number), name: "Brick ID",
+            parentPortType: type, parentPortNumber: number,
+            options: [PowerOption(voltageMV: 5_000, maxCurrentMA: 500, maxPowerMW: 2_500)],
+            winning: nil
+        )
+    }
+
+    @Test("A USB-C display port with no power source is not counted")
+    func displayPortDoesNotCountAsCharger() {
+        // The #443 shape: MagSafe is charging (it has a Brick ID source node),
+        // the USB-C port only carries video/data to a monitor (no source node).
+        // Only the MagSafe port has a power source, so the count is 1.
+        let magsafe = makePort(number: 1, type: "MagSafe 3", active: true)
+        let display = makePort(number: 2, type: "USB-C", active: true)
+        let sources = [brickIDOnPort(type: 0x11, number: 1)]
+        let count = ChargerWattageSource.chargerSourceCount(
+            ports: [magsafe, display], sources: sources)
+        #expect(count == 1)
+    }
+
+    @Test("Two real chargers both count (#46 preserved)")
+    func twoChargersBothCount() {
+        // Two USB-C ports each with their own Brick ID node. Both have a power
+        // source, so the count is 2 and the Brick ID divert stays blocked.
+        let portA = makePort(number: 1, type: "USB-C", active: true)
+        let portB = makePort(number: 2, type: "USB-C", active: true)
+        let sources = [
+            brickIDOnPort(type: 2, number: 1),
+            brickIDOnPort(type: 2, number: 2),
+        ]
+        let count = ChargerWattageSource.chargerSourceCount(
+            ports: [portA, portB], sources: sources)
+        #expect(count == 2)
+    }
+
+    @Test("M1/M2 portKey join: two USB-C chargers still both count")
+    func m1PortKeyFallbackTwoChargers() {
+        // M1/M2 ports carry no HPM controller UUID, so canonicallyMatches uses
+        // the portKey string. Two USB-C Brick ID chargers must still both count
+        // so the #46 divert protection holds on that hardware too.
+        let a = makePort(number: 1, type: "USB-C", active: true)
+        let b = makePort(number: 2, type: "USB-C", active: true)
+        let sources = [brickIDOnPort(type: 2, number: 1), brickIDOnPort(type: 2, number: 2)]
+        let count = ChargerWattageSource.chargerSourceCount(ports: [a, b], sources: sources)
+        #expect(count == 2)
+    }
+
+    @Test("An inactive port is never counted, even with a stale source node")
+    func inactivePortDoesNotCount() {
+        // Ports keep the last source after unplug. An inactive port with a
+        // lingering source node must not count as a charger.
+        let active = makePort(number: 1, type: "MagSafe 3", active: true)
+        let idle = makePort(number: 2, type: "USB-C", active: false)
+        let sources = [brickIDOnPort(type: 0x11, number: 1), brickIDOnPort(type: 2, number: 2)]
+        let count = ChargerWattageSource.chargerSourceCount(
+            ports: [active, idle], sources: sources)
+        #expect(count == 1)  // only the active MagSafe; the idle USB-C excluded
+    }
+
+    @Test("End to end #443: MagSafe reads full wattage, the display port is NOT a charger")
+    func magSafePlusDisplayResolvesCorrectly() {
+        // Full #443 reproduction, resolving BOTH ports. Before the fix the
+        // display cable inflated the active count, blocking the #154 divert so
+        // MagSafe froze at the junk 3W Brick ID while the Mac charged at 65W.
+        let magsafe = makePort(number: 1, type: "MagSafe 3", active: true)
+        let display = makePort(number: 2, type: "USB-C", active: true)
+        let magsafeSource = brickIDOnPort(type: 0x11, number: 1)  // MagSafe's only source
+        let ports = [magsafe, display]
+        let allSources = [magsafeSource]
+        let adapter = AdapterInfo(watts: 65, isCharging: nil, source: "AC")
+
+        let activePortCount = ports.filter { $0.connectionActive == true }.count
+        let sourceCount = ChargerWattageSource.chargerSourceCount(ports: ports, sources: allSources)
+        #expect(activePortCount == 2)
+        #expect(sourceCount == 1)
+
+        // MagSafe port: diverts to the real adapter wattage.
+        let magsafeWattage = ChargerWattageSource.resolve(
+            portSources: allSources.filter { $0.canonicallyMatches(port: magsafe) },
+            activePortCount: activePortCount,
+            chargerSourceCount: sourceCount,
+            adapter: adapter
+        )
+        #expect(magsafeWattage == .systemAdapterFallback(watts: 65))
+
+        // Display port: no power source of its own, so the adapter reading must
+        // NOT be attributed to it. This is the regression Codex caught: a single
+        // shared count here handed the display port the charger's 65W.
+        let displayWattage = ChargerWattageSource.resolve(
+            portSources: allSources.filter { $0.canonicallyMatches(port: display) },
+            activePortCount: activePortCount,
+            chargerSourceCount: sourceCount,
+            adapter: adapter
+        )
+        #expect(displayWattage == .unknown)
+        #expect(displayWattage.watts == nil)
+    }
+
+    @Test("Source-less TB dock still gets the adapter fallback (#141 preserved)")
+    func sourcelessDockUsesActivePortCountFallback() {
+        // A dock delivers power with no per-port source node. It is the only
+        // active port, so the source-less fallback (gated on the plain active
+        // count, not the source count) must still fire. chargerSourceCount is 0
+        // here; if that fallback keyed off it, the dock would show no wattage.
+        let dock = makePort(number: 1, type: "USB-C", active: true)
+        let sourceCount = ChargerWattageSource.chargerSourceCount(ports: [dock], sources: [])
+        #expect(sourceCount == 0)
+        let wattage = ChargerWattageSource.resolve(
+            portSources: [],
+            activePortCount: 1,
+            chargerSourceCount: 0,
+            adapter: AdapterInfo(watts: 96, isCharging: nil, source: "AC")
+        )
+        #expect(wattage == .systemAdapterFallback(watts: 96))
+    }
+
+    @Test("Accepted #443/#46 trade-off: a source-less second charger cannot block the Brick ID divert")
+    func brickIDDivertTradeoffWithSourcelessSecondCharger() {
+        // A MagSafe third-party Brick ID charger + a second active port that
+        // delivers power but exposes NO source node (a #141-shape dock) looks,
+        // from the port data alone, identical to a MagSafe charger + a plain
+        // display cable (#443). The display case is an everyday setup; the twin
+        // source-less-charger case is rare. We favour the common case, so the
+        // divert fires on chargerSourceCount == 1. This pins that accepted
+        // behaviour: it is a documented trade-off, not an oversight. (See the
+        // comment on the Brick ID branch in ChargerWattageSource.resolve.)
+        let wattage = ChargerWattageSource.resolve(
+            portSources: [lowMagSafeBrickID()],
+            activePortCount: 2,     // a second port is active...
+            chargerSourceCount: 1,  // ...but it exposes no power source of its own
+            adapter: AdapterInfo(watts: 96, isCharging: nil, source: "AC")
+        )
+        #expect(wattage == .systemAdapterFallback(watts: 96))
+    }
+
+    @Test("Source-less dock beside a second active port does not borrow the reading")
+    func sourcelessDockWithSecondPortBlocked() {
+        // Two active ports, the dock has no source node. We can't attribute the
+        // adapter reading to either, so no fallback fires (#46 protection via
+        // the plain active-port count).
+        let wattage = ChargerWattageSource.resolve(
+            portSources: [],
+            activePortCount: 2,
+            chargerSourceCount: 0,
+            adapter: AdapterInfo(watts: 96, isCharging: nil, source: "AC")
+        )
+        #expect(wattage == .unknown)
     }
 
     // MARK: - Standby charger (issue #264)
