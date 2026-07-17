@@ -96,11 +96,11 @@
 "Privacy" = "Privātums";
 "Pro" = "Pro";
 "Proceed" = "Turpināt";
-"Raw IOKit registry properties for each USB-C port, the model and capabilities of any connected display (its EDID, with the serial number removed), your macOS version, and chip type. This is the same data visible in System Information." = "Neapstrādātas IOKit reģistra īpašības katram USB-C portam, jebkura pievienota displeja modelis un iespējas (tā EDID ar noņemtu sērijas numuru), jūsu macOS versija un mikroshēmas veids. Šie ir tie paši dati, kas redzami Sistēmas informācijā.";
+"Raw IOKit registry properties for each USB-C port and connected accessory, the model and capabilities of any connected display (its EDID), your macOS version, and chip type. This is the same data visible in System Information." = "Neapstrādātas IOKit reģistra īpašības katram USB-C portam un pievienotajam piederumam, jebkura pievienota displeja modelis un iespējas (tā EDID), jūsu macOS versija un mikroshēmas veids. Šie ir tie paši dati, kas redzami Sistēmas informācijā.";
 "What happens" = "Kas notiek";
 "What is collected" = "Kas tiek ievākts";
 "WhatCable runs %lld IOKit probes that read raw USB-C and Thunderbolt data from your Mac's port controller registers. The results are sent to a secure server to help improve cable and port detection." = "WhatCable veic %lld IOKit zondējumus, kas nolasa neapstrādātus USB-C un Thunderbolt datus no jūsu Mac porta kontrollera reģistriem. Rezultāti tiek nosūtīti uz drošu serveri, lai palīdzētu uzlabot kabeļu un portu noteikšanu.";
-"Your machine's hardware UUID is hashed with SHA-256 before sending. No names, accounts, serial numbers, or personal data are collected or stored." = "Jūsu iekārtas aparatūras UUID tiek jaukts ar SHA-256 pirms nosūtīšanas. Netiek ievākti vai glabāti vārdi, konti, sērijas numuri vai personas dati.";
+"Your machine's hardware UUID is hashed with SHA-256 before sending. No names, accounts, your Mac's serial number, or personal data are collected or stored." = "Jūsu iekārtas aparatūras UUID tiek jaukts ar SHA-256 pirms nosūtīšanas. Netiek ievākti vai glabāti vārdi, konti, jūsu Mac sērijas numurs vai personas dati.";
 
 /* Negotiation diagnostics + Pro UX (PR #55) */
 "Back" = "Atpakaļ";

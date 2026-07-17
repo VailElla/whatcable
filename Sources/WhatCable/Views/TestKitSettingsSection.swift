@@ -137,13 +137,13 @@ struct TestKitConsentView: View {
                 infoRow(
                     icon: "list.clipboard",
                     title: String(localized: "What is collected", bundle: _appLocalizedBundle),
-                    detail: String(localized: "Raw IOKit registry properties for each USB-C port, the model and capabilities of any connected display (its EDID, with the serial number removed), your macOS version, and chip type. This is the same data visible in System Information.", bundle: _appLocalizedBundle)
+                    detail: String(localized: "Raw IOKit registry properties for each USB-C port and connected accessory, the model and capabilities of any connected display (its EDID), your macOS version, and chip type. This is the same data visible in System Information.", bundle: _appLocalizedBundle)
                 )
 
                 infoRow(
                     icon: "lock.shield",
                     title: String(localized: "Privacy", bundle: _appLocalizedBundle),
-                    detail: String(localized: "Your machine's hardware UUID is hashed with SHA-256 before sending. No names, accounts, serial numbers, or personal data are collected or stored.", bundle: _appLocalizedBundle)
+                    detail: String(localized: "Your machine's hardware UUID is hashed with SHA-256 before sending. No names, accounts, your Mac's serial number, or personal data are collected or stored.", bundle: _appLocalizedBundle)
                 )
             }
 

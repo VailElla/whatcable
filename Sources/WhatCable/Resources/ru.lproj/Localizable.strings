@@ -96,11 +96,11 @@
 "Privacy" = "Конфиденциальность";
 "Pro" = "Pro";
 "Proceed" = "Продолжить";
-"Raw IOKit registry properties for each USB-C port, the model and capabilities of any connected display (its EDID, with the serial number removed), your macOS version, and chip type. This is the same data visible in System Information." = "Необработанные свойства реестра IOKit для каждого порта USB-C, модель и возможности любого подключённого дисплея (его EDID с удалённым серийным номером), версия macOS и тип чипа. Это те же данные, которые видны в «Информации о системе».";
+"Raw IOKit registry properties for each USB-C port and connected accessory, the model and capabilities of any connected display (its EDID), your macOS version, and chip type. This is the same data visible in System Information." = "Необработанные свойства реестра IOKit для каждого порта USB-C и подключённого аксессуара, модель и возможности любого подключённого дисплея (его EDID), версия macOS и тип чипа. Это те же данные, которые видны в «Информации о системе».";
 "What happens" = "Что происходит";
 "What is collected" = "Что собирается";
 "WhatCable runs %lld IOKit probes that read raw USB-C and Thunderbolt data from your Mac's port controller registers. The results are sent to a secure server to help improve cable and port detection." = "WhatCable выполняет %lld зондов IOKit, читающих сырые данные USB-C и Thunderbolt из регистров контроллера портов Mac. Результаты отправляются на защищённый сервер для улучшения определения кабелей и портов.";
-"Your machine's hardware UUID is hashed with SHA-256 before sending. No names, accounts, serial numbers, or personal data are collected or stored." = "Аппаратный UUID вашего Mac хешируется SHA-256 перед отправкой. Имена, учётные записи, серийные номера и личные данные не собираются и не хранятся.";
+"Your machine's hardware UUID is hashed with SHA-256 before sending. No names, accounts, your Mac's serial number, or personal data are collected or stored." = "Аппаратный UUID вашего Mac хешируется SHA-256 перед отправкой. Имена, учётные записи, серийный номер вашего Mac и личные данные не собираются и не хранятся.";
 
 /* Negotiation diagnostics + Pro UX (PR #55). English; non-English to be refined by the community translation flow. */
 "Back" = "Назад";

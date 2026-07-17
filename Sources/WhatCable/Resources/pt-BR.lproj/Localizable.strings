@@ -96,11 +96,11 @@
 "Privacy" = "Privacidade";
 "Pro" = "Pro";
 "Proceed" = "Continuar";
-"Raw IOKit registry properties for each USB-C port, the model and capabilities of any connected display (its EDID, with the serial number removed), your macOS version, and chip type. This is the same data visible in System Information." = "Propriedades brutas do registro IOKit para cada porta USB-C, o modelo e os recursos de qualquer monitor conectado (seu EDID, com o número de série removido), sua versão do macOS e o tipo de chip. Esses são os mesmos dados visíveis nas Informações do Sistema.";
+"Raw IOKit registry properties for each USB-C port and connected accessory, the model and capabilities of any connected display (its EDID), your macOS version, and chip type. This is the same data visible in System Information." = "Propriedades brutas do registro IOKit para cada porta USB-C e acessório conectado, o modelo e os recursos de qualquer monitor conectado (seu EDID), sua versão do macOS e o tipo de chip. Esses são os mesmos dados visíveis nas Informações do Sistema.";
 "What happens" = "O que acontece";
 "What is collected" = "O que é coletado";
 "WhatCable runs %lld IOKit probes that read raw USB-C and Thunderbolt data from your Mac's port controller registers. The results are sent to a secure server to help improve cable and port detection." = "O WhatCable executa %lld sondagens IOKit que leem dados brutos de USB-C e Thunderbolt dos registros do controlador de portas do Mac. Os resultados são enviados a um servidor seguro para ajudar a melhorar a detecção de cabos e portas.";
-"Your machine's hardware UUID is hashed with SHA-256 before sending. No names, accounts, serial numbers, or personal data are collected or stored." = "O UUID de hardware da sua máquina passa por hash SHA-256 antes do envio. Nomes, contas, números de série e dados pessoais não são coletados nem armazenados.";
+"Your machine's hardware UUID is hashed with SHA-256 before sending. No names, accounts, your Mac's serial number, or personal data are collected or stored." = "O UUID de hardware da sua máquina passa por hash SHA-256 antes do envio. Nomes, contas, o número de série do seu Mac e dados pessoais não são coletados nem armazenados.";
 
 /* Negotiation diagnostics + Pro UX (PR #55). English; non-English to be refined by the community translation flow. */
 "Back" = "Voltar";

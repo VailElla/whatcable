@@ -96,11 +96,11 @@
 "Privacy" = "Конфіденційність";
 "Pro" = "Pro";
 "Proceed" = "Продовжити";
-"Raw IOKit registry properties for each USB-C port, the model and capabilities of any connected display (its EDID, with the serial number removed), your macOS version, and chip type. This is the same data visible in System Information." = "Необроблені властивості реєстру IOKit для кожного USB-C порту, модель і можливості підключеного дисплея (його EDID без серійного номера), версія macOS і тип чипа. Це ті самі дані, що відображаються в «Системній інформації».";
+"Raw IOKit registry properties for each USB-C port and connected accessory, the model and capabilities of any connected display (its EDID), your macOS version, and chip type. This is the same data visible in System Information." = "Необроблені властивості реєстру IOKit для кожного USB-C порту та підключеного аксесуара, модель і можливості підключеного дисплея (його EDID), версія macOS і тип чипа. Це ті самі дані, що відображаються в «Системній інформації».";
 "What happens" = "Що відбувається";
 "What is collected" = "Що збирається";
 "WhatCable runs %lld IOKit probes that read raw USB-C and Thunderbolt data from your Mac's port controller registers. The results are sent to a secure server to help improve cable and port detection." = "WhatCable виконує %lld IOKit-зондів, які зчитують необроблені дані USB-C і Thunderbolt із регістрів контролера портів вашого Mac. Результати надсилаються на захищений сервер для вдосконалення визначення кабелів і портів.";
-"Your machine's hardware UUID is hashed with SHA-256 before sending. No names, accounts, serial numbers, or personal data are collected or stored." = "Апаратний UUID вашого пристрою хешується за допомогою SHA-256 перед надсиланням. Імена, акаунти, серійні номери та особисті дані не збираються і не зберігаються.";
+"Your machine's hardware UUID is hashed with SHA-256 before sending. No names, accounts, your Mac's serial number, or personal data are collected or stored." = "Апаратний UUID вашого пристрою хешується за допомогою SHA-256 перед надсиланням. Імена, акаунти, серійний номер вашого Mac та особисті дані не збираються і не зберігаються.";
 
 /* Negotiation diagnostics + Pro UX (PR #55). English; non-English to be refined by the community translation flow. */
 "Back" = "Назад";
