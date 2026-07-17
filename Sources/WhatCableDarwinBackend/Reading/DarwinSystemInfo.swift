@@ -20,8 +20,12 @@ public enum DarwinSystemInfo {
     }
 
     /// True when this process is running on genuinely Intel hardware, which
-    /// WhatCable can't read cables on: Intel's Titan Ridge / JHL9580
-    /// controllers don't publish the IOKit port-controller data.
+    /// WhatCable can't read cables on: Intel Macs don't publish the IOKit
+    /// port-controller data every reading is built on. Confirmed against all 7
+    /// Intel machines in `research/customer-probes/intel_*`: probe 01 reports
+    /// every port-controller iterator empty (`AppleHPMInterfaceType`,
+    /// `AppleTypeCPort`, `IOPortTransportStateCC`, `IOPortFeaturePowerIn`, ...)
+    /// on every one of them.
     ///
     /// The tempting test is `#if arch(x86_64)`, but that describes the binary
     /// SLICE, not the Mac. Rosetta translates x86_64 -> arm64, so our Intel
@@ -91,10 +95,19 @@ public enum DarwinSystemInfo {
         var value: Int32 = 0
         var size = MemoryLayout<Int32>.size
         guard sysctlbyname(name, &value, &size, nil, 0) == 0 else {
+            // ENOENT means no such key, which is the Intel signal. Anything
+            // else (e.g. ERANGE below) tells us nothing, so say nothing.
             return errno == ENOENT ? .absent : .failed
         }
-        // A short read would leave `value` partly uninitialised; treat any
-        // unexpected width as unknown rather than trusting the bytes.
+        // Belt and braces, for the case where a sysctl reports SUCCESS with a
+        // width we didn't expect: better to say "unknown" than trust the bytes.
+        //
+        // An oversized value doesn't reach here: asking for the 8-byte
+        // hw.memsize in 4 bytes returns -1/ERANGE on macOS 26 (measured, value
+        // untouched) and the branch above catches it. Don't read that as a
+        // general rule though: Apple documents insufficient-buffer failures as
+        // ENOMEM, so the errno varies by handler. Either way it's a failure,
+        // and any failure that isn't ENOENT lands on .failed.
         guard size == MemoryLayout<Int32>.size else { return .failed }
         return .value(value)
     }

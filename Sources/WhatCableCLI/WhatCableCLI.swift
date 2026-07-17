@@ -29,6 +29,15 @@ struct WhatCableCLI {
             return
         }
 
+        // Deliberately no unsupported-hardware warning here, unlike the other
+        // hardware-reading modes, and this is measured rather than assumed.
+        // This dumps the IOThunderboltSwitch tree, and all 7 Intel machines in
+        // `research/customer-probes/intel_*` DO publish those services
+        // (IOThunderboltSwitchType3 on five, Type4 on two) while reporting
+        // every port-controller iterator empty. So Intel lacks the
+        // AppleHPMInterface data the cable readings need, but not the
+        // Thunderbolt fabric data this reads: the dump is useful here, and a
+        // "this will be empty" warning would be a lie. Don't add one.
         if args.contains("--tb-debug") {
             print(ThunderboltProbe.dump(), terminator: "")
             return
@@ -136,9 +145,10 @@ struct WhatCableCLI {
         }
     }
 
-    /// Intel Macs use Titan Ridge / JHL9580 controllers, which don't publish
-    /// the IOKit port-controller data every reading is built on, so the output
-    /// will be empty. Not fatal: the user may still want to see for themselves.
+    /// Intel Macs don't publish the IOKit port-controller data every reading is
+    /// built on, so the output will be empty (confirmed on all 7 Intel machines
+    /// in `research/customer-probes/intel_*`). Not fatal: the user may still
+    /// want to see for themselves.
     ///
     /// The check is a runtime sysctl read, deliberately NOT `#if arch(x86_64)`:
     /// Rosetta runs our Intel slice on Apple Silicon, so a slice check would

@@ -4,10 +4,12 @@ import WhatCableDarwinBackend
 
 /// A one-time "this Mac can't work" alert for Intel Macs.
 ///
-/// Intel Macs use Titan Ridge / JHL9580 Thunderbolt controllers, which don't
-/// publish the IOKit port-controller data every reading in the app is built
-/// on. There's no partial or degraded mode to offer: there's simply no data.
-/// So instead of leaving the user staring at an empty window, say why once.
+/// Intel Macs don't publish the IOKit port-controller data every reading in
+/// the app is built on. There's no partial or degraded mode to offer: there's
+/// simply no data. Confirmed against all 7 Intel machines in
+/// `research/customer-probes/intel_*`, where probe 01 reports every
+/// port-controller iterator empty. So instead of leaving the user staring at
+/// an empty window, say why.
 ///
 /// The check is `DarwinSystemInfo.isIntelHardware()` (a runtime sysctl read),
 /// deliberately NOT `#if arch(x86_64)`. See that method for why the compile

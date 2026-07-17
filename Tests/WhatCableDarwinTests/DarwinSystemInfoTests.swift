@@ -17,25 +17,49 @@ struct DarwinSystemInfoTests {
 
     // MARK: - isIntelHardware
 
-    /// The rows that matter. Only the last one is Intel; everything else is an
-    /// Apple Silicon Mac that must NOT see the unsupported-hardware notice.
+    /// Every combination of the two sysctl reads, enumerated exhaustively
+    /// instead of hand picked, so the coverage matches what the source claims.
+    /// The earlier list covered 9 of these 16 and silently missed rows that pin
+    /// precedence, e.g. `.value(1)/.value(0)`: proc_translated wins, so a
+    /// contradictory arm64 flag must not flip the answer to Intel.
     ///
-    /// The Rosetta row is the reason this function exists at all: a plain
+    /// The Rosetta rows are why this function exists at all: a plain
     /// `#if arch(x86_64)` check reports true there, on a Mac where WhatCable
     /// works perfectly. Verified live on an M5: running the x86_64 slice reads
     /// procTranslated=1, arm64Optional=1.
-    @Test("isIntelHardware truth table", arguments: [
-        // (procTranslated, arm64Optional, isIntel, description)
+    ///
+    /// Each expectation below is a literal, written out by hand. Deriving them
+    /// from the same rules the code implements would just restate the code in
+    /// the test: if the reasoning were wrong, both copies would be wrong the
+    /// same way and the test would certify the bug.
+    @Test("isIntelHardware truth table, all 16 combinations", arguments: [
+        // (procTranslated, arm64Optional, isIntel, what this Mac actually is)
+
+        // proc_translated == 1: under Rosetta, which exists only on Apple
+        // Silicon. Never Intel, whatever the arm64 read says. These four rows
+        // pin that precedence; the hand-picked list used to miss most of them.
+        (.value(1), .value(0), false, "Rosetta, arm64 flag says 0: Rosetta still wins"),
+        (.value(1), .value(1), false, "Apple Silicon, x86_64 slice under Rosetta (measured on M5)"),
+        (.value(1), .absent, false, "Rosetta, arm64 key hidden: Rosetta still wins"),
+        (.value(1), .failed, false, "Rosetta, arm64 read failed: Rosetta still wins"),
+
+        // Not translated: the arm64 flag decides.
+        (.value(0), .value(0), true, "not translated, not arm64: an Intel Mac"),
         (.value(0), .value(1), false, "native Apple Silicon"),
-        (.value(1), .value(1), false, "Apple Silicon, x86_64 slice under Rosetta"),
-        (.value(1), .absent, false, "Rosetta hiding hw.optional.arm64"),
-        (.value(1), .failed, false, "Rosetta, arm64 read failed: still Rosetta, still not Intel"),
+        (.value(0), .absent, true, "no arm64 key: an Intel Mac"),
+        (.value(0), .failed, false, "arm64 read failed: unknown, don't claim Intel"),
+
+        // proc_translated absent (the normal Intel answer: the key is Apple
+        // Silicon-era and doesn't exist there).
+        (.absent, .value(0), true, "arm64 present but 0: not an arm64 Mac"),
+        (.absent, .value(1), false, "arm64 says Apple Silicon: believe it"),
         (.absent, .absent, true, "real Intel Mac: neither sysctl exists"),
-        (.failed, .absent, true, "Intel, proc_translated read failed: arm64 absent still says Intel"),
-        (.absent, .value(0), true, "arm64 sysctl present but 0: not an arm64 Mac"),
-        // The conservative rows. We know nothing, so we say nothing: a false
-        // "your Mac is unsupported" on a working Mac is the worse failure.
         (.absent, .failed, false, "arm64 read failed: unknown, don't claim Intel"),
+
+        // proc_translated read failed: fall through to the arm64 flag.
+        (.failed, .value(0), true, "not arm64: an Intel Mac"),
+        (.failed, .value(1), false, "arm64 says Apple Silicon: believe it"),
+        (.failed, .absent, true, "arm64 key absent: an Intel Mac"),
         (.failed, .failed, false, "both reads failed: unknown, don't claim Intel"),
     ] as [(DarwinSystemInfo.SysctlRead, DarwinSystemInfo.SysctlRead, Bool, String)])
     func isIntelHardwareTruthTable(
