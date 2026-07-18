@@ -2,7 +2,10 @@ import Foundation
 import Testing
 @testable import WhatCable
 
-@Suite("Test Kit probe output limit")
+// These tests launch real subprocesses and include an intentional watchdog
+// timeout. Serial execution keeps the timeout test from racing the two
+// concurrent 4 MiB output fixtures on slower CI hosts.
+@Suite("Test Kit probe output limit", .serialized)
 struct TestKitRunnerOutputLimitTests {
     @Test("Output at the byte limit is preserved")
     @MainActor
@@ -49,10 +52,10 @@ struct TestKitRunnerOutputLimitTests {
     @Test("Small partial output from the watchdog path is preserved")
     @MainActor
     func timeoutPartialOutputIsPreserved() async throws {
-        let fixture = try makeScript(contents: "#!/bin/sh\n/bin/echo partial\n/bin/sleep 1\n")
+        let fixture = try makeScript(contents: "#!/bin/sh\n/bin/echo partial\n/bin/sleep 5\n")
         defer { try? FileManager.default.removeItem(at: fixture.deletingLastPathComponent()) }
 
-        let result = await TestKitRunner.shared.runProbe(at: fixture, timeout: 0.5)
+        let result = await TestKitRunner.shared.runProbe(at: fixture, timeout: 2)
 
         #expect(result.output == "partial\n")
         #expect(result.didTimeout)
