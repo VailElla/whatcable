@@ -12,13 +12,13 @@
 <meta property="og:type" content="website">
 <meta property="og:url" content="https://www.whatcable.uk/">
 <meta property="og:title" content="WhatCable: Know what your USB-C cable can really do">
-<meta property="og:description" content="Why is my MacBook charging slowly? WhatCable shows USB-C cable speed, charging power, and e-marker data in plain English. Featured in Lifehacker, Boing Boing, and MakeUseOf.">
+<meta property="og:description" content="Why is my MacBook charging slowly? WhatCable shows USB-C cable speed, charging power, and e-marker data in plain English. Featured in The Verge, ZDNet, and 9to5Mac.">
 <meta property="og:image" content="https://www.whatcable.uk/screenshot.webp">
 
 
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="WhatCable: Know what your USB-C cable can really do">
-<meta name="twitter:description" content="Why is my MacBook charging slowly? WhatCable shows USB-C cable speed, charging power, and e-marker data in plain English. Featured in Lifehacker, Boing Boing, and MakeUseOf.">
+<meta name="twitter:description" content="Why is my MacBook charging slowly? WhatCable shows USB-C cable speed, charging power, and e-marker data in plain English. Featured in The Verge, ZDNet, and 9to5Mac.">
 <meta name="twitter:image" content="https://www.whatcable.uk/screenshot.webp">
 
 
@@ -483,9 +483,10 @@
     transition: opacity 0.2s ease;
   }
   .home .press-logos img:hover { opacity: 0.85; }
-  .home .press-logos img[alt="Lifehacker"],
-  .home .press-logos img[alt="Adafruit"] { height: 44px; }
+  .home .press-logos img[alt="Lifehacker"] { height: 44px; }
   .home .press-logos img[alt="MakeUseOf"] { height: 120px; }
+  /* ZDNet is a two-line stacked mark, so it needs more height to stay legible. */
+  .home .press-logos img[alt="ZDNet"] { height: 46px; }
 
   .home section { padding: 88px 0; }
   .home .section-head { max-width: 680px; margin-bottom: 48px; }
@@ -828,8 +829,9 @@
     .home .problem-card .spec { font-size: 22px; }
     .home .press-logos { gap: 22px 30px; }
     .home .press-logos img { height: 26px; }
-    .home .press-logos img[alt="Lifehacker"], .home .press-logos img[alt="Adafruit"] { height: 28px; }
+    .home .press-logos img[alt="Lifehacker"] { height: 28px; }
     .home .press-logos img[alt="MakeUseOf"] { height: 66px; }
+    .home .press-logos img[alt="ZDNet"] { height: 32px; }
     .home .terminal pre { padding: 16px; font-size: 12px; }
     .home .trust-card { padding: 18px; }
     .home .setting-card { padding: 18px; }
@@ -942,10 +944,11 @@
   <div class="wrap-wide">
     <p class="press-label">As featured in</p>
     <div class="press-logos">
+      <img src="/press/theverge.png" alt="The Verge">
+      <img src="/press/zdnet.png" alt="ZDNet">
+      <img src="/press/9to5mac.webp" alt="9to5Mac">
       <img src="/press/lifehacker.png" alt="Lifehacker">
       <img src="/press/makeuseof.webp" alt="MakeUseOf">
-      <img src="/press/adafruit.png" alt="Adafruit">
-      <img src="/press/boingboing.png" alt="Boing Boing">
     </div>
     <div class="product-hunt">
       <a href="https://www.producthunt.com/products/whatcable?embed=true&amp;utm_source=badge-top-post-badge&amp;utm_medium=badge&amp;utm_campaign=badge-whatcable" target="_blank" rel="noopener noreferrer">
