@@ -62,6 +62,19 @@ struct TestKitRunnerOutputLimitTests {
         #expect(!result.didExceedOutputLimit)
     }
 
+    @Test("An incomplete UTF-8 sequence from the watchdog path is preserved")
+    @MainActor
+    func timeoutIncompleteUTF8IsPreserved() async throws {
+        let fixture = try makeScript(contents: "#!/bin/sh\n/usr/bin/printf '\\303'\n/bin/sleep 5\n")
+        defer { try? FileManager.default.removeItem(at: fixture.deletingLastPathComponent()) }
+
+        let result = await TestKitRunner.shared.runProbe(at: fixture, timeout: 2)
+
+        #expect(result.output == "\u{FFFD}")
+        #expect(result.didTimeout)
+        #expect(!result.didExceedOutputLimit)
+    }
+
     @Test("Oversized JSON request bodies are rejected")
     @MainActor
     func oversizedJSONBodyIsRejected() throws {

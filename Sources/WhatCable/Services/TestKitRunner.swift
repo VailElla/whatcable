@@ -290,11 +290,14 @@ final class TestKitRunner: ObservableObject {
                 } catch {
                     didFailReading = true
                     Self.log.error("Failed to read probe output: \(error.localizedDescription)")
+                    if process.isRunning {
+                        process.terminate()
+                    }
                 }
                 process.waitUntilExit()
                 let output = didExceedOutputLimit || didFailReading
                     ? nil
-                    : String(data: data, encoding: .utf8)
+                    : String(decoding: data, as: UTF8.self)
                 continuation.resume(returning: ProbeRunResult(
                     output: output,
                     exitStatus: process.terminationStatus,
