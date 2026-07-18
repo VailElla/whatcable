@@ -55,7 +55,7 @@ public enum ThunderboltProbe {
 
     private static func dumpSwitch(_ service: io_service_t, index: Int) -> String {
         var output = ""
-        let className = ioClassName(service) ?? "<unknown class>"
+        let className = TerminalFieldEncoder.encode(ioClassName(service) ?? "<unknown class>")
         output += "## Switch #\(index): \(className)\n"
 
         if let props = ioProperties(service) {
@@ -80,7 +80,7 @@ public enum ThunderboltProbe {
             // matches, not link-state carriers.
             guard childClass.contains("Port") else { continue }
             portIndex += 1
-            output += "\n  ### Port @\(portIndex): \(childClass)\n"
+            output += "\n  ### Port @\(portIndex): \(TerminalFieldEncoder.encode(childClass))\n"
             if let props = ioProperties(child) {
                 output += renderProperties(props, indent: "    ")
             }
@@ -107,7 +107,7 @@ public enum ThunderboltProbe {
         return dict as? [String: Any]
     }
 
-    private static func renderProperties(_ props: [String: Any], indent: String) -> String {
+    static func renderProperties(_ props: [String: Any], indent: String) -> String {
         // Sort keys for stable, paste-friendly output. Skip noisy fields that
         // don't help with the design (IOPowerManagement dict, large binary blobs
         // that aren't useful without decoding).
@@ -115,7 +115,7 @@ public enum ThunderboltProbe {
         var output = ""
         for key in props.keys.sorted() where !skip.contains(key) {
             let value = props[key]!
-            output += "\(indent)\(key) = \(renderValue(value))\n"
+            output += "\(indent)\(TerminalFieldEncoder.encode(key)) = \(renderValue(value))\n"
         }
         return output
     }
@@ -123,7 +123,7 @@ public enum ThunderboltProbe {
     private static func renderValue(_ value: Any) -> String {
         switch value {
         case let s as String:
-            return "\"\(s)\""
+            return "\"\(TerminalFieldEncoder.encode(s))\""
         case let n as NSNumber:
             return n.stringValue
         case let b as Bool:
@@ -137,10 +137,12 @@ public enum ThunderboltProbe {
             let parts = arr.map { renderValue($0) }
             return "[\(parts.joined(separator: ", "))]"
         case let dict as [String: Any]:
-            let parts = dict.keys.sorted().map { "\($0)=\(renderValue(dict[$0]!))" }
+            let parts = dict.keys.sorted().map {
+                "\(TerminalFieldEncoder.encode($0))=\(renderValue(dict[$0]!))"
+            }
             return "{\(parts.joined(separator: ", "))}"
         default:
-            return "\(value)"
+            return TerminalFieldEncoder.encode("\(value)")
         }
     }
 }
