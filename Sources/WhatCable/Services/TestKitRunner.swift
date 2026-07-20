@@ -9,6 +9,12 @@ final class TestKitRunner: ObservableObject {
 
     private nonisolated static let log = Logger(subsystem: "uk.whatcable.whatcable", category: "test-kit")
     private static let apiURL = "https://whatcable-test-kit.darrylmorley-uk.workers.dev"
+    // Bound both the retained child output and the encoded network copy. The
+    // higher request limit leaves room for JSON escaping while still imposing
+    // a hard ceiling if an otherwise-valid output expands during serialization.
+    nonisolated static let maxProbeOutputBytes = 4 * 1024 * 1024
+    nonisolated static let maxRequestBodyBytes = 8 * 1024 * 1024
+    private nonisolated static let probeReadChunkBytes = 64 * 1024
 
     enum State: Equatable {
         case idle
@@ -107,6 +113,14 @@ final class TestKitRunner: ObservableObject {
 
             let result = await runProbe(at: binaryURL)
 
+            guard !result.didExceedOutputLimit else {
+                Self.log.warning(
+                    "Probe \(probeName) exceeded the \(Self.maxProbeOutputBytes)-byte output limit; discarding output"
+                )
+                noOutputProbes.append(probeName)
+                continue
+            }
+
             // Accounting decision (audit finding: crashes/empty-output/missing
             // binaries were silently uncounted). A probe lands in the new
             // no-output bucket, and its output (if any) is discarded, unless
@@ -177,11 +191,12 @@ final class TestKitRunner: ObservableObject {
     /// distinguish "our watchdog" from "somebody else's kill" (raw signal 15
     /// is still worth knowing as a sanity check when reading logs, but it is
     /// not what this code branches on).
-    private struct ProbeRunResult {
+    struct ProbeRunResult {
         let output: String?
         let exitStatus: Int32
         let terminationReason: Process.TerminationReason
         let didTimeout: Bool
+        let didExceedOutputLimit: Bool
     }
 
     /// Cross-queue flag: the timer fires on its own queue (`.global()`) and
@@ -208,7 +223,7 @@ final class TestKitRunner: ObservableObject {
         }
     }
 
-    private func runProbe(at binaryURL: URL) async -> ProbeRunResult {
+    func runProbe(at binaryURL: URL, timeout: TimeInterval = 30) async -> ProbeRunResult {
         await withCheckedContinuation { continuation in
             DispatchQueue.global(qos: .utility).async {
                 let process = Process()
@@ -221,7 +236,13 @@ final class TestKitRunner: ObservableObject {
                     try process.run()
                 } catch {
                     Self.log.error("Failed to launch probe: \(error.localizedDescription)")
-                    continuation.resume(returning: ProbeRunResult(output: nil, exitStatus: -1, terminationReason: .exit, didTimeout: false))
+                    continuation.resume(returning: ProbeRunResult(
+                        output: nil,
+                        exitStatus: -1,
+                        terminationReason: .exit,
+                        didTimeout: false,
+                        didExceedOutputLimit: false
+                    ))
                     return
                 }
 
@@ -230,7 +251,7 @@ final class TestKitRunner: ObservableObject {
                 // Timer is created only after process.run() succeeds, so the
                 // catch path above cannot leak a live timer source.
                 let timer = DispatchSource.makeTimerSource(queue: .global())
-                timer.schedule(deadline: .now() + 30)
+                timer.schedule(deadline: .now() + timeout)
                 timer.setEventHandler {
                     if process.isRunning {
                         // Set before terminate() so a read after
@@ -244,16 +265,45 @@ final class TestKitRunner: ObservableObject {
                 defer { timer.cancel() }
 
                 // Drain the pipe while the probe runs; reading after waitUntilExit
-                // deadlocks once output exceeds the 64KB pipe buffer (the child
-                // blocks on write() and nothing is draining the other end).
-                let data = pipe.fileHandleForReading.readDataToEndOfFile()
+                // deadlocks once output exceeds the pipe buffer. Retain at most
+                // maxProbeOutputBytes, but keep draining after the limit so a
+                // child already exiting cannot block on a full pipe. Oversized
+                // output is rejected in full rather than submitted truncated.
+                var data = Data()
+                var didExceedOutputLimit = false
+                var didFailReading = false
+                do {
+                    while let chunk = try pipe.fileHandleForReading.read(upToCount: Self.probeReadChunkBytes),
+                          !chunk.isEmpty {
+                        guard !didExceedOutputLimit else { continue }
+
+                        let remainingCapacity = Self.maxProbeOutputBytes - data.count
+                        guard chunk.count <= remainingCapacity else {
+                            didExceedOutputLimit = true
+                            if process.isRunning {
+                                process.terminate()
+                            }
+                            continue
+                        }
+                        data.append(chunk)
+                    }
+                } catch {
+                    didFailReading = true
+                    Self.log.error("Failed to read probe output: \(error.localizedDescription)")
+                    if process.isRunning {
+                        process.terminate()
+                    }
+                }
                 process.waitUntilExit()
-                let output = String(data: data, encoding: .utf8)
+                let output = didExceedOutputLimit || didFailReading
+                    ? nil
+                    : String(decoding: data, as: UTF8.self)
                 continuation.resume(returning: ProbeRunResult(
                     output: output,
                     exitStatus: process.terminationStatus,
                     terminationReason: process.terminationReason,
-                    didTimeout: timeoutMarker.didFire
+                    didTimeout: timeoutMarker.didFire,
+                    didExceedOutputLimit: didExceedOutputLimit
                 ))
             }
         }
@@ -313,7 +363,11 @@ final class TestKitRunner: ObservableObject {
         request.timeoutInterval = 10
 
         do {
-            request.httpBody = try JSONSerialization.data(withJSONObject: payload)
+            guard let body = try Self.boundedJSONBody(payload) else {
+                Self.log.warning("Refusing POST to \(urlString): JSON body exceeds \(Self.maxRequestBodyBytes) bytes")
+                return false
+            }
+            request.httpBody = body
             let (_, response) = try await URLSession.shared.data(for: request)
             let status = (response as? HTTPURLResponse)?.statusCode ?? 0
             return status == 200
@@ -321,6 +375,11 @@ final class TestKitRunner: ObservableObject {
             Self.log.error("POST to \(urlString) failed: \(error.localizedDescription)")
             return false
         }
+    }
+
+    static func boundedJSONBody(_ payload: [String: Any]) throws -> Data? {
+        let body = try JSONSerialization.data(withJSONObject: payload)
+        return body.count <= maxRequestBodyBytes ? body : nil
     }
 
     static func probesDirectory() -> URL? {
