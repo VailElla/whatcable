@@ -240,6 +240,18 @@ public enum PDVDO {
         public let sopDoubleControllerPresent: Bool
         public let decodeWarnings: [DecodeWarning]
 
+        /// Stable report value for the cable speed. Reserved encodings must
+        /// not be collapsed to USB 2.0, because the latter is a real
+        /// advertised capability and would make the report misleading.
+        public var reportSpeedLabel: String {
+            for warning in decodeWarnings {
+                if case .reservedSpeedEncoding(let encoding) = warning {
+                    return "Reserved cable speed encoding (\(encoding))"
+                }
+            }
+            return speed.reportLabel
+        }
+
         public var maxVolts: Int {
             switch maxVoltageEncoded {
             case 3: return 50

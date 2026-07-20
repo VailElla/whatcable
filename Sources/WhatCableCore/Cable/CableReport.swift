@@ -68,7 +68,7 @@ public enum CableReport {
             if let cv = identity.cableVDO {
                 // Reports are machine-consumed by sync-cable-reports.swift,
                 // so keep this value stable and independent of the UI locale.
-                self.speed = cv.speed.reportLabel
+                self.speed = cv.reportSpeedLabel
                 self.currentRating = cv.current.label
                 self.maxVolts = cv.maxVolts
                 self.maxWatts = cv.maxWatts

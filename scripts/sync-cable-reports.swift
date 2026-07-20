@@ -558,8 +558,11 @@ if newReports.isEmpty {
 } else {
     let nums = newReports.map { "#\($0.issueNumber)" }.joined(separator: ", ")
     print("appended \(newReports.count) new cable(s): \(nums)")
-    print("fill the '\(needsReview)' rows by hand, then run: swift scripts/build-cable-db.swift && swift scripts/render-known-cables.swift")
+    print("fill the '\(needsReview)' rows by hand")
 }
 if normalizedCount > 0 {
     print("canonicalized \(normalizedCount) existing speed value(s) from Raw Cable VDO evidence")
+}
+if !newReports.isEmpty || normalizedCount > 0 {
+    print("then run: swift scripts/build-cable-db.swift && swift scripts/render-known-cables.swift")
 }

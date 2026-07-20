@@ -243,6 +243,7 @@ struct PDVDOTests {
             #expect(cable.speed == .usb20)
             #expect(cable.current == .threeAmp)
             #expect(cable.decodeWarnings == [.reservedSpeedEncoding(speedBits)])
+            #expect(cable.reportSpeedLabel == "Reserved cable speed encoding (\(speedBits))")
         }
     }
 
