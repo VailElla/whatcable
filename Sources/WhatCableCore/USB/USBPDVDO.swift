@@ -128,6 +128,18 @@ public enum PDVDO {
             }
         }
 
+        /// Stable, non-localized value for reports and generated data.
+        /// Keep `label` for localized UI presentation.
+        public var reportLabel: String {
+            switch self {
+            case .usb20: return "USB 2.0 (480 Mbps)"
+            case .usb32Gen1: return "USB 3.2 Gen 1 (5 Gbps)"
+            case .usb32Gen2: return "USB 3.2 Gen 2 (10 Gbps)"
+            case .usb4Gen3: return "USB4 Gen 3 (40 Gbps, Thunderbolt 4 class)"
+            case .usb4Gen4: return "USB4 Gen 4 (80 Gbps, Thunderbolt 5 class)"
+            }
+        }
+
         public var maxGbps: Double {
             switch self {
             case .usb20: return 0.48

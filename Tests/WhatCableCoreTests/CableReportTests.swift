@@ -129,11 +129,13 @@ struct CableReportTests {
         #expect(items["fingerprint"]?.contains("0x05AC") == true)
     }
 
-    @Test("Issue title includes vendor and speed")
-    func issueTitleIncludesVendorAndSpeed() {
+    @Test("Issue title and Markdown use the canonical report speed")
+    func issueTitleAndMarkdownUseCanonicalSpeed() {
         let payload = CableReport.payload(for: cableIdentity())!
-        #expect(payload.issueTitle.contains("Apple"))
-        #expect(payload.issueTitle.contains("USB4"))
+        let canonical = PDVDO.CableSpeed.usb4Gen3.reportLabel
+        #expect(payload.cable.speed == canonical)
+        #expect(payload.issueTitle == "[Cable Report] Apple, \(canonical)")
+        #expect(payload.markdown.contains("| Cable speed | \(canonical) |"))
     }
 
     @Test("Fingerprint carries raw VDOs")
