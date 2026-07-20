@@ -137,7 +137,10 @@ func extractCableVDO(from body: String) -> UInt32? {
         let line = raw.trimmingCharacters(in: .whitespaces)
         if line.contains("Raw VDOs") { inVDOTable = true; continue }
         if inVDOTable, line.hasPrefix("|"), !line.contains("---"), !line.contains("Index") {
-            let parts = line.dropFirst().dropLast().components(separatedBy: "|")
+            var tableRow = line
+            tableRow.removeFirst()
+            if tableRow.hasSuffix("|") { tableRow.removeLast() }
+            let parts = tableRow.components(separatedBy: "|")
                 .map { $0.trimmingCharacters(in: .whitespaces) }
             guard parts.count >= 3 else { continue }
             if let idx = Int(parts[0].trimmingCharacters(in: .whitespaces)), idx == 3 {
@@ -385,7 +388,7 @@ func runSpeedSelfTests() -> Int {
         }
     }
 
-    func reportBody(vdo: String?, fallback: String) -> String {
+    func reportBody(vdo: String?, fallback: String, trailingVDOPipe: Bool = true) -> String {
         var body = """
         | Field | Value |
         |---|---|
@@ -394,13 +397,16 @@ func runSpeedSelfTests() -> Int {
         | Cable speed | \(fallback) |
         """
         if let vdo {
+            let vdoRow = trailingVDOPipe
+                ? "| 3 | Cable | `\(vdo)` |"
+                : "| 3 | Cable | `\(vdo)`"
             body += """
 
             ### Raw VDOs
 
             | Index | Role | Value |
             |---|---|---|
-            | 3 | Cable | `\(vdo)` |
+            \(vdoRow)
             """
         }
         return body
@@ -412,6 +418,19 @@ func runSpeedSelfTests() -> Int {
         check(report?.cableVDO == UInt32(bits), "speed bits \(bits) should preserve Raw Cable VDO evidence")
         check(report?.speed == canonicalCableSpeedLabels[bits], "speed bits \(bits) should map to the canonical label")
     }
+
+    let noTrailingPipe = parse(
+        body: reportBody(vdo: "0x00000004", fallback: "must not be used", trailingVDOPipe: false),
+        issueNumber: 9
+    )
+    check(
+        noTrailingPipe?.cableVDO == 4,
+        "Raw Cable VDO rows without a trailing pipe should preserve the full value"
+    )
+    check(
+        noTrailingPipe?.speed == canonicalCableSpeedLabels[4],
+        "Raw Cable VDO rows without a trailing pipe should derive the canonical speed"
+    )
 
     let missing = parse(body: reportBody(vdo: nil, fallback: "legacy localized speed"), issueNumber: 10)
     check(missing?.cableVDO == nil, "missing Raw Cable VDO should remain absent")
