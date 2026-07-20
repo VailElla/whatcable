@@ -137,7 +137,9 @@ final class TestKitRunner: ObservableObject {
             // signal (a genuine crash) is NOT trusted even if the pipe
             // carries partial bytes, since an unsupervised crash's output
             // isn't known to be well-formed; it goes to noOutputProbes and
-            // nothing is submitted for it.
+            // nothing is submitted for it. Note the over-limit guard above
+            // runs first and wins: a probe that both timed out and exceeded
+            // the output cap is rejected, not submitted.
             let cleanExit = result.terminationReason == .exit && result.exitStatus == 0
             guard let output = result.output, !output.isEmpty, cleanExit || result.didTimeout else {
                 Self.log.warning("Probe \(probeName) produced no usable output (exit \(result.exitStatus), reason \(String(describing: result.terminationReason)))")
@@ -199,6 +201,33 @@ final class TestKitRunner: ObservableObject {
         let didExceedOutputLimit: Bool
     }
 
+    /// How long a probe gets to honour SIGTERM before it is force-killed.
+    private nonisolated static let terminateGraceSeconds: TimeInterval = 2
+
+    /// SIGTERM first, then SIGKILL after a short grace period if the probe
+    /// is still alive. `terminate()` alone is not enough of a guarantee: a
+    /// child that ignores SIGTERM (or a forked descendant holding the pipe's
+    /// write end) would leave the drain loop blocked on read() and
+    /// `runAllProbes` stuck on this probe forever. SIGKILL cannot be caught
+    /// or ignored. The kill targets the process group (Process makes the
+    /// child its own group leader, which is why `terminate()` is documented
+    /// as signalling subtasks too), falling back to the single pid if the
+    /// group signal fails. The `isRunning` check just before the kill keeps
+    /// the pid-reuse window (probe exits, pid recycled, we signal a
+    /// stranger) as small as the platform allows; it cannot be closed
+    /// entirely from userspace.
+    private nonisolated static func terminateWithEscalation(_ process: Process) {
+        guard process.isRunning else { return }
+        process.terminate()
+        let pid = process.processIdentifier
+        DispatchQueue.global().asyncAfter(deadline: .now() + terminateGraceSeconds) {
+            guard process.isRunning else { return }
+            if kill(-pid, SIGKILL) != 0 {
+                kill(pid, SIGKILL)
+            }
+        }
+    }
+
     /// Cross-queue flag: the timer fires on its own queue (`.global()`) and
     /// sets this *before* calling `process.terminate()`; the probe-running
     /// queue reads it after `process.waitUntilExit()` returns. A plain `var`
@@ -258,7 +287,7 @@ final class TestKitRunner: ObservableObject {
                         // waitUntilExit() always observes it once this
                         // handler has run at all.
                         timeoutMarker.markFired()
-                        process.terminate()
+                        Self.terminateWithEscalation(process)
                     }
                 }
                 timer.resume()
@@ -273,16 +302,21 @@ final class TestKitRunner: ObservableObject {
                 var didExceedOutputLimit = false
                 var didFailReading = false
                 do {
-                    while let chunk = try pipe.fileHandleForReading.read(upToCount: Self.probeReadChunkBytes),
-                          !chunk.isEmpty {
+                    // Each read gets its own autorelease pool: FileHandle
+                    // parks chunk buffers in the enclosing pool, which for
+                    // this long-running block only drains when the loop ends,
+                    // so a sustained drain would accumulate every chunk ever
+                    // read (observed at gigabytes). Draining per chunk keeps
+                    // the loop at one chunk of transient memory.
+                    while let chunk = try autoreleasepool(invoking: {
+                        try pipe.fileHandleForReading.read(upToCount: Self.probeReadChunkBytes)
+                    }), !chunk.isEmpty {
                         guard !didExceedOutputLimit else { continue }
 
                         let remainingCapacity = Self.maxProbeOutputBytes - data.count
                         guard chunk.count <= remainingCapacity else {
                             didExceedOutputLimit = true
-                            if process.isRunning {
-                                process.terminate()
-                            }
+                            Self.terminateWithEscalation(process)
                             continue
                         }
                         data.append(chunk)
@@ -290,14 +324,26 @@ final class TestKitRunner: ObservableObject {
                 } catch {
                     didFailReading = true
                     Self.log.error("Failed to read probe output: \(error.localizedDescription)")
-                    if process.isRunning {
-                        process.terminate()
-                    }
+                    Self.terminateWithEscalation(process)
                 }
                 process.waitUntilExit()
-                let output = didExceedOutputLimit || didFailReading
-                    ? nil
-                    : String(decoding: data, as: UTF8.self)
+                // Policy decision (PR #451 review): decode lossily. Probe
+                // dumps print device strings read raw from hardware, and a
+                // single bad byte used to make strict decoding return nil,
+                // throwing away the entire dump. A mostly-good dump with
+                // U+FFFD replacement characters is worth more to the corpus
+                // than no dump. The round-trip check makes the substitution
+                // visible in logs instead of silent.
+                let output: String?
+                if didExceedOutputLimit || didFailReading {
+                    output = nil
+                } else {
+                    let decoded = String(decoding: data, as: UTF8.self)
+                    if Data(decoded.utf8) != data {
+                        Self.log.warning("Probe \(binaryURL.lastPathComponent) output contained invalid UTF-8; bad bytes were replaced with U+FFFD")
+                    }
+                    output = decoded
+                }
                 continuation.resume(returning: ProbeRunResult(
                     output: output,
                     exitStatus: process.terminationStatus,

@@ -49,17 +49,58 @@ struct TestKitRunnerOutputLimitTests {
         #expect(elapsed < .seconds(3))
     }
 
+    @Test("A SIGTERM-ignoring child is force-killed after the grace period", .timeLimit(.minutes(1)))
+    @MainActor
+    func sigtermImmuneChildIsForceKilled() async throws {
+        // trap '' TERM makes the shell ignore SIGTERM, and the ignored
+        // disposition is inherited by every child it spawns, so only the
+        // SIGKILL escalation ends this fixture early. It is deliberately
+        // self-limiting (exits on its own after the sleep): if the
+        // escalation regresses, the test must FAIL fast on the elapsed-time
+        // assertion, not hang the suite on a child nothing can kill.
+        // 66 x 64 KiB = 4.125 MiB, just over the cap.
+        let fixture = try makeScript(contents: """
+            #!/bin/sh
+            trap '' TERM
+            i=0
+            while [ $i -lt 66 ]; do
+              /bin/dd if=/dev/zero bs=65536 count=1 2>/dev/null
+              i=$((i+1))
+            done
+            /bin/sleep 15
+            """)
+        defer { try? FileManager.default.removeItem(at: fixture.deletingLastPathComponent()) }
+        let clock = ContinuousClock()
+        let started = clock.now
+
+        let result = await TestKitRunner.shared.runProbe(at: fixture, timeout: 10)
+
+        let elapsed = started.duration(to: clock.now)
+        #expect(result.output == nil)
+        #expect(result.didExceedOutputLimit)
+        #expect(!result.didTimeout)
+        // Cap is hit almost instantly, so the run should end at roughly the
+        // 2s SIGKILL grace period, well before the 10s watchdog.
+        #expect(elapsed < .seconds(8))
+    }
+
     @Test("Small partial output from the watchdog path is preserved")
     @MainActor
     func timeoutPartialOutputIsPreserved() async throws {
         let fixture = try makeScript(contents: "#!/bin/sh\n/bin/echo partial\n/bin/sleep 5\n")
         defer { try? FileManager.default.removeItem(at: fixture.deletingLastPathComponent()) }
+        let clock = ContinuousClock()
+        let started = clock.now
 
         let result = await TestKitRunner.shared.runProbe(at: fixture, timeout: 2)
 
+        let elapsed = started.duration(to: clock.now)
         #expect(result.output == "partial\n")
         #expect(result.didTimeout)
         #expect(!result.didExceedOutputLimit)
+        // The watchdog fires at 2s; returning near the fixture's 5s sleep
+        // would mean a leftover writer kept the pipe open.
+        #expect(elapsed < .seconds(4))
     }
 
     @Test("An incomplete UTF-8 sequence from the watchdog path is preserved")
@@ -67,12 +108,16 @@ struct TestKitRunnerOutputLimitTests {
     func timeoutIncompleteUTF8IsPreserved() async throws {
         let fixture = try makeScript(contents: "#!/bin/sh\n/usr/bin/printf '\\303'\n/bin/sleep 5\n")
         defer { try? FileManager.default.removeItem(at: fixture.deletingLastPathComponent()) }
+        let clock = ContinuousClock()
+        let started = clock.now
 
         let result = await TestKitRunner.shared.runProbe(at: fixture, timeout: 2)
 
+        let elapsed = started.duration(to: clock.now)
         #expect(result.output == "\u{FFFD}")
         #expect(result.didTimeout)
         #expect(!result.didExceedOutputLimit)
+        #expect(elapsed < .seconds(4))
     }
 
     @Test("Oversized JSON request bodies are rejected")
