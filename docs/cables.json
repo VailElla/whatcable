@@ -187,7 +187,7 @@
     "issueNum" : "#232",
     "issueURL" : "https:\/\/github.com\/darrylmorley\/whatcable\/issues\/232",
     "pid" : "0x0000",
-    "power" : "5 А at up to 20V (~100W)",
+    "power" : "5 A at up to 20V (~100W)",
     "registered" : true,
     "speed" : "USB 3.2 Gen 1 (5 Gbps)",
     "type" : "passive",

@@ -39,19 +39,16 @@ struct CableReportSyncTests {
         process.currentDirectoryURL = repoRoot()
         process.executableURL = URL(fileURLWithPath: "/usr/bin/env")
         process.arguments = ["swift", "scripts/sync-cable-reports.swift", "--test-speed"]
-        let stdout = Pipe()
-        let stderr = Pipe()
-        process.standardOutput = stdout
-        process.standardError = stderr
+        let pipe = Pipe()
+        process.standardOutput = pipe
+        process.standardError = pipe
 
         try process.run()
-        let outputData = stdout.fileHandleForReading.readDataToEndOfFile()
-        let errorData = stderr.fileHandleForReading.readDataToEndOfFile()
+        let outputData = try pipe.fileHandleForReading.readToEnd() ?? Data()
         process.waitUntilExit()
 
         let output = String(data: outputData, encoding: .utf8) ?? ""
-        let errors = String(data: errorData, encoding: .utf8) ?? ""
-        #expect(process.terminationStatus == 0, Comment(rawValue: errors))
+        #expect(process.terminationStatus == 0, Comment(rawValue: output))
         #expect(output.contains("Cable report speed self-tests passed"))
     }
 }
