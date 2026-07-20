@@ -1,6 +1,8 @@
 import Foundation
 
+/// Renders WhatCable diagnostics as human-readable, terminal-safe text.
 public enum TextFormatter {
+    /// Builds a complete report for the supplied ports and connected hardware.
     public static func render(
         ports: [AppleHPMInterface],
         sources: [PowerSource],
@@ -162,6 +164,7 @@ public enum TextFormatter {
         return out
     }
 
+    /// Renders one physical port and its diagnostics, devices, and trust signals.
     private static func renderPort(
         _ port: AppleHPMInterface,
         sources: [PowerSource],
@@ -366,14 +369,17 @@ public enum TextFormatter {
         return out
     }
 
+    /// Formats one raw key-value field after applying terminal-field encoding.
     private static func rawRow(_ key: String, _ value: String) -> String {
         "  " + ANSI.wrap(ANSI.gray, terminalField(key)) + " = \(terminalField(value))\n"
     }
 
+    /// Encodes one external field without changing formatter-owned separators.
     private static func terminalField(_ value: String) -> String {
         TerminalFieldEncoder.encode(value)
     }
 
+    /// Converts a Boolean diagnostic value to the CLI's stable text form.
     private static func yesNo(_ v: Bool) -> String { v ? "Yes" : "No" }
 
     /// 0 in the temperature fields means "not specified" per the spec.
@@ -381,6 +387,7 @@ public enum TextFormatter {
         v == 0 ? "—" : "\(v)°C"
     }
 
+    /// Selects the ANSI color associated with a port's diagnostic status.
     private static func color(for status: PortSummary.Status) -> String {
         switch status {
         case .empty: return ANSI.gray
@@ -393,10 +400,12 @@ public enum TextFormatter {
         }
     }
 
+    /// Returns power sources canonically associated with the given port.
     private static func filterSources(_ port: AppleHPMInterface, all: [PowerSource]) -> [PowerSource] {
         return all.filter { $0.canonicallyMatches(port: port) }
     }
 
+    /// Returns USB-PD identities canonically associated with the given port.
     private static func filterIdentities(_ port: AppleHPMInterface, all: [USBPDSOP]) -> [USBPDSOP] {
         all.filter { $0.canonicallyMatches(port: port) }
     }

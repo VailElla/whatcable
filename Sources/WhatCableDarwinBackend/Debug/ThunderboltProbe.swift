@@ -8,6 +8,7 @@ import WhatCableCore
 /// rather than guesses. No interpretation, no rendering, just a paste-ready
 /// dump of every property on every switch and port.
 public enum ThunderboltProbe {
+    /// Dumps the discovered Thunderbolt switch tree as paste-ready text.
     public static func dump() -> String {
         var output = ""
         output += "# WhatCable Thunderbolt probe\n"
@@ -53,6 +54,7 @@ public enum ThunderboltProbe {
         return output
     }
 
+    /// Renders one Thunderbolt switch and its port children.
     private static func dumpSwitch(_ service: io_service_t, index: Int) -> String {
         var output = ""
         let className = TerminalFieldEncoder.encode(ioClassName(service) ?? "<unknown class>")
@@ -88,6 +90,7 @@ public enum ThunderboltProbe {
         return output
     }
 
+    /// Reads the IOKit class name for a service, if available.
     private static func ioClassName(_ service: io_service_t) -> String? {
         var buf = [CChar](repeating: 0, count: 128)
         let kr = IOObjectGetClass(service, &buf)
@@ -95,6 +98,7 @@ public enum ThunderboltProbe {
         return String(cString: buf)
     }
 
+    /// Copies the service's IOKit properties into a Swift dictionary.
     private static func ioProperties(_ service: io_service_t) -> [String: Any]? {
         // ThunderboltProbe is a diagnostic helper (`--tb-debug`). It intentionally
         // reads the entire property dict so it can render all keys verbatim.
@@ -107,6 +111,7 @@ public enum ThunderboltProbe {
         return dict as? [String: Any]
     }
 
+    /// Renders sorted, terminal-safe property keys and recursively formatted values.
     static func renderProperties(_ props: [String: Any], indent: String) -> String {
         // Sort keys for stable, paste-friendly output. Skip noisy fields that
         // don't help with the design (IOPowerManagement dict, large binary blobs
@@ -120,6 +125,7 @@ public enum ThunderboltProbe {
         return output
     }
 
+    /// Formats a scalar, collection, or data property for diagnostic output.
     private static func renderValue(_ value: Any) -> String {
         switch value {
         case let s as String:

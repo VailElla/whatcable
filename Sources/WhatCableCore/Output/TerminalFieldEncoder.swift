@@ -6,6 +6,7 @@
 /// Formatter-owned ANSI sequences and newlines must be added after this
 /// encoder runs. Structured JSON deliberately does not use this representation.
 public enum TerminalFieldEncoder {
+    /// Replaces C0/C1 control scalars with visible Unicode escape sequences.
     public static func encode(_ value: String) -> String {
         var encoded = ""
         encoded.reserveCapacity(value.utf8.count)

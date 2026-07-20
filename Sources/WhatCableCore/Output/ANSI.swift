@@ -35,6 +35,7 @@ public enum ANSI {
         return isTTY
     }
 
+    /// Reports whether formatter-owned ANSI sequences may be emitted.
     public static var isEnabled: Bool {
         shouldEnable(
             isTTY: configuredIsTTY,
@@ -54,6 +55,7 @@ public enum ANSI {
     public static let cyan = "\u{1B}[36m"
     public static let gray = "\u{1B}[90m"
 
+    /// Wraps text in the supplied ANSI codes when colored output is enabled.
     public static func wrap(_ codes: String, _ text: String) -> String {
         wrap(codes, text, enabled: isEnabled)
     }
