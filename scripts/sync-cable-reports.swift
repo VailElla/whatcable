@@ -178,10 +178,15 @@ let canonicalCableSpeedLabels: [Int: String] = [
 ]
 
 /// Derive a canonical report speed from Cable VDO bits 2...0. Reserved
-/// encodings 5...7 deliberately return nil so callers preserve report text.
+/// encodings 5...7 return the stable "Reserved cable speed encoding (N)"
+/// string, matching the app's `USBPDVDO.CableVDO.reportSpeedLabel` (the
+/// source of truth for the exact wording). N is the masked 3-bit value, not
+/// the raw VDO, so the two paths agree byte-for-byte. Only a nil VDO (missing
+/// or malformed evidence) returns nil so the caller preserves report text.
 func canonicalCableSpeed(from cableVDO: UInt32?) -> String? {
     guard let cableVDO else { return nil }
-    return canonicalCableSpeedLabels[Int(cableVDO & 0b111)]
+    let bits = Int(cableVDO & 0b111)
+    return canonicalCableSpeedLabels[bits] ?? "Reserved cable speed encoding (\(bits))"
 }
 
 func resolvedCableSpeed(fallback: String, cableVDO: UInt32?) -> String {
@@ -343,8 +348,10 @@ func renderRow(_ report: Report, context: String, vendors: [Int: String]) -> Str
 // MARK: - Existing-row speed normalization
 
 /// Return a copy of the Markdown with only speed cells backed by a usable
-/// Cable VDO canonicalized. Rows without VDO evidence, malformed VDOs, and
-/// reserved speed encodings are byte-for-byte unchanged.
+/// Cable VDO canonicalized. This includes reserved speed encodings (bits
+/// 5-7), which canonicalize to the stable "Reserved cable speed encoding (N)"
+/// label. Rows without VDO evidence and malformed VDOs are byte-for-byte
+/// unchanged.
 func normalizingExistingSpeeds(in markdown: String) -> (markdown: String, count: Int) {
     var lines = markdown.components(separatedBy: "\n")
     var inTable = false
@@ -465,9 +472,17 @@ func runSpeedSelfTests() -> Int {
     check(trailingGarbage?.speed == "trailing garbage fallback", "trailing-garbage VDO should use report text")
 
     for bits in 5...7 {
-        let body = reportBody(vdo: String(format: "0x%08X", bits), fallback: "reserved fallback \(bits)")
+        // Use a VDO with high bits set (not just the bare reserved value) so
+        // the raw 32-bit VDO differs from the masked 3 bits. This catches a
+        // regression that interpolated the whole VDO instead of `vdo & 0b111`.
+        let rawVDO = UInt32(0xABCD_E000) | UInt32(bits)
+        let body = reportBody(vdo: String(format: "0x%08X", rawVDO), fallback: "reserved fallback \(bits)")
         let report = parse(body: body, issueNumber: bits + 20)
-        check(report?.speed == "reserved fallback \(bits)", "reserved speed bits \(bits) should use report text")
+        check(report?.cableVDO == rawVDO, "reserved speed bits \(bits) should preserve the full Raw Cable VDO")
+        check(
+            report?.speed == "Reserved cable speed encoding (\(bits))",
+            "reserved speed bits \(bits) should derive the stable reserved label from the masked bits, matching the app"
+        )
         check(report?.speed != canonicalCableSpeedLabels[0], "reserved speed bits \(bits) must not become USB 2.0")
     }
 
@@ -477,15 +492,30 @@ func runSpeedSelfTests() -> Int {
     |---|---|---|---|---|---|---|---|---|---|
     | With evidence | `0x1234` | `0x0001` | `0x00000003` | Vendor | none | localized | power | passive | source |
     | No evidence | `0x1234` | `0x0002` |  | Vendor | none | keep no VDO | power | passive | source |
-    | Reserved | `0x1234` | `0x0003` | `0x00000005` | Vendor | none | keep reserved | power | passive | source |
+    | Reserved | `0x1234` | `0x0003` | `0xABCDE005` | Vendor | none | keep reserved | power | passive | source |
     | Malformed | `0x1234` | `0x0004` | `0x00000003oops` | Vendor | none | keep malformed | power | passive | source |
     """
     let migrated = normalizingExistingSpeeds(in: migrationInput)
-    check(migrated.count == 1, "only rows with valid Raw Cable VDO evidence should migrate")
+    check(migrated.count == 2, "rows with any valid Raw Cable VDO evidence (defined or reserved) should migrate")
     check(migrated.markdown.contains("| USB4 Gen 3 (40 Gbps, Thunderbolt 4 class) |"), "valid VDO row should use canonical speed")
     check(migrated.markdown.contains("| keep no VDO |"), "row without VDO evidence should stay unchanged")
-    check(migrated.markdown.contains("| keep reserved |"), "row with reserved VDO encoding should stay unchanged")
+    check(migrated.markdown.contains("| Reserved cable speed encoding (5) |"), "row with reserved VDO encoding should migrate to the stable reserved label")
+    check(!migrated.markdown.contains("| keep reserved |"), "reserved row's hand-typed speed text should be replaced")
     check(migrated.markdown.contains("| keep malformed |"), "row with trailing-garbage VDO should stay unchanged")
+
+    // Dedicated reserved-row migration: a row already carrying the stable
+    // reserved label must NOT be counted as a change (idempotent re-runs).
+    let reservedStableInput = """
+    ## Table
+    | Brand / model context | VID | PID | Cable VDO | Vendor | USB-IF XID | Speed | Power | Type | Source |
+    |---|---|---|---|---|---|---|---|---|---|
+    | Reserved 6 | `0x1234` | `0x0005` | `0xABCDE006` | Vendor | none | old text | power | passive | source |
+    | Reserved 7 already stable | `0x1234` | `0x0006` | `0xABCDE007` | Vendor | none | Reserved cable speed encoding (7) | power | passive | source |
+    """
+    let reservedMigrated = normalizingExistingSpeeds(in: reservedStableInput)
+    check(reservedMigrated.count == 1, "only the reserved row whose speed text differs should migrate")
+    check(reservedMigrated.markdown.contains("| Reserved cable speed encoding (6) |"), "reserved bits 6 should migrate to its stable label")
+    check(reservedMigrated.markdown.contains("| Reserved cable speed encoding (7) |"), "already-stable reserved row should be preserved unchanged")
 
     if failures == 0 { print("Cable report speed self-tests passed") }
     return failures
