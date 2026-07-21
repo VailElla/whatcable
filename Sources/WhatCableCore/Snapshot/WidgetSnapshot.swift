@@ -338,7 +338,10 @@ extension WidgetSnapshot {
                 // to the App Group cache; the live-read path leaves it blank.
                 recentPower: [],
                 portKey: port.portKey,
-                chargerWatts: wattageSource.watts,
+                // Gate the wattage pill on the same stale-PDO signal as the
+                // status, so the widget can't show "96W" while reading "Connected".
+                chargerWatts: SystemPowerState.onBattery(batteryIsCharging: batteryIsCharging, adapter: adapter)
+                    ? nil : wattageSource.watts,
                 linkSpeed: summary.linkSpeed,
                 displayMode: displayMode,
                 monitorName: monitorName,

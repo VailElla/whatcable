@@ -301,7 +301,10 @@ final class WidgetDataWriter {
                 deviceCount: devices.count,
                 recentPower: recentPower,
                 portKey: port.portKey,
-                chargerWatts: wattageSource.watts,
+                // Gate the wattage pill on the same stale-PDO signal as the
+                // status, so the widget can't show "96W" while reading "Connected".
+                chargerWatts: SystemPowerState.onBattery(batteryIsCharging: batteryCharging, adapter: adapter)
+                    ? nil : wattageSource.watts,
                 linkSpeed: summary.linkSpeed,
                 displayMode: displayMode,
                 monitorName: monitorName,

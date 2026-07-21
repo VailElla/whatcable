@@ -30,9 +30,9 @@ public enum JSONFormatter {
         for (index, sw) in thunderboltSwitches.enumerated() where switchIndexByUID[sw.id] == nil {
             switchIndexByUID[sw.id] = index
         }
-        // Port keys that are actually drawing charging power right now. A
-        // port with a connected-but-idle second charger uses this to know
-        // another port is the active source. See issue #264. Deliberately
+        // Port keys with a live negotiated contract. A port with a
+        // connected-but-idle second charger uses this to know another port is
+        // the active source. See issue #264. Deliberately
         // ungated on adapter/battery: this only feeds
         // `anotherPortActivelyCharging`, and ChargingDiagnostic applies the
         // system-power gate before acting on it, so a stale PDO here can't

@@ -189,16 +189,10 @@ extension PortSummary {
         // A controller can retain a winning PDO while the system rejects
         // external power. In that state the source still describes the port's
         // last negotiation, but it must not drive charging copy or wattage.
-        //
-        // Battery-full state is deliberately NOT part of this gate. A genuine
-        // 100% charge hold (charger attached, macOS paused charging) always
-        // reports a system adapter, so `adapter == nil` already keeps it out
-        // of suppression. Exempting `batteryFullyCharged` here instead left a
-        // hole: unplugging at 100% with a stale PDO (charging false, full
-        // true, no adapter) would still show charging. Gate on the two signals
-        // that actually distinguish "on battery" from "drawing power".
-        let systemPowerUnavailable = batteryIsCharging == false
-            && adapter == nil
+        // See SystemPowerState.onBattery for the full rationale (including why
+        // battery-full is deliberately not part of the test).
+        let systemPowerUnavailable = SystemPowerState.onBattery(
+            batteryIsCharging: batteryIsCharging, adapter: adapter)
 
         // Hoist the charging source lookup early. The identity-block
         // wording below and the e-marker guard further down both need

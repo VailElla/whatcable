@@ -59,15 +59,9 @@ extension ChargingDiagnostic {
         guard port.connectionActive == true else { return nil }
 
         // A controller can retain a winning PDO while the system rejects
-        // external power. If the battery is not charging and
-        // IOPSCopyExternalPowerAdapterDetails reports no adapter, the PDO is
-        // not enough evidence to show a charging diagnostic. Battery-full is
-        // not part of this test: a real 100% charge hold always reports an
-        // adapter, so `adapter != nil` already covers it, whereas keying on
-        // full-battery would let an unplugged-at-100% stale PDO through. This
-        // mirrors PortSummary.systemPowerUnavailable (its exact inverse).
-        guard batteryIsCharging != false
-            || adapter != nil
+        // external power. If so, the PDO is not enough evidence to show a
+        // charging diagnostic. Same gate as PortSummary via the shared helper.
+        guard !SystemPowerState.onBattery(batteryIsCharging: batteryIsCharging, adapter: adapter)
         else { return nil }
 
         let chargerMaxW: Int

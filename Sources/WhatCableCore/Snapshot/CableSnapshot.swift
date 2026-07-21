@@ -27,6 +27,36 @@ public struct AdapterHVCEntry: Hashable, Sendable {
     }
 }
 
+/// The single definition of "the Mac is running on battery, so a retained
+/// (stale) winning PDO must not drive charging copy, wattage, or diagnostics."
+///
+/// A USB-C controller can keep a winning PDO around after macOS stops drawing
+/// external power. Charging output keyed on that PDO alone then lies. This is
+/// the one definition of the gate, so callers can't each inline a subtly
+/// different test (an earlier fix did exactly that and other surfaces silently
+/// bypassed it).
+///
+/// Charging-STATUS surfaces route through it today: `PortSummary`,
+/// `ChargingDiagnostic`, the widget `chargerWatts` pill, the Dashboard, and the
+/// Negotiation window. Several WATTAGE-telemetry surfaces do NOT yet apply it
+/// and can still show stale power on battery: the Power Monitor window, the
+/// Power Monitor widget's per-port watts, and the Cable Diagnostics charger
+/// card / pin overlay. Those read winning-PDO wattage through their own paths
+/// and must not suppress genuine SMC-measured power, so they're a separate,
+/// tracked piece of work (DAR-219), not covered here. New charging/wattage
+/// display must call this helper.
+///
+/// True only when charging is *explicitly* off AND no system adapter is present.
+/// A nil `batteryIsCharging` (desktop Mac, unknown) is never on battery here, so
+/// desktops are never suppressed. A genuine 100% charge hold reports an adapter,
+/// so `adapter != nil` keeps it out too; battery-full is deliberately not part
+/// of the test.
+public enum SystemPowerState {
+    public static func onBattery(batteryIsCharging: Bool?, adapter: AdapterInfo?) -> Bool {
+        batteryIsCharging == false && adapter == nil
+    }
+}
+
 /// External power adapter info. Populated by the Darwin backend from
 /// `IOPSCopyExternalPowerAdapterDetails()`. This is a system-wide view
 /// of the connected charger brick, not a per-port reading.

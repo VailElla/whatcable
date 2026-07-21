@@ -149,14 +149,15 @@ extension PowerSource {
     ///
     /// This is a raw negotiation signal. It does NOT prove the system accepted
     /// external power: a controller can retain a winning PDO after the Mac has
-    /// stopped drawing (the stale-PDO case). Every current caller uses this
-    /// only to build a `chargingPortKeys` set that feeds
-    /// `anotherPortActivelyCharging`, which is consumed solely by
-    /// `ChargingDiagnostic` (it applies the adapter + battery gate downstream,
-    /// so a stale PDO never surfaces a charging claim). Any NEW caller that
-    /// turns this into a user-visible charging claim of its own must apply that
-    /// same gate (`batteryIsCharging != false || adapter != nil`); this call
-    /// alone is not sufficient evidence.
+    /// stopped drawing (the stale-PDO case). Most callers use it only to build
+    /// a `chargingPortKeys` set that feeds `anotherPortActivelyCharging`, which
+    /// is consumed solely by `ChargingDiagnostic` (it applies the system-power
+    /// gate downstream, so a stale PDO never surfaces a charging claim). One
+    /// caller (`PowerMonitorWindow`) uses it directly, but only for cross-port
+    /// attribution (does *this* port hold the contract), not to make a charging
+    /// claim. Any NEW caller that turns this into a user-visible charging claim
+    /// must apply the system-power gate itself (`SystemPowerState.onBattery`);
+    /// this call alone is not sufficient evidence.
     public static func hasLiveChargingContract(in sources: [PowerSource]) -> Bool {
         guard let source = preferredChargingSource(in: sources),
               let winning = source.winning else { return false }

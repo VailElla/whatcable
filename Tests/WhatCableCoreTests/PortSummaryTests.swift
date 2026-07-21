@@ -1640,6 +1640,39 @@ struct PortSummaryTests {
         #expect(summary.bullets.contains { $0.contains("Currently negotiated") } == false)
     }
 
+    // Desktop Macs report batteryIsCharging as nil (no battery). The gate must
+    // NOT suppress in that state: a winning PDO still means power is flowing.
+    @Test("Desktop (nil battery state) is not suppressed by the stale-PDO gate")
+    func desktopNilBatteryNotSuppressed() {
+        let port = makePort(connected: true, active: [], supported: ["USB2"])
+        let summary = PortSummary(
+            port: port,
+            sources: [usbPD(maxW: 96, winningW: 96)],
+            batteryFullyCharged: nil,
+            batteryIsCharging: nil,
+            adapter: nil
+        )
+        #expect(summary.status == .charging)
+        #expect(summary.headline.contains("96W"))
+    }
+
+    // A genuine 100% charge hold has an adapter present, so the gate does not
+    // fire and the normal "battery full" display is preserved (regression guard
+    // that the stale-PDO gating didn't break legitimate charge-hold copy).
+    @Test("Charge hold at 100% with adapter shows battery full")
+    func chargeHoldFullWithAdapterShowsBatteryFull() {
+        let port = makePort(connected: true, active: [], supported: ["USB2"])
+        let summary = PortSummary(
+            port: port,
+            sources: [usbPD(maxW: 96, winningW: 96)],
+            batteryFullyCharged: true,
+            batteryIsCharging: false,
+            adapter: adapter()
+        )
+        #expect(summary.status == .batteryFull)
+        #expect(summary.headline == "Plugged in · battery full")
+    }
+
     @Test("Charge hold: headline shows 'Plugged in' without wattage when no chargerW")
     func chargeHoldHeadlineWithoutWattage() {
         let port = makePort(connected: true, active: [], supported: ["USB2"])
