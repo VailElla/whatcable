@@ -128,6 +128,23 @@ func extractHex(_ s: String) -> Int? {
     return Int(String(s[r]), radix: 16)
 }
 
+/// Strictly parse a Cable VDO *cell* (optionally wrapped in backticks and
+/// whitespace). Unlike `extractHex`, which matches a `0x…` prefix anywhere in
+/// a string, this requires the WHOLE trimmed cell to be `0x` + 1...8 hex
+/// digits within UInt32. A cell like `` `0x00000003oops` `` is therefore
+/// treated as no evidence, not silently accepted as 0x00000003. This is what
+/// lets the "malformed VDOs are left byte-for-byte unchanged" guarantee hold
+/// for both report ingest and existing-row normalization.
+func strictCableVDO(from cell: String) -> UInt32? {
+    let trimmed = cell.trimmingCharacters(in: CharacterSet(charactersIn: " `\t"))
+    let re = try! NSRegularExpression(pattern: "^0[xX]([0-9A-Fa-f]{1,8})$")
+    let range = NSRange(trimmed.startIndex..., in: trimmed)
+    guard let m = re.firstMatch(in: trimmed, range: range),
+          let r = Range(m.range(at: 1), in: trimmed),
+          let val = UInt64(String(trimmed[r]), radix: 16) else { return nil }
+    return UInt32(exactly: val)
+}
+
 /// Extract VDO[3] (Cable VDO) from the "Raw VDOs" table in the issue body.
 /// Returns nil if the table/value is missing, malformed, or outside UInt32.
 func extractCableVDO(from body: String) -> UInt32? {
@@ -144,8 +161,7 @@ func extractCableVDO(from body: String) -> UInt32? {
                 .map { $0.trimmingCharacters(in: .whitespaces) }
             guard parts.count >= 3 else { continue }
             if let idx = Int(parts[0].trimmingCharacters(in: .whitespaces)), idx == 3 {
-                if let val = extractHex(parts[2]) { return UInt32(exactly: val) }
-                return nil
+                return strictCableVDO(from: parts[2])
             }
         }
         if inVDOTable, line.hasPrefix("###"), !line.contains("Raw VDOs") { break }
@@ -346,8 +362,7 @@ func normalizingExistingSpeeds(in markdown: String) -> (markdown: String, count:
         var cells = line.components(separatedBy: "|")
         // Leading/trailing pipes produce 12 cells for the 10-column table.
         guard cells.count == 12,
-              let rawVDO = extractHex(cells[4]),
-              let cableVDO = UInt32(exactly: rawVDO),
+              let cableVDO = strictCableVDO(from: cells[4]),
               let canonical = canonicalCableSpeed(from: cableVDO)
         else { continue }
 
@@ -440,6 +455,15 @@ func runSpeedSelfTests() -> Int {
     check(malformed?.cableVDO == nil, "malformed Raw Cable VDO should not parse")
     check(malformed?.speed == "malformed fallback", "malformed Raw Cable VDO should use report text")
 
+    // A hex prefix with trailing garbage must be rejected as evidence, not
+    // silently truncated to the leading valid hex (would misreport speed).
+    let trailingGarbage = parse(
+        body: reportBody(vdo: "0x00000003oops", fallback: "trailing garbage fallback"),
+        issueNumber: 12
+    )
+    check(trailingGarbage?.cableVDO == nil, "Raw Cable VDO with trailing garbage should not parse")
+    check(trailingGarbage?.speed == "trailing garbage fallback", "trailing-garbage VDO should use report text")
+
     for bits in 5...7 {
         let body = reportBody(vdo: String(format: "0x%08X", bits), fallback: "reserved fallback \(bits)")
         let report = parse(body: body, issueNumber: bits + 20)
@@ -454,12 +478,14 @@ func runSpeedSelfTests() -> Int {
     | With evidence | `0x1234` | `0x0001` | `0x00000003` | Vendor | none | localized | power | passive | source |
     | No evidence | `0x1234` | `0x0002` |  | Vendor | none | keep no VDO | power | passive | source |
     | Reserved | `0x1234` | `0x0003` | `0x00000005` | Vendor | none | keep reserved | power | passive | source |
+    | Malformed | `0x1234` | `0x0004` | `0x00000003oops` | Vendor | none | keep malformed | power | passive | source |
     """
     let migrated = normalizingExistingSpeeds(in: migrationInput)
     check(migrated.count == 1, "only rows with valid Raw Cable VDO evidence should migrate")
     check(migrated.markdown.contains("| USB4 Gen 3 (40 Gbps, Thunderbolt 4 class) |"), "valid VDO row should use canonical speed")
     check(migrated.markdown.contains("| keep no VDO |"), "row without VDO evidence should stay unchanged")
     check(migrated.markdown.contains("| keep reserved |"), "row with reserved VDO encoding should stay unchanged")
+    check(migrated.markdown.contains("| keep malformed |"), "row with trailing-garbage VDO should stay unchanged")
 
     if failures == 0 { print("Cable report speed self-tests passed") }
     return failures
