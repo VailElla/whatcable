@@ -129,11 +129,32 @@ struct CableReportTests {
         #expect(items["fingerprint"]?.contains("0x05AC") == true)
     }
 
-    @Test("Issue title includes vendor and speed")
-    func issueTitleIncludesVendorAndSpeed() {
+    @Test("Issue title and Markdown use the canonical report speed")
+    func issueTitleAndMarkdownUseCanonicalSpeed() {
         let payload = CableReport.payload(for: cableIdentity())!
-        #expect(payload.issueTitle.contains("Apple"))
-        #expect(payload.issueTitle.contains("USB4"))
+        let canonical = PDVDO.CableSpeed.usb4Gen3.reportLabel
+        #expect(payload.cable.speed == canonical)
+        #expect(payload.issueTitle == "[Cable Report] Apple, \(canonical)")
+        #expect(payload.markdown.contains("| Cable speed | \(canonical) |"))
+    }
+
+    @Test("Reports preserve reserved cable speed encodings")
+    func reportsPreserveReservedCableSpeedEncoding() {
+        let reservedIdentity = cableIdentity(
+            vdos: [
+                (3 << 27) | UInt32(0x05AC),
+                0,
+                0,
+                (1 << 5) | 5 | (1 << 13),
+            ]
+        )
+        let payload = CableReport.payload(for: reservedIdentity)!
+        let reservedLabel = "Reserved cable speed encoding (5)"
+
+        #expect(payload.cable.speed == reservedLabel)
+        #expect(payload.cable.speed != PDVDO.CableSpeed.usb20.reportLabel)
+        #expect(payload.issueTitle == "[Cable Report] Apple, \(reservedLabel)")
+        #expect(payload.markdown.contains("| Cable speed | \(reservedLabel) |"))
     }
 
     @Test("Fingerprint carries raw VDOs")

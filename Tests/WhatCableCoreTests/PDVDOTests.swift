@@ -121,6 +121,21 @@ struct PDVDOTests {
     /// otherwise the new H7 termination check fires.
     private static let validActiveTermination: UInt32 = 0b10 << 11
 
+    @Test("Cable speed report labels are stable and non-localized")
+    func cableSpeedReportLabels() {
+        let expected: [(PDVDO.CableSpeed, String)] = [
+            (.usb20, "USB 2.0 (480 Mbps)"),
+            (.usb32Gen1, "USB 3.2 Gen 1 (5 Gbps)"),
+            (.usb32Gen2, "USB 3.2 Gen 2 (10 Gbps)"),
+            (.usb4Gen3, "USB4 Gen 3 (40 Gbps, Thunderbolt 4 class)"),
+            (.usb4Gen4, "USB4 Gen 4 (80 Gbps, Thunderbolt 5 class)"),
+        ]
+
+        for (speed, reportLabel) in expected {
+            #expect(speed.reportLabel == reportLabel)
+        }
+    }
+
     @Test("Thunderbolt cable 5A 40Gbps")
     func thunderboltCable_5A_40Gbps() {
         // speed=3 (USB4 Gen3), current=2 (5A) -> 2<<5=0x40
@@ -228,6 +243,7 @@ struct PDVDOTests {
             #expect(cable.speed == .usb20)
             #expect(cable.current == .threeAmp)
             #expect(cable.decodeWarnings == [.reservedSpeedEncoding(speedBits)])
+            #expect(cable.reportSpeedLabel == "Reserved cable speed encoding (\(speedBits))")
         }
     }
 

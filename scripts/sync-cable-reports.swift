@@ -3,9 +3,9 @@
 // Sync data/known-cables.md from closed `cable-report` issues.
 //
 // Incremental by design: it lists closed `cable-report` issues via `gh`,
-// then APPENDS a row only for cables not already in the table. Rows we
-// already have are left untouched (no re-parse, no re-render, no rewrite),
-// so hand-edited "Brand / model context" cells and ordering are preserved.
+// then APPENDS a row only for cables not already in the table. Existing rows
+// keep their hand-edited context and ordering; only their speed cell is
+// canonicalized when a Raw Cable VDO value is present in the table.
 //
 // A report is skipped when either its issue number is already recorded, or
 // its cable fingerprint (VID + PID + Cable VDO, the same key the database
@@ -97,7 +97,7 @@ struct Report {
     let issueNumber: Int
     let vid: Int           // 0 for zeroed
     let pid: Int           // 0 for zeroed
-    let cableVDO: UInt32   // VDO[3] from Raw VDOs table, 0 if absent
+    let cableVDO: UInt32?  // VDO[3] from Raw VDOs table, nil if absent or invalid
     let xidCol: String     // "none" or formatted hex
     let speed: String      // empty for missing
     let power: String      // empty for missing
@@ -129,24 +129,47 @@ func extractHex(_ s: String) -> Int? {
 }
 
 /// Extract VDO[3] (Cable VDO) from the "Raw VDOs" table in the issue body.
-/// Returns 0 if the table is missing or index 3 isn't present (older reports).
-func extractCableVDO(from body: String) -> UInt32 {
+/// Returns nil if the table/value is missing, malformed, or outside UInt32.
+func extractCableVDO(from body: String) -> UInt32? {
     let lines = body.components(separatedBy: "\n")
     var inVDOTable = false
     for raw in lines {
         let line = raw.trimmingCharacters(in: .whitespaces)
         if line.contains("Raw VDOs") { inVDOTable = true; continue }
         if inVDOTable, line.hasPrefix("|"), !line.contains("---"), !line.contains("Index") {
-            let parts = line.dropFirst().dropLast().components(separatedBy: "|")
+            var tableRow = line
+            tableRow.removeFirst()
+            if tableRow.hasSuffix("|") { tableRow.removeLast() }
+            let parts = tableRow.components(separatedBy: "|")
                 .map { $0.trimmingCharacters(in: .whitespaces) }
             guard parts.count >= 3 else { continue }
             if let idx = Int(parts[0].trimmingCharacters(in: .whitespaces)), idx == 3 {
-                if let val = extractHex(parts[2]) { return UInt32(val) }
+                if let val = extractHex(parts[2]) { return UInt32(exactly: val) }
+                return nil
             }
         }
         if inVDOTable, line.hasPrefix("###"), !line.contains("Raw VDOs") { break }
     }
-    return 0
+    return nil
+}
+
+let canonicalCableSpeedLabels: [Int: String] = [
+    0: "USB 2.0 (480 Mbps)",
+    1: "USB 3.2 Gen 1 (5 Gbps)",
+    2: "USB 3.2 Gen 2 (10 Gbps)",
+    3: "USB4 Gen 3 (40 Gbps, Thunderbolt 4 class)",
+    4: "USB4 Gen 4 (80 Gbps, Thunderbolt 5 class)",
+]
+
+/// Derive a canonical report speed from Cable VDO bits 2...0. Reserved
+/// encodings 5...7 deliberately return nil so callers preserve report text.
+func canonicalCableSpeed(from cableVDO: UInt32?) -> String? {
+    guard let cableVDO else { return nil }
+    return canonicalCableSpeedLabels[Int(cableVDO & 0b111)]
+}
+
+func resolvedCableSpeed(fallback: String, cableVDO: UInt32?) -> String {
+    canonicalCableSpeed(from: cableVDO) ?? fallback
 }
 
 func parse(body: String, issueNumber: Int) -> Report? {
@@ -179,7 +202,8 @@ func parse(body: String, issueNumber: Int) -> Report? {
         s.replacingOccurrences(of: "`", with: "")
     }
 
-    let speed = extractField("Cable speed", from: body).map(stripCode) ?? ""
+    let fallbackSpeed = extractField("Cable speed", from: body).map(stripCode) ?? ""
+    let speed = resolvedCableSpeed(fallback: fallbackSpeed, cableVDO: cableVDO)
     let power = extractField("Current rating", from: body).map(humanisePower) ?? ""
     let type = extractField("Type", from: body).map(stripCode) ?? ""
 
@@ -284,7 +308,7 @@ func loadExisting() -> (issues: Set<Int>, fingerprints: Set<String>) {
 func renderRow(_ report: Report, context: String, vendors: [Int: String]) -> String {
     let vidCol = String(format: "`0x%04X`", report.vid)
     let pidCol = String(format: "`0x%04X`", report.pid)
-    let vdoCol = report.cableVDO != 0 ? String(format: "`0x%08X`", report.cableVDO) : ""
+    let vdoCol = report.cableVDO.map { String(format: "`0x%08X`", $0) } ?? ""
     let vendor: String
     if report.vid == 0 {
         vendor = "(zeroed)"
@@ -298,6 +322,151 @@ func renderRow(_ report: Report, context: String, vendors: [Int: String]) -> Str
     let type = report.type.isEmpty ? "passive" : report.type
     let source = "[#\(report.issueNumber)](https://github.com/darrylmorley/whatcable/issues/\(report.issueNumber))"
     return "| \(context) | \(vidCol) | \(pidCol) | \(vdoCol) | \(vendor) | \(report.xidCol) | \(speed) | \(power) | \(type) | \(source) |"
+}
+
+// MARK: - Existing-row speed normalization
+
+/// Return a copy of the Markdown with only speed cells backed by a usable
+/// Cable VDO canonicalized. Rows without VDO evidence, malformed VDOs, and
+/// reserved speed encodings are byte-for-byte unchanged.
+func normalizingExistingSpeeds(in markdown: String) -> (markdown: String, count: Int) {
+    var lines = markdown.components(separatedBy: "\n")
+    var inTable = false
+    var changed = 0
+
+    for index in lines.indices {
+        let line = lines[index]
+        if line.hasPrefix("## Table") {
+            inTable = true
+            continue
+        }
+        if inTable, line.hasPrefix("## ") { break }
+        guard inTable, line.hasPrefix("|") else { continue }
+
+        var cells = line.components(separatedBy: "|")
+        // Leading/trailing pipes produce 12 cells for the 10-column table.
+        guard cells.count == 12,
+              let rawVDO = extractHex(cells[4]),
+              let cableVDO = UInt32(exactly: rawVDO),
+              let canonical = canonicalCableSpeed(from: cableVDO)
+        else { continue }
+
+        let current = cells[7].trimmingCharacters(in: .whitespaces)
+        guard current != canonical else { continue }
+        cells[7] = " \(canonical) "
+        lines[index] = cells.joined(separator: "|")
+        changed += 1
+    }
+
+    return (lines.joined(separator: "\n"), changed)
+}
+
+func normalizeExistingSpeeds() -> Int {
+    guard let markdown = try? String(contentsOf: mdURL, encoding: .utf8) else {
+        fputs("error: could not read \(mdURL.path)\n", Darwin.stderr)
+        exit(6)
+    }
+    let result = normalizingExistingSpeeds(in: markdown)
+    guard result.count > 0 else { return 0 }
+    do {
+        try result.markdown.write(to: mdURL, atomically: true, encoding: .utf8)
+    } catch {
+        fputs("error: could not write \(mdURL.path): \(error)\n", Darwin.stderr)
+        exit(8)
+    }
+    return result.count
+}
+
+// MARK: - Speed derivation self-tests
+
+func runSpeedSelfTests() -> Int {
+    var failures = 0
+    func check(_ condition: @autoclosure () -> Bool, _ message: String) {
+        if !condition() {
+            failures += 1
+            fputs("FAIL: \(message)\n", Darwin.stderr)
+        }
+    }
+
+    func reportBody(vdo: String?, fallback: String, trailingVDOPipe: Bool = true) -> String {
+        var body = """
+        | Field | Value |
+        |---|---|
+        | Vendor ID | `0x1234` |
+        | Product ID | `0x5678` |
+        | Cable speed | \(fallback) |
+        """
+        if let vdo {
+            let vdoRow = trailingVDOPipe
+                ? "| 3 | Cable | `\(vdo)` |"
+                : "| 3 | Cable | `\(vdo)`"
+            body += """
+
+            ### Raw VDOs
+
+            | Index | Role | Value |
+            |---|---|---|
+            \(vdoRow)
+            """
+        }
+        return body
+    }
+
+    for bits in 0...4 {
+        let body = reportBody(vdo: String(format: "0x%08X", bits), fallback: "localized fallback")
+        let report = parse(body: body, issueNumber: bits)
+        check(report?.cableVDO == UInt32(bits), "speed bits \(bits) should preserve Raw Cable VDO evidence")
+        check(report?.speed == canonicalCableSpeedLabels[bits], "speed bits \(bits) should map to the canonical label")
+    }
+
+    let noTrailingPipe = parse(
+        body: reportBody(vdo: "0x00000004", fallback: "must not be used", trailingVDOPipe: false),
+        issueNumber: 9
+    )
+    check(
+        noTrailingPipe?.cableVDO == 4,
+        "Raw Cable VDO rows without a trailing pipe should preserve the full value"
+    )
+    check(
+        noTrailingPipe?.speed == canonicalCableSpeedLabels[4],
+        "Raw Cable VDO rows without a trailing pipe should derive the canonical speed"
+    )
+
+    let missing = parse(body: reportBody(vdo: nil, fallback: "legacy localized speed"), issueNumber: 10)
+    check(missing?.cableVDO == nil, "missing Raw Cable VDO should remain absent")
+    check(missing?.speed == "legacy localized speed", "missing Raw Cable VDO should use report text")
+
+    let malformed = parse(body: reportBody(vdo: "not-hex", fallback: "malformed fallback"), issueNumber: 11)
+    check(malformed?.cableVDO == nil, "malformed Raw Cable VDO should not parse")
+    check(malformed?.speed == "malformed fallback", "malformed Raw Cable VDO should use report text")
+
+    for bits in 5...7 {
+        let body = reportBody(vdo: String(format: "0x%08X", bits), fallback: "reserved fallback \(bits)")
+        let report = parse(body: body, issueNumber: bits + 20)
+        check(report?.speed == "reserved fallback \(bits)", "reserved speed bits \(bits) should use report text")
+        check(report?.speed != canonicalCableSpeedLabels[0], "reserved speed bits \(bits) must not become USB 2.0")
+    }
+
+    let migrationInput = """
+    ## Table
+    | Brand / model context | VID | PID | Cable VDO | Vendor | USB-IF XID | Speed | Power | Type | Source |
+    |---|---|---|---|---|---|---|---|---|---|
+    | With evidence | `0x1234` | `0x0001` | `0x00000003` | Vendor | none | localized | power | passive | source |
+    | No evidence | `0x1234` | `0x0002` |  | Vendor | none | keep no VDO | power | passive | source |
+    | Reserved | `0x1234` | `0x0003` | `0x00000005` | Vendor | none | keep reserved | power | passive | source |
+    """
+    let migrated = normalizingExistingSpeeds(in: migrationInput)
+    check(migrated.count == 1, "only rows with valid Raw Cable VDO evidence should migrate")
+    check(migrated.markdown.contains("| USB4 Gen 3 (40 Gbps, Thunderbolt 4 class) |"), "valid VDO row should use canonical speed")
+    check(migrated.markdown.contains("| keep no VDO |"), "row without VDO evidence should stay unchanged")
+    check(migrated.markdown.contains("| keep reserved |"), "row with reserved VDO encoding should stay unchanged")
+
+    if failures == 0 { print("Cable report speed self-tests passed") }
+    return failures
+}
+
+if CommandLine.arguments.contains("--test-speed") {
+    exit(runSpeedSelfTests() == 0 ? 0 : 1)
 }
 
 // MARK: - Update markdown
@@ -348,6 +517,7 @@ func appendRows(_ rows: [String]) {
 
 let vendors = loadVendors()
 let issues = runGh()
+let normalizedCount = normalizeExistingSpeeds()
 let existing = loadExisting()
 
 // Collect only cables we do not already have. Skip a report if its issue is
@@ -361,7 +531,7 @@ for issue in issues {
           let body = issue["body"] as? String else { continue }
     if existing.issues.contains(n) { continue }
     guard let r = parse(body: body, issueNumber: n) else { continue }
-    let key = fingerprintKey(vid: r.vid, pid: r.pid, vdo: r.cableVDO)
+    let key = fingerprintKey(vid: r.vid, pid: r.pid, vdo: r.cableVDO ?? 0)
     if seenFingerprints.contains(key) {
         fputs("skip: issue #\(n): cable already in the list (same VID/PID/VDO)\n", Darwin.stderr)
         continue
@@ -388,5 +558,11 @@ if newReports.isEmpty {
 } else {
     let nums = newReports.map { "#\($0.issueNumber)" }.joined(separator: ", ")
     print("appended \(newReports.count) new cable(s): \(nums)")
-    print("fill the '\(needsReview)' rows by hand, then run: swift scripts/build-cable-db.swift && swift scripts/render-known-cables.swift")
+    print("fill the '\(needsReview)' rows by hand")
+}
+if normalizedCount > 0 {
+    print("canonicalized \(normalizedCount) existing speed value(s) from Raw Cable VDO evidence")
+}
+if !newReports.isEmpty || normalizedCount > 0 {
+    print("then run: swift scripts/build-cable-db.swift && swift scripts/render-known-cables.swift")
 }

@@ -128,6 +128,18 @@ public enum PDVDO {
             }
         }
 
+        /// Stable, non-localized value for reports and generated data.
+        /// Keep `label` for localized UI presentation.
+        public var reportLabel: String {
+            switch self {
+            case .usb20: return "USB 2.0 (480 Mbps)"
+            case .usb32Gen1: return "USB 3.2 Gen 1 (5 Gbps)"
+            case .usb32Gen2: return "USB 3.2 Gen 2 (10 Gbps)"
+            case .usb4Gen3: return "USB4 Gen 3 (40 Gbps, Thunderbolt 4 class)"
+            case .usb4Gen4: return "USB4 Gen 4 (80 Gbps, Thunderbolt 5 class)"
+            }
+        }
+
         public var maxGbps: Double {
             switch self {
             case .usb20: return 0.48
@@ -227,6 +239,18 @@ public enum PDVDO {
         /// callers can detect the contradiction. See `USBPDSOP.hasActiveLayoutContradiction`.
         public let sopDoubleControllerPresent: Bool
         public let decodeWarnings: [DecodeWarning]
+
+        /// Stable report value for the cable speed. Reserved encodings must
+        /// not be collapsed to USB 2.0, because the latter is a real
+        /// advertised capability and would make the report misleading.
+        public var reportSpeedLabel: String {
+            for warning in decodeWarnings {
+                if case .reservedSpeedEncoding(let encoding) = warning {
+                    return "Reserved cable speed encoding (\(encoding))"
+                }
+            }
+            return speed.reportLabel
+        }
 
         public var maxVolts: Int {
             switch maxVoltageEncoded {
