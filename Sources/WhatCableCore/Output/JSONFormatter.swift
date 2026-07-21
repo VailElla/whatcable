@@ -32,7 +32,11 @@ public enum JSONFormatter {
         }
         // Port keys that are actually drawing charging power right now. A
         // port with a connected-but-idle second charger uses this to know
-        // another port is the active source. See issue #264.
+        // another port is the active source. See issue #264. Deliberately
+        // ungated on adapter/battery: this only feeds
+        // `anotherPortActivelyCharging`, and ChargingDiagnostic applies the
+        // system-power gate before acting on it, so a stale PDO here can't
+        // surface a charging claim. See hasLiveChargingContract's doc.
         let chargingPortKeys = Set(ports.compactMap { port -> String? in
             let portSources = sources.filter { $0.canonicallyMatches(port: port) }
             return PowerSource.hasLiveChargingContract(in: portSources) ? port.portKey : nil

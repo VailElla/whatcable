@@ -1621,6 +1621,25 @@ struct PortSummaryTests {
         #expect(summary.bullets.contains { $0.contains("Currently negotiated") } == false)
     }
 
+    // Battery-full must not exempt the stale-PDO gate: unplugging at 100% with
+    // a lingering PDO (charging false, full true, adapter nil) must still read
+    // "Connected", not a charging claim.
+    @Test("Stale PDO: no charging claim when full and unplugged with no adapter")
+    func stalePDOFullBatteryNoAdapterIsConnected() {
+        let port = makePort(connected: true, active: [], supported: ["USB2"])
+        let summary = PortSummary(
+            port: port,
+            sources: [usbPD(maxW: 96, winningW: 96)],
+            batteryFullyCharged: true,
+            batteryIsCharging: false,
+            adapter: nil
+        )
+        #expect(summary.status == .unknown)
+        #expect(summary.headline == "Connected")
+        #expect(summary.subtitle.contains("Power is flowing") == false)
+        #expect(summary.bullets.contains { $0.contains("Currently negotiated") } == false)
+    }
+
     @Test("Charge hold: headline shows 'Plugged in' without wattage when no chargerW")
     func chargeHoldHeadlineWithoutWattage() {
         let port = makePort(connected: true, active: [], supported: ["USB2"])

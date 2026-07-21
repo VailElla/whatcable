@@ -168,9 +168,13 @@ struct ContentView: View {
                 let adapter = SystemPower.currentAdapter()
                 let batteryFull = SystemPower.batteryFullyCharged()
                 let batteryCharging = SystemPower.batteryIsCharging()
-                // Port keys actually drawing charging power, so a connected-
-                // but-idle second charger can tell another port is the
-                // active source rather than being stuck mid-negotiation (#264).
+                // Port keys with a live negotiated contract, so a connected-
+                // but-idle second charger can tell another port is the active
+                // source rather than being stuck mid-negotiation (#264).
+                // Deliberately ungated on adapter/battery: this only feeds
+                // `anotherPortActivelyCharging`, and ChargingDiagnostic applies
+                // the system-power gate before acting on it, so a stale PDO
+                // here can't surface a charging claim.
                 let chargingPortKeys = Set(portWatcher.ports.compactMap { port -> String? in
                     PowerSource.hasLiveChargingContract(in: powerWatcher.sources(for: port)) ? port.portKey : nil
                 })

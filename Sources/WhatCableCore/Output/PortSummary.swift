@@ -189,8 +189,15 @@ extension PortSummary {
         // A controller can retain a winning PDO while the system rejects
         // external power. In that state the source still describes the port's
         // last negotiation, but it must not drive charging copy or wattage.
+        //
+        // Battery-full state is deliberately NOT part of this gate. A genuine
+        // 100% charge hold (charger attached, macOS paused charging) always
+        // reports a system adapter, so `adapter == nil` already keeps it out
+        // of suppression. Exempting `batteryFullyCharged` here instead left a
+        // hole: unplugging at 100% with a stale PDO (charging false, full
+        // true, no adapter) would still show charging. Gate on the two signals
+        // that actually distinguish "on battery" from "drawing power".
         let systemPowerUnavailable = batteryIsCharging == false
-            && batteryFullyCharged != true
             && adapter == nil
 
         // Hoist the charging source lookup early. The identity-block
@@ -588,7 +595,12 @@ extension PortSummary {
                 self.headline = String(localized: "Charging · \(w)W charger", bundle: _coreLocalizedBundle) + cableLimitSuffix
                 self.subtitle = String(localized: "Power is flowing. No data connection.", bundle: _coreLocalizedBundle)
             }
-        } else if active.isEmpty && supported.contains("USB2"), batteryFullyCharged == true {
+        } else if active.isEmpty && supported.contains("USB2") && !systemPowerUnavailable, batteryFullyCharged == true {
+            // "Plugged in · battery full" is a plugged-in claim, so it must not
+            // fire when the system reports no power (unplugged at 100% with a
+            // stale PDO): that would keep asserting "plugged in" on battery.
+            // The genuine charge-hold-at-100% case has an adapter, so
+            // systemPowerUnavailable is false there and this still fires.
             self.status = .batteryFull
             self.headline = String(localized: "Plugged in · battery full", bundle: _coreLocalizedBundle)
             // Battery-full state is shown by the charging banner instead,

@@ -31,8 +31,12 @@ public enum TextFormatter {
         let activePortCount = ports.filter { $0.connectionActive == true }.count
         let chargerSourceCount = ChargerWattageSource.chargerSourceCount(
             ports: ports, sources: sources)
-        // Port keys actually drawing charging power, so a connected-but-idle
+        // Port keys with a live negotiated contract, so a connected-but-idle
         // second charger can tell another port is the active source (#264).
+        // Deliberately ungated on adapter/battery: this only feeds
+        // `anotherPortActivelyCharging`, and ChargingDiagnostic applies the
+        // system-power gate before it acts on that, so a stale PDO here can't
+        // surface a charging claim. See hasLiveChargingContract's doc.
         let chargingPortKeys = Set(ports.compactMap { port -> String? in
             PowerSource.hasLiveChargingContract(in: filterSources(port, all: sources)) ? port.portKey : nil
         })

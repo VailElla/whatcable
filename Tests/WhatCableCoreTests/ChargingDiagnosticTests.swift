@@ -900,4 +900,20 @@ struct ChargingDiagnosticTests {
         )
         #expect(diag == nil)
     }
+
+    // Full-battery is not an exemption from the stale-PDO gate: unplugging at
+    // 100% with a lingering PDO reports charging=false, full=true, adapter=nil,
+    // and must still suppress. Guards against the gate keying on battery-full.
+    @Test("Stale PDO: no diagnostic when full and unplugged with no adapter")
+    func stalePDOFullBatteryNoAdapterReturnsNil() {
+        let diag = ChargingDiagnostic(
+            port: port,
+            sources: [usbPD(maxW: 96, winningW: 96)],
+            identities: [],
+            adapter: nil,
+            batteryFullyCharged: true,
+            batteryIsCharging: false
+        )
+        #expect(diag == nil)
+    }
 }
