@@ -160,19 +160,26 @@ public struct PortPowerSample: Codable, Sendable, Equatable {
 }
 
 public extension Array where Element == PortPowerSample {
-    /// When on battery, drop samples derived from a (possibly stale) incoming
-    /// charging contract. A USB-C controller can keep a winning PDO around
-    /// after macOS stops drawing external power, so on battery a contract-
-    /// derived per-port wattage is a lingering value, not a live draw
-    /// (darrylmorley/whatcable#466, DAR-219).
+    /// When no external power is coming in, drop samples derived from a
+    /// (possibly stale) incoming charging contract. A USB-C controller can keep
+    /// a winning PDO around after macOS stops drawing external power, so a
+    /// contract-derived per-port wattage is then a lingering value, not a live
+    /// draw (darrylmorley/whatcable#466, DAR-219).
+    ///
+    /// `externalPowerAbsent` is the caller's decision. The Power Monitor passes
+    /// `onBattery || !chargerAttached`: either signal is enough, and
+    /// `chargerAttached` (the live system adapter) clears immediately on unplug
+    /// while `onBattery` (via ExternalConnected) can lag, so together they close
+    /// the post-unplug race.
     ///
     /// Only `isContractedFallback` samples are dropped. SMC-measured readings
     /// and `PowerOutDetails` throughput both carry `isContractedFallback ==
     /// false` (the watcher builds them in separate paths and never tags them),
-    /// so genuine power flowing OUT of a port while on battery, and any live
-    /// SMC per-port reading, are always kept. Off battery, nothing is dropped.
-    func droppingStaleContracted(onBattery: Bool) -> [PortPowerSample] {
-        guard onBattery else { return self }
+    /// so genuine power flowing OUT of a port, and any live SMC per-port
+    /// reading, are always kept. When external power is present, nothing is
+    /// dropped.
+    func droppingStaleContracted(externalPowerAbsent: Bool) -> [PortPowerSample] {
+        guard externalPowerAbsent else { return self }
         return filter { !$0.isContractedFallback }
     }
 }
