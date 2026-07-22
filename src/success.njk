@@ -5,6 +5,9 @@ documentTitle: "WhatCable Pro - Purchase Complete"
 description: "Activate your WhatCable Pro licence key."
 robots: noindex
 twitterCard: summary
+# The URL carries the Stripe session id, which this page exchanges for the
+# licence key. Keep it out of Referer headers on every request the page makes.
+noReferrer: true
 extraHead: |
   <style>
     .success-main {
@@ -82,6 +85,73 @@ extraHead: |
 
     .status-failed .check { background: #fde8e8; color: #c53030; }
     .status-processing .check { background: #fef3cd; color: #92600a; }
+
+    .key-block {
+      background: var(--bg);
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      padding: 20px;
+      margin-bottom: 20px;
+    }
+    .key-block h2 {
+      font-size: 13px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--muted);
+      margin: 0 0 12px;
+    }
+    .key-value {
+      font-family: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+      font-size: 20px;
+      font-weight: 500;
+      color: var(--ink);
+      letter-spacing: 0.04em;
+      word-break: break-all;
+      margin: 0 0 16px;
+      user-select: all;
+    }
+    .key-copy {
+      font: inherit;
+      font-size: 14px;
+      font-weight: 600;
+      color: #fff;
+      background: var(--accent);
+      border: 0;
+      border-radius: 8px;
+      padding: 10px 20px;
+      cursor: pointer;
+    }
+    .key-copy:hover { background: var(--accent-strong); }
+    .key-copy[data-copied="1"] { background: var(--good); }
+    .key-email {
+      font-size: 13px;
+      color: var(--muted);
+      margin: 14px 0 0;
+      line-height: 1.5;
+    }
+    .recheck {
+      font: inherit;
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--accent);
+      background: transparent;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 9px 18px;
+      margin-bottom: 20px;
+      cursor: pointer;
+    }
+    .recheck:hover:not(:disabled) { border-color: var(--accent); }
+    .recheck:disabled { color: var(--muted); cursor: default; }
+    .steps-docs {
+      font-size: 13px;
+      color: var(--muted);
+      margin: 18px 0 0;
+      padding-top: 14px;
+      border-top: 1px solid var(--line);
+    }
+    .steps-docs a { color: var(--accent); font-weight: 500; }
   </style>
 ---
 <main class="success-main">
@@ -101,24 +171,38 @@ extraHead: |
     <h1 id="status-title">Checking your payment...</h1>
     <p class="subtitle" id="status-subtitle">This should only take a moment.</p>
 
+    <div class="key-block" id="key-block" style="display:none">
+      <h2>Your licence key</h2>
+      <p class="key-value" id="key-value"></p>
+      <button type="button" class="key-copy" id="key-copy">Copy key</button>
+      <p class="key-email" id="key-email"></p>
+    </div>
+
+    <button type="button" class="recheck" id="recheck" style="display:none">Check again</button>
+
     <div class="steps" id="steps-block" style="display:none">
       <h2>How to activate</h2>
       <div class="step">
         <div class="step-num">1</div>
-        <div class="step-text"><strong>Check your email</strong> for a message from hello@whatcable.uk with your licence key.</div>
+        <div class="step-text"><strong><a href="{{ site.downloadUrl }}" download>Download WhatCable</a></strong> and drag it to your Applications folder. Skip this if you already have it installed.</div>
       </div>
       <div class="step">
         <div class="step-num">2</div>
-        <div class="step-text"><strong>Right-click WhatCable</strong> in the menu bar and click <strong>Licence</strong>.</div>
+        <div class="step-text" id="step-delivery"><strong>Check your email</strong> for a message from hello@whatcable.uk with your licence key.</div>
       </div>
       <div class="step">
         <div class="step-num">3</div>
-        <div class="step-text"><strong>Paste your key</strong> into the licence field and activate.</div>
+        <div class="step-text"><strong>Right-click WhatCable</strong> in the menu bar and click <strong>Licence</strong>.</div>
       </div>
       <div class="step">
         <div class="step-num">4</div>
+        <div class="step-text"><strong>Paste your key</strong> into the licence field and activate.</div>
+      </div>
+      <div class="step">
+        <div class="step-num">5</div>
         <div class="step-text"><strong>Pro features unlock</strong> immediately. Works on up to 2 Macs.</div>
       </div>
+      <p class="steps-docs">Full setup guide and troubleshooting: <a href="/instructions">read the docs</a>.</p>
     </div>
 
     <p class="back" id="status-footer"></p>
@@ -127,7 +211,19 @@ extraHead: |
 
 {% raw %}
 <script>
-  (async function () {
+  (function () {
+    const API = "https://whatcable.uk/api/session-status";
+    // The webhook that mints the key can land a moment after the buyer is
+    // redirected here, so one quick retry catches the common race. Anything
+    // slower is left to the manual button: Cloudflare KV caches a negative
+    // read for up to 60s at the location that served it, so hammering the
+    // endpoint inside that window just replays the same miss.
+    const AUTO_ATTEMPTS = 2;
+    const RETRY_DELAY_MS = 3000;
+    const COOLDOWN_MS = 15000;
+    const REQUEST_TIMEOUT_MS = 8000;
+    const MAX_MANUAL_CHECKS = 4;
+
     const params = new URLSearchParams(window.location.search);
     const sessionId = params.get("session_id");
     const card = document.getElementById("success-card");
@@ -135,6 +231,17 @@ extraHead: |
     const subtitle = document.getElementById("status-subtitle");
     const footer = document.getElementById("status-footer");
     const steps = document.getElementById("steps-block");
+    const stepDelivery = document.getElementById("step-delivery");
+    const keyBlock = document.getElementById("key-block");
+    const keyValue = document.getElementById("key-value");
+    const keyEmail = document.getElementById("key-email");
+    const copyBtn = document.getElementById("key-copy");
+    const recheck = document.getElementById("recheck");
+
+    const RECEIPT_NOTE =
+      "Your Stripe receipt is a separate email and does not contain the key.";
+
+    let manualChecks = 0;
 
     function showIcon(name) {
       document.getElementById("icon-spinner").style.display = "none";
@@ -143,20 +250,54 @@ extraHead: |
       document.getElementById("icon-" + name).style.display = "";
     }
 
-    function showPaid() {
+    function sleep(ms) {
+      return new Promise(function (resolve) { setTimeout(resolve, ms); });
+    }
+
+    function showKey(data) {
       card.className = "success-card";
       showIcon("check");
       title.textContent = "You're all set";
       subtitle.textContent =
-        "Your WhatCable Pro licence key is on its way to your inbox. Check your email and follow these steps to activate.";
+        "Here is your WhatCable Pro licence key. Copy it, then follow the steps below.";
+      keyValue.textContent = data.licenceKey;
+      keyEmail.textContent =
+        (data.emailHint
+          ? "We have also emailed it to " + data.emailHint + ". "
+          : "We have also emailed it to you. ") + RECEIPT_NOTE;
+      keyBlock.style.display = "";
+      recheck.style.display = "none";
+      stepDelivery.innerHTML = "<strong>Copy your key</strong> from the box above.";
       steps.style.display = "";
       footer.innerHTML =
-        'No email after a few minutes? Check your spam folder or <a href="/support">contact support</a>.';
+        'Trouble activating? <a href="/support">Contact support</a>.';
+    }
+
+    // Paid, but no key to show yet. Same message the page has always given,
+    // plus a way to look again once the read cache has had time to clear.
+    function showPaidPending() {
+      card.className = "success-card";
+      showIcon("check");
+      title.textContent = "You're all set";
+      subtitle.textContent =
+        "Your WhatCable Pro licence key is on its way to your inbox. It usually arrives within a minute.";
+      keyBlock.style.display = "none";
+      recheck.style.display = "";
+      stepDelivery.innerHTML =
+        "<strong>Check your email</strong> for a message from hello@whatcable.uk with your licence key.";
+      steps.style.display = "";
+      footer.innerHTML =
+        RECEIPT_NOTE +
+        ' No sign of it after a few minutes? Check your spam folder or <a href="/support">contact support</a>.';
+      startCooldown();
     }
 
     function showProcessing() {
       card.className = "success-card status-processing";
       showIcon("warn");
+      keyBlock.style.display = "none";
+      recheck.style.display = "none";
+      steps.style.display = "none";
       title.textContent = "Payment is still processing";
       subtitle.textContent =
         "Your bank hasn't confirmed the payment yet. This can take a few minutes. Once it clears, your licence key will be emailed to you automatically.";
@@ -167,6 +308,13 @@ extraHead: |
     function showFailed() {
       card.className = "success-card status-failed";
       showIcon("warn");
+      keyBlock.style.display = "none";
+      // Both reachable from the manual re-check, where the button and the
+      // activation steps are already on screen: a terminal state must not
+      // leave a dead button sitting there, nor tell someone whose payment
+      // failed how to activate.
+      recheck.style.display = "none";
+      steps.style.display = "none";
       title.textContent = "Payment not found";
       subtitle.textContent =
         "We couldn't find a completed payment for this session. The payment may have been declined or cancelled. No charge has been made.";
@@ -174,36 +322,116 @@ extraHead: |
         'You can <a href="/pro">try again</a> or <a href="/support">contact support</a> if you believe this is an error.';
     }
 
-    if (!sessionId) {
-      showFailed();
-      return;
+    function startCooldown() {
+      let left = Math.round(COOLDOWN_MS / 1000);
+      recheck.disabled = true;
+      recheck.textContent = "Check again in " + left + "s";
+      const timer = setInterval(function () {
+        left -= 1;
+        if (left <= 0) {
+          clearInterval(timer);
+          recheck.disabled = false;
+          recheck.textContent = "Check again";
+        } else {
+          recheck.textContent = "Check again in " + left + "s";
+        }
+      }, 1000);
     }
 
-    try {
-      const res = await fetch("https://whatcable.uk/api/session-status", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ sessionId }),
-      });
+    // Resolves to the parsed body, {throttled:true} on a 429, or null on any
+    // transport or server error. Each call is self-contained so one blip does
+    // not take the remaining attempts down with it. The timeout matters as much
+    // as the catch: a request that hangs rather than failing would otherwise
+    // leave the page sitting on "Checking your payment..." for good.
+    async function fetchStatus() {
+      const controller = new AbortController();
+      const timeout = setTimeout(function () { controller.abort(); }, REQUEST_TIMEOUT_MS);
+      try {
+        const res = await fetch(API, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ sessionId: sessionId }),
+          signal: controller.signal,
+        });
+        if (res.status === 429) return { throttled: true };
+        if (!res.ok) return null;
+        return await res.json();
+      } catch {
+        return null;
+      } finally {
+        clearTimeout(timeout);
+      }
+    }
 
-      if (!res.ok) {
-        showPaid();
+    async function onRecheck() {
+      recheck.disabled = true;
+      recheck.textContent = "Checking...";
+      const data = await fetchStatus();
+      if (data && !data.throttled) {
+        if (data.status === "paid" && data.licenceKey) { showKey(data); return; }
+        // The payment itself has gone bad since the page first loaded. Say so
+        // instead of counting it as another empty lookup.
+        if (data.status !== "paid" && data.status !== "processing") {
+          showFailed();
+          return;
+        }
+      }
+      manualChecks += 1;
+      if (manualChecks >= MAX_MANUAL_CHECKS) {
+        recheck.style.display = "none";
+        footer.innerHTML =
+          'Still nothing? <a href="/support">Contact support</a> and we will send your key straight over.';
         return;
       }
+      startCooldown();
+    }
 
-      const data = await res.json();
+    async function run() {
+      for (let attempt = 0; attempt < AUTO_ATTEMPTS; attempt += 1) {
+        if (attempt > 0) await sleep(RETRY_DELAY_MS);
 
-      if (data.status === "paid") {
-        showPaid();
-      } else if (data.status === "processing") {
-        showProcessing();
-      } else {
-        showFailed();
+        const data = await fetchStatus();
+        if (!data) continue;
+        // Already over the rate limit: more requests cannot change the answer.
+        if (data.throttled) break;
+
+        if (data.status === "processing") { showProcessing(); return; }
+        if (data.status !== "paid") { showFailed(); return; }
+        if (data.licenceKey) { showKey(data); return; }
+        // Paid, key not minted or not visible yet: fall through and retry.
       }
-    } catch {
-      // If the status check itself fails, assume paid rather than
-      // alarming a customer who may have paid successfully.
-      showPaid();
+
+      showPaidPending();
+    }
+
+    copyBtn.addEventListener("click", async function () {
+      try {
+        await navigator.clipboard.writeText(keyValue.textContent);
+      } catch {
+        // Clipboard blocked (older browser, or permission denied): select the
+        // key so the buyer can copy it by hand rather than leaving them stuck.
+        const selection = window.getSelection();
+        const range = document.createRange();
+        range.selectNodeContents(keyValue);
+        selection.removeAllRanges();
+        selection.addRange(range);
+        copyBtn.textContent = "Press Cmd+C to copy";
+        return;
+      }
+      copyBtn.textContent = "Copied";
+      copyBtn.dataset.copied = "1";
+      setTimeout(function () {
+        copyBtn.textContent = "Copy key";
+        delete copyBtn.dataset.copied;
+      }, 2000);
+    });
+
+    recheck.addEventListener("click", onRecheck);
+
+    if (!sessionId) {
+      showFailed();
+    } else {
+      run();
     }
   })();
 </script>

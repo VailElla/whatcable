@@ -1,5 +1,11 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+{#- Must precede every fetch-triggering element below (the fonts stylesheet in
+    particular): a referrer policy only governs requests started after it is
+    parsed. Set by pages whose URL carries a secret, e.g. /success. -#}
+{%- if noReferrer %}
+<meta name="referrer" content="no-referrer">
+{%- endif %}
 
 {%- set docTitle = documentTitle or (site.name + ': ' + (title or site.tagline)) -%}
 {%- set canonicalUrl = site.url + (page.url | cleanUrl) -%}
