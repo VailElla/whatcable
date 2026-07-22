@@ -686,6 +686,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSW
         if popover.isShown {
             popover.performClose(nil)
         } else {
+            // Cap the popover to the display the status item lives on, so a tall
+            // panel (e.g. "show technical details" on a small or heavily scaled
+            // screen) can't grow past the screen and push its own header, and the
+            // settings gear with it, up behind the menu bar out of reach (issue
+            // #454). The status-bar button's window sits on the menu-bar screen,
+            // so its visibleFrame is the real room a downward-growing popover has:
+            // it already excludes the menu bar and the Dock. Small allowance for
+            // the popover's own arrow so the whole thing fits. Never taller than
+            // the historic 760 cap, so larger screens are unaffected.
+            if let visibleHeight = (button.window?.screen ?? NSScreen.main)?.visibleFrame.height {
+                Self.refreshSignal.maxPopoverHeight = min(760, visibleHeight - 12)
+            } else {
+                Self.refreshSignal.maxPopoverHeight = 760
+            }
             Self.refreshSignal.bump()
             // Refresh the offered update version on open, throttled so it
             // doesn't hit GitHub on every panel open (issue #372).

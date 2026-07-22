@@ -1,4 +1,5 @@
 import Combine
+import CoreGraphics
 
 public final class RefreshSignal: ObservableObject {
     /// Single shared instance. The app injects this into `ContentView`
@@ -21,6 +22,14 @@ public final class RefreshSignal: ObservableObject {
     /// right-click "Keep window open" toggle and is also surfaced as a UI
     /// button. Session-only; no effect in desktop window mode.
     @Published public var keepOpen: Bool = false
+
+    /// Height cap for the menu-bar popover, in points. The app recomputes this
+    /// from the display the status item is on each time the popover opens, so a
+    /// tall panel can't grow past the screen and shove its own header (with the
+    /// settings gear) up behind the menu bar out of reach (issue #454). Seeded
+    /// to the historic 760 cap; only ever shrunk below that on a screen too
+    /// short to fit it. No effect in desktop window mode.
+    @Published public var maxPopoverHeight: CGFloat = 760
 
     public init() {}
 

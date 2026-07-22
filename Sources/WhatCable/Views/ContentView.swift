@@ -81,7 +81,13 @@ struct ContentView: View {
             idealWidth: 560,
             maxWidth: settings.useMenuBarMode ? 760 : .infinity,
             minHeight: 200,
-            maxHeight: settings.useMenuBarMode ? 760 : .infinity
+            // Height cap comes from the app, which recomputes it from the
+            // status item's screen on each open (issue #454): the fixed 760
+            // used to exceed the usable height on small or heavily scaled
+            // displays, so the popover grew off the top of the screen and the
+            // header (with the settings gear) went out of reach. Larger screens
+            // still get the full 760 since the app never raises the cap above it.
+            maxHeight: settings.useMenuBarMode ? refresh.maxPopoverHeight : .infinity
         )
         // `\.fontScale` is now injected at the NSHostingController root by
         // `ScaledHost`, which observes `FontScaleStore` so every SwiftUI
