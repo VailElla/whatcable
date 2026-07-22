@@ -313,7 +313,14 @@ private struct PortDTO: Codable {
 
         self.powerSources = port.connectionActive != false ? sources.map { PowerSourceDTO(source: $0) } : []
 
+        // Mirror PortSummary's selection (see its cableEmarker): prefer an
+        // e-marker that actually carries VDOs. A bare SOP'/SOP'' with empty
+        // VDOs must not shadow a populated one, or the JSON cable object would
+        // drop the cable's speed / vendor / trust / certification data while
+        // the text output shows it. See JSONFormatter/PortSummary parity.
         let cableEmarker = identities.first {
+            ($0.endpoint == .sopPrime || $0.endpoint == .sopDoublePrime) && !$0.vdos.isEmpty
+        } ?? identities.first {
             $0.endpoint == .sopPrime || $0.endpoint == .sopDoublePrime
         }
         let partner = identities.first { $0.endpoint == .sop }
@@ -429,6 +436,10 @@ private struct CableDTO: Codable {
     /// `USBPDSOP.hasActiveLayoutContradiction` for the full spec rationale.
     let activeLayoutContradiction: Bool
     let trustFlags: [TrustFlagDTO]?
+    /// USB-IF certification listings for this cable's Cert Stat XID, or nil
+    /// when the XID is absent / unregistered (the common case). Additive:
+    /// existing consumers are unaffected. Neutral provenance, not a verdict.
+    let certification: CertificationDTO?
 
     init(identity: USBPDSOP, partner: USBPDSOP? = nil) {
         self.endpoint = identity.endpoint.rawValue
@@ -459,6 +470,44 @@ private struct CableDTO: Codable {
 
         let report = CableTrustReport(identity: identity, partner: partner)
         self.trustFlags = report.isEmpty ? nil : report.flags.map(TrustFlagDTO.init)
+
+        if let xid = identity.certStatVDO?.xid {
+            let certs = CableDB.certifications(forXID: xid)
+            self.certification = certs.isEmpty ? nil : CertificationDTO(
+                listings: certs.map(CertListingDTO.init),
+                // Confirming match only for a real (non-zero) VID; a mismatch
+                // is never a signal. See research/usb-if-registry.md.
+                vendorMatch: identity.vendorID != 0
+                    && certs.contains { $0.vendorID == identity.vendorID }
+            )
+        } else {
+            self.certification = nil
+        }
+    }
+}
+
+/// USB-IF certification for a cable, compiled offline. Neutral provenance.
+private struct CertificationDTO: Codable {
+    let listings: [CertListingDTO]
+    /// True only when the cable's own e-marker VID matches a listing's vendor.
+    /// A mild confirming signal. Never emitted as a "false = suspicious" flag;
+    /// a mismatch is normal for ODM rebrands. See research/usb-if-registry.md.
+    let vendorMatch: Bool
+}
+
+private struct CertListingDTO: Codable {
+    let company: String
+    let model: String
+    let status: String
+    let date: String
+    let vendorId: Int?
+
+    init(_ cert: CableCert) {
+        self.company = cert.company
+        self.model = cert.model
+        self.status = cert.status
+        self.date = cert.certDate
+        self.vendorId = cert.vendorID
     }
 }
 

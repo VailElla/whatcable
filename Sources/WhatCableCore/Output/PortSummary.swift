@@ -414,6 +414,44 @@ extension PortSummary {
             }
         }
 
+        // USB-IF certification, looked up offline by the cable's Cert Stat
+        // XID (compiled into whatcable.db, no live network). Keyed by the XID,
+        // NOT the VID, so this must sit outside the `vendorID != 0` block
+        // above: a zero-VID cable can still carry a real XID (and the JSON
+        // output shows it either way, so the two must agree).
+        //
+        // Neutral provenance only: who certified it and whether it passed. The
+        // certifying company is usually the manufacturer / ODM, not the retail
+        // brand on the sleeve, so it is labelled "Manufacturer". Absence is
+        // normal and says nothing. A VID match is a mild confirming note; a
+        // mismatch is never surfaced (ODM rebrands legitimately differ). See
+        // research/usb-if-registry.md.
+        if let cable = cableEmarker, let xid = cable.certStatVDO?.xid {
+            let certs = CableDB.certifications(forXID: xid)
+            // Prefer the listing whose vendor matches the cable's own VID;
+            // otherwise the first listing (rebrands share one XID).
+            if let cert = certs.first(where: { $0.vendorID == cable.vendorID }) ?? certs.first {
+                // status ("Pass" / "Obsolete") is always present in the
+                // compiled data; the no-status forms are defensive only.
+                let status = cert.status
+                switch (cert.model.isEmpty, status.isEmpty) {
+                case (false, false):
+                    bullets.append(String(localized: "USB-IF certified. Manufacturer: \(cert.company), model \(cert.model) (\(status))", bundle: _coreLocalizedBundle))
+                case (false, true):
+                    bullets.append(String(localized: "USB-IF certified. Manufacturer: \(cert.company), model \(cert.model)", bundle: _coreLocalizedBundle))
+                case (true, false):
+                    bullets.append(String(localized: "USB-IF certified. Manufacturer: \(cert.company) (\(status))", bundle: _coreLocalizedBundle))
+                case (true, true):
+                    bullets.append(String(localized: "USB-IF certified. Manufacturer: \(cert.company)", bundle: _coreLocalizedBundle))
+                }
+                // Confirming note only, and only for a real (non-zero) VID
+                // match. A mismatch is never shown as anything.
+                if cable.vendorID != 0 && certs.contains(where: { $0.vendorID == cable.vendorID }) {
+                    bullets.append(String(localized: "The cable's declared maker matches the USB-IF certificate", bundle: _coreLocalizedBundle))
+                }
+            }
+        }
+
         // ------------------------------------------------------------
         // C. Charging numbers
         // ------------------------------------------------------------

@@ -557,3 +557,10 @@
 "The cable claims %@, and the link has run at least %@. There's no host or device data to compare against, so we can't tell if anything else is limiting it." = "केबल %1$@ होने का दावा करती है, और लिंक कम से कम %2$@ पर चल चुका है। तुलना के लिए पोर्ट या डिवाइस का कोई डेटा नहीं है, इसलिए हम नहीं बता सकते कि कुछ और इसे सीमित कर रहा है या नहीं।";
 
 "Shared controller port" = "साझा नियंत्रक पोर्ट";
+
+/* USB-IF certification (DAR-215) */
+"USB-IF certified. Manufacturer: %@, model %@ (%@)" = "USB-IF प्रमाणित। निर्माता: %1$@, मॉडल %2$@ (%3$@)";
+"USB-IF certified. Manufacturer: %@, model %@" = "USB-IF प्रमाणित। निर्माता: %1$@, मॉडल %2$@";
+"USB-IF certified. Manufacturer: %@ (%@)" = "USB-IF प्रमाणित। निर्माता: %1$@ (%2$@)";
+"USB-IF certified. Manufacturer: %@" = "USB-IF प्रमाणित। निर्माता: %1$@";
+"The cable's declared maker matches the USB-IF certificate" = "केबल का घोषित निर्माता USB-IF प्रमाणपत्र से मेल खाता है";

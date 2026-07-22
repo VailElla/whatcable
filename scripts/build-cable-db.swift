@@ -13,6 +13,15 @@
 // Run from the repo root:
 //   swift scripts/build-cable-db.swift
 //
+// Flags:
+//   --refresh-certs   refetch every USB-IF per-XID record instead of reusing
+//                     the .cert-cache (picks up cables that changed, e.g.
+//                     Pass -> Obsolete, or gained listings).
+//   --test-parser     run the manual-vendors parser self-tests and exit.
+// Env:
+//   ALLOW_EMPTY_CERTS=1   permit a build with zero certifications (otherwise a
+//                         collapsed cert table fails the build; see below).
+//
 // Requires: macOS (uses system SQLite3 via libsqlite3).
 
 import Foundation
@@ -26,6 +35,17 @@ let manualVendorTSV = "\(repoRoot)/data/manual-vendors.tsv"
 let dbOutput = "\(repoRoot)/Sources/WhatCableCore/Resources/whatcable.db"
 let dbWebCopy = "\(repoRoot)/docs/whatcable.db"
 let cablesJSON = "\(repoRoot)/docs/cables.json"
+
+// Per-XID USB-IF responses are cached here so a rebuild only fetches XIDs
+// it hasn't seen before. Gitignored: the compiled cable_certs table in
+// whatcable.db is what ships, not this cache.
+let certCacheDir = "\(repoRoot)/.cert-cache"
+
+// `--refresh-certs` bypasses the per-XID cache and refetches every XID, so a
+// cable that has since changed (e.g. Pass -> Obsolete, or gained listings)
+// is picked up. Without it, cached responses (including cached empties) are
+// reused indefinitely. A successful refetch overwrites its cache entry.
+let refreshCerts = CommandLine.arguments.contains("--refresh-certs")
 
 // MARK: - SQLite helpers
 
@@ -102,6 +122,26 @@ func createSchema() {
     // rows (vid==0 or pid==0) are not a real identity and legitimately repeat
     // across distinct cables, so the uniqueness is partial.
     runSQL("CREATE UNIQUE INDEX idx_cables_identity ON cables(vid, pid) WHERE vid != 0 AND pid != 0")
+
+    // USB-IF certification listings, keyed by the cable's Cert Stat XID.
+    // One row per listing: a single XID can carry several (rebrands and
+    // related models share it). This is neutral provenance, never a fraud
+    // signal (see research/usb-if-registry.md): vendor_id is a mild
+    // confirming match at most, absence is normal, and product_id is
+    // deliberately NOT stored because USB-IF's is an internal row counter,
+    // not a USB PID.
+    runSQL("""
+        CREATE TABLE cable_certs (
+            xid       INTEGER NOT NULL,
+            vendor_id INTEGER,
+            company   TEXT NOT NULL DEFAULT '',
+            model     TEXT NOT NULL DEFAULT '',
+            status    TEXT NOT NULL DEFAULT '',
+            cert_date TEXT NOT NULL DEFAULT '',
+            source    TEXT NOT NULL DEFAULT 'per_xid' CHECK(source IN ('per_xid', 'bulk'))
+        )
+        """)
+    runSQL("CREATE INDEX idx_cable_certs_xid ON cable_certs(xid)")
 }
 
 // MARK: - USB-IF vendor import
@@ -734,6 +774,292 @@ func exportCablesJSON() -> Int {
     return entries.count
 }
 
+// MARK: - USB-IF certification import
+
+// Two public, unauthenticated USB-IF endpoints (both undocumented Drupal
+// routes, hence compiled offline, never called at runtime):
+//   - bulk list: the whole certified-products catalogue in one GET. Carries
+//     the cert date but NO vendor_id.
+//   - per-XID:   one XID's listings, WITH vendor_id but no cert date.
+// We union them by XID to get both. See research/usb-if-registry.md.
+let usbifBulkURL = URL(string: "https://www.usb.org/vtm-products/v1/all")!
+func usbifPerXIDURL(_ xid: Int) -> URL {
+    // The XID goes in the path in DECIMAL, not hex.
+    URL(string: "https://cms.usb.org/usb_device/get_status_by_xid/\(xid)")!
+}
+
+/// Synchronous HTTP GET with a real timeout. `Data(contentsOf:)` has no
+/// timeout control, which matters across ~1,000 sequential per-XID calls.
+func httpGet(_ url: URL, timeout: TimeInterval = 30) -> Data? {
+    let sem = DispatchSemaphore(value: 0)
+    // The completion handler runs on URLSession's delegate queue while the
+    // caller waits on this thread, so all access to `result` is guarded by a
+    // lock. On the (near-never) backstop timeout we cancel the task and read
+    // whatever is there under the same lock, so there is no unsynchronised
+    // read/write race.
+    let lock = NSLock()
+    var result: Data?
+    var done = false
+    var request = URLRequest(url: url)
+    request.timeoutInterval = timeout
+    let task = URLSession.shared.dataTask(with: request) { data, response, _ in
+        lock.lock()
+        if !done {
+            if let http = response as? HTTPURLResponse, http.statusCode == 200 {
+                result = data
+            }
+            done = true
+        }
+        lock.unlock()
+        sem.signal()
+    }
+    task.resume()
+    if sem.wait(timeout: .now() + timeout + 5) == .timedOut {
+        task.cancel()
+    }
+    lock.lock()
+    let out = result
+    lock.unlock()
+    return out
+}
+
+/// Minimal HTML-entity unescape. The bulk list HTML-encodes a few
+/// characters in text fields (company names with `&amp;`, categories with
+/// `&gt;`). Per-XID text is clean JSON, so this only touches bulk fallbacks.
+func htmlUnescape(_ s: String) -> String {
+    s.replacingOccurrences(of: "&amp;", with: "&")
+        .replacingOccurrences(of: "&lt;", with: "<")
+        .replacingOccurrences(of: "&gt;", with: ">")
+        .replacingOccurrences(of: "&#039;", with: "'")
+        .replacingOccurrences(of: "&quot;", with: "\"")
+        .trimmingCharacters(in: .whitespacesAndNewlines)
+}
+
+struct BulkListing {
+    let company: String
+    let model: String
+    let status: String
+    let certDate: String
+}
+
+/// Fetch the bulk catalogue and index the XID-bearing rows by XID.
+/// Returns nil on fetch/parse failure so the caller can skip cert import
+/// without aborting the whole DB build.
+func fetchBulkListings() -> [Int: [BulkListing]]? {
+    guard let data = httpGet(usbifBulkURL, timeout: 120) else {
+        fputs("warn: usb-if bulk list fetch failed\n", stderr)
+        return nil
+    }
+    // The response is a JSON object keyed by stringified index ("0","1",...),
+    // not an array.
+    guard let obj = try? JSONSerialization.jsonObject(with: data),
+          let dict = obj as? [String: Any] else {
+        fputs("warn: usb-if bulk list did not parse as a JSON object\n", stderr)
+        return nil
+    }
+    var byXID: [Int: [BulkListing]] = [:]
+    for value in dict.values {
+        guard let row = value as? [String: Any],
+              let xidStr = (row["field_usb_xid"] as? String)?
+                .trimmingCharacters(in: .whitespaces),
+              let xid = Int(xidStr), xid != 0 else { continue }
+        let listing = BulkListing(
+            company: htmlUnescape((row["device_company_view_field"] as? String) ?? ""),
+            model: htmlUnescape((row["name"] as? String)
+                ?? (row["field_usb_model_part_number"] as? String) ?? ""),
+            status: htmlUnescape((row["field_device_status"] as? String) ?? ""),
+            certDate: (row["global_pass_date"] as? String) ?? ""
+        )
+        byXID[xid, default: []].append(listing)
+    }
+    // Guard against a 200 response that is an error object, an empty object,
+    // or a changed schema: any of those parse as a dictionary but yield few or
+    // no XID rows. Real data is ~1,086 distinct XIDs. Treat an implausibly
+    // small result as a failed fetch so cert import is skipped loudly (0
+    // listings in the summary) rather than silently compiling a truncated
+    // table that could get committed.
+    if byXID.count < 500 {
+        fputs("warn: usb-if bulk list returned only \(byXID.count) XID rows; treating as a failed or changed response and skipping cert import\n", stderr)
+        return nil
+    }
+    return byXID
+}
+
+/// Fetch one XID's listings from the per-XID endpoint, caching the raw
+/// response to disk. An empty array is a valid "not registered" result and
+/// is cached too, so it is not re-fetched. Returns the parsed array (possibly
+/// empty), or nil only when the network fetch itself failed.
+func fetchPerXIDListings(_ xid: Int) -> [[String: Any]]? {
+    let cachePath = "\(certCacheDir)/\(xid).json"
+    let fm = FileManager.default
+    if !refreshCerts,
+       let cached = fm.contents(atPath: cachePath),
+       let arr = (try? JSONSerialization.jsonObject(with: cached)) as? [[String: Any]] {
+        return arr
+    }
+    // Be polite to USB-IF's undocumented per-XID endpoint: throttle to ~2
+    // requests a second, but only on an actual network fetch (a warm cache
+    // does no network and does not sleep). Matches the rate the research doc
+    // describes for the one-time full fetch.
+    Thread.sleep(forTimeInterval: 0.5)
+    guard let data = httpGet(usbifPerXIDURL(xid)) else { return nil }
+    // Validate it parses as an array before caching; a non-array response
+    // is a transient error, not a "not registered" answer.
+    guard let arr = (try? JSONSerialization.jsonObject(with: data)) as? [[String: Any]] else {
+        return nil
+    }
+    try? data.write(to: URL(fileURLWithPath: cachePath))
+    return arr
+}
+
+/// Read the distinct XIDs already recorded on curated cables (hex strings
+/// like "0x5F5" in the cables table). Seeding the universe with these catches
+/// registered XIDs the bulk catalogue omits (verified: the bulk list misses
+/// some, e.g. the Anker sample 0x219C).
+func curatedXIDs() -> Set<Int> {
+    var out: Set<Int> = []
+    var stmt: OpaquePointer?
+    let sql = "SELECT DISTINCT xid FROM cables WHERE xid NOT IN ('none', '')"
+    guard sqlite3_prepare_v2(db, sql, -1, &stmt, nil) == SQLITE_OK else { return out }
+    defer { sqlite3_finalize(stmt) }
+    while sqlite3_step(stmt) == SQLITE_ROW {
+        guard let c = sqlite3_column_text(stmt, 0) else { continue }
+        var s = String(cString: c)
+        if s.hasPrefix("0x") || s.hasPrefix("0X") { s = String(s.dropFirst(2)) }
+        if let v = Int(s, radix: 16) { out.insert(v) }
+    }
+    return out
+}
+
+func importCertifications() -> (xids: Int, listings: Int) {
+    try? FileManager.default.createDirectory(
+        atPath: certCacheDir, withIntermediateDirectories: true)
+
+    guard let bulk = fetchBulkListings() else {
+        fputs("warn: skipping certification import (bulk fetch failed)\n", stderr)
+        return (0, 0)
+    }
+
+    // Universe = every XID the catalogue lists, plus every XID our curated
+    // cables carry. Sorted so progress logging and cache order are stable.
+    let curated = curatedXIDs()
+    let universe = Set(bulk.keys).union(curated).sorted()
+    print("USB-IF certs: \(universe.count) XIDs to resolve " +
+          "(\(bulk.count) from bulk list, \(curated.count) from curated cables)")
+
+    let insertSQL = """
+        INSERT INTO cable_certs (xid, vendor_id, company, model, status, cert_date, source)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+        """
+    var stmt: OpaquePointer?
+    guard sqlite3_prepare_v2(db, insertSQL, -1, &stmt, nil) == SQLITE_OK else {
+        fputs("warn: prepare failed for cable_certs insert\n", stderr)
+        return (0, 0)
+    }
+    defer { sqlite3_finalize(stmt) }
+
+    // SQLite keeps a pointer to bound text until the statement is stepped;
+    // SQLITE_TRANSIENT tells it to copy immediately so our Swift strings can
+    // go out of scope safely.
+    let SQLITE_TRANSIENT = unsafeBitCast(-1, to: sqlite3_destructor_type.self)
+    func bindText(_ idx: Int32, _ value: String) {
+        sqlite3_bind_text(stmt, idx, value, -1, SQLITE_TRANSIENT)
+    }
+
+    /// Best cert date for a listing, matched conservatively against the bulk
+    /// rows for this XID. Prefer an exact company+model match. Otherwise fall
+    /// back to a company-only match ONLY when exactly one bulk row has that
+    /// company; if several models share the company, we cannot tell which
+    /// date belongs to this listing, so return empty rather than guess (an
+    /// XID with several unrelated companies must never borrow another's date).
+    func certDate(forXID xid: Int, company: String, model: String) -> String {
+        let rows = bulk[xid] ?? []
+        if let exact = rows.first(where: {
+            $0.company.caseInsensitiveCompare(company) == .orderedSame
+                && $0.model.caseInsensitiveCompare(model) == .orderedSame
+        }) { return exact.certDate }
+        let sameCompany = rows.filter {
+            $0.company.caseInsensitiveCompare(company) == .orderedSame
+        }
+        return sameCompany.count == 1 ? sameCompany[0].certDate : ""
+    }
+
+    var xidsCovered = 0
+    var listingsInserted = 0
+    var fetchFailures = 0
+
+    for (i, xid) in universe.enumerated() {
+        if i > 0 && i % 100 == 0 {
+            print("  ...\(i)/\(universe.count) XIDs resolved")
+        }
+        let perXID = fetchPerXIDListings(xid)
+        if perXID == nil { fetchFailures += 1 }
+
+        // Authoritative first: per-XID rows carry vendor_id. A row is only
+        // usable if it has a non-empty company (an empty company would render
+        // as a bogus "USB-IF certified. Manufacturer:" line, and signals a
+        // garbage / schema-changed response). If a per-XID response yields no
+        // usable row, we fall THROUGH to the bulk data via the single
+        // if/else chain below, rather than trusting a malformed response.
+        var insertedFromPerXID = false
+        if let listings = perXID {
+            for row in listings {
+                let company = ((row["company"] as? String) ?? "")
+                    .trimmingCharacters(in: .whitespaces)
+                guard !company.isEmpty else { continue }
+                let model = ((row["model_number"] as? String) ?? "")
+                    .trimmingCharacters(in: .whitespaces)
+                let status = ((row["status"] as? String) ?? "")
+                    .trimmingCharacters(in: .whitespaces)
+                let vid = (row["vendor_id"] as? String).flatMap { Int($0) }
+                sqlite3_reset(stmt)
+                sqlite3_bind_int64(stmt, 1, sqlite3_int64(xid))
+                // Int32(exactly:) so a malformed out-of-range vendor_id binds
+                // NULL (vendor unknown) instead of trapping the whole build.
+                if let vid, let v32 = Int32(exactly: vid) { sqlite3_bind_int(stmt, 2, v32) }
+                else { sqlite3_bind_null(stmt, 2) }
+                bindText(3, company)
+                bindText(4, model)
+                bindText(5, status)
+                bindText(6, certDate(forXID: xid, company: company, model: model))
+                bindText(7, "per_xid")
+                if sqlite3_step(stmt) == SQLITE_DONE {
+                    listingsInserted += 1
+                    insertedFromPerXID = true
+                }
+            }
+        }
+
+        if insertedFromPerXID {
+            xidsCovered += 1
+        } else if let bulkRows = bulk[xid] {
+            // Fallback: per-XID gave nothing usable, or the catalogue lists
+            // this XID only in the bulk source. No vendor_id here. Same
+            // non-empty-company guard so no bogus row reaches the db.
+            var any = false
+            for b in bulkRows {
+                guard !b.company.isEmpty else { continue }
+                sqlite3_reset(stmt)
+                sqlite3_bind_int64(stmt, 1, sqlite3_int64(xid))
+                sqlite3_bind_null(stmt, 2)
+                bindText(3, b.company)
+                bindText(4, b.model)
+                bindText(5, b.status)
+                bindText(6, b.certDate)
+                bindText(7, "bulk")
+                if sqlite3_step(stmt) == SQLITE_DONE { listingsInserted += 1; any = true }
+            }
+            if any { xidsCovered += 1 }
+        }
+        // else: a curated XID that resolves nowhere -> genuinely unregistered.
+    }
+
+    if fetchFailures > 0 {
+        fputs("warn: \(fetchFailures) per-XID fetches failed (left uncovered)\n", stderr)
+    }
+    return (xidsCovered, listingsInserted)
+}
+
 // MARK: - Main
 
 openDB()
@@ -750,6 +1076,19 @@ print("manual-vendors: \(manual.inserted) added, \(manual.skipped) skipped (alre
 
 let cableCount = importKnownCables()
 print("Imported \(cableCount) known cables")
+
+let certs = importCertifications()
+print("USB-IF certs: \(certs.listings) listings across \(certs.xids) XIDs")
+
+// Guard against silently shipping a cert-less db. With the per-XID -> bulk
+// fallback and the bulk floor, zero listings can only mean the bulk fetch
+// itself failed (a network outage), not a partial per-XID failure. Fail the
+// build loudly at the end (after the db is written, so the message about
+// restoring it is accurate), unless a cert-less build was asked for.
+// A deliberate cert-less build requires ALLOW_EMPTY_CERTS set to a NON-empty
+// value; an unset or empty var does not count as the override.
+let allowEmptyCerts = !(ProcessInfo.processInfo.environment["ALLOW_EMPTY_CERTS"] ?? "").isEmpty
+let certsCollapsed = certs.listings == 0 && !allowEmptyCerts
 
 // Build-time invariant checks: warn on inconsistent speed/power within shared fingerprints.
 let consistencyQuery = """
@@ -825,3 +1164,16 @@ do {
 }
 
 print("Done: \(dbOutput)")
+
+if certsCollapsed {
+    fputs("""
+        error: the certification table is EMPTY (0 listings). The USB-IF bulk
+        endpoint was most likely unreachable or changed during this build, so
+        both bundled databases now have NO cable certifications. Restore them
+        and re-run when the network is available:
+          git checkout -- Sources/WhatCableCore/Resources/whatcable.db docs/whatcable.db
+        Or set ALLOW_EMPTY_CERTS=1 to build deliberately without certifications.
+
+        """, stderr)
+    exit(5)
+}

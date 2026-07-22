@@ -80,3 +80,7 @@ research/customer-probes/*/*.json
 # Python bytecode (from research/build scripts like inspect-probe.py)
 __pycache__/
 *.pyc
+
+# USB-IF per-XID response cache (build-cable-db.swift). The compiled
+# cable_certs table in whatcable.db is what ships, not this cache.
+.cert-cache/

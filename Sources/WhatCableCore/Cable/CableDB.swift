@@ -61,6 +61,30 @@ public enum CableDB {
         return store.cables[CableKey(vid: vid, pid: pid)] ?? []
     }
 
+    /// USB-IF certification listings for a cable's Cert Stat XID.
+    ///
+    /// The XID is the 32-bit certification ID the e-marker reports (VDO[1],
+    /// `PDVDO.CertStat.xid`). A single XID can return several listings:
+    /// rebrands and related models share one certificate.
+    ///
+    /// This is neutral provenance ("who certified it, is it listed"), never
+    /// a fraud verdict. An XID of 0 (or simply absent from the registry) is
+    /// normal and returns an empty array. See research/usb-if-registry.md.
+    public static func certifications(forXID xid: UInt32) -> [CableCert] {
+        guard xid != 0 else { return [] }
+        return displayable(store.certs[Int(xid)] ?? [])
+    }
+
+    /// Single choke point that drops unusable listings before any surface
+    /// (PortSummary text, JSON) sees them. A listing with an empty company is
+    /// a build-data defect (a malformed / schema-changed registry row) that
+    /// would otherwise render as a bogus "USB-IF certified. Manufacturer:"
+    /// line with nothing after it. The build script already refuses to store
+    /// such rows; this is the runtime backstop. Exposed for tests.
+    static func displayable(_ certs: [CableCert]) -> [CableCert] {
+        certs.filter { !$0.company.isEmpty }
+    }
+
     /// Number of vendor entries loaded. Exposed for tests.
     public static var vendorCount: Int { store.vendors.count }
 
@@ -72,6 +96,10 @@ public enum CableDB {
 
     /// Number of distinct (VID, PID, Cable VDO) fingerprints.
     public static var fingerprintCount: Int { store.cables.count }
+
+    /// Number of distinct XIDs with at least one certification listing.
+    /// Exposed for tests.
+    public static var certXIDCount: Int { store.certs.count }
 }
 
 /// A cable identified by user reports and curated into the database.
@@ -81,6 +109,33 @@ public struct CuratedCable {
     public let power: String
     public let type: String
     public let issueURL: String
+}
+
+/// One USB-IF certification listing for a cable, compiled offline from the
+/// public certified-products registry. Neutral provenance only.
+public struct CableCert {
+    /// The certifying company. Usually the ODM / silicon maker (e.g.
+    /// "Lintes Technology", "ACON"), NOT the retail brand on the box.
+    public let company: String
+    /// The certified model / part number.
+    public let model: String
+    /// "Pass" or "Obsolete".
+    public let status: String
+    /// Certification date as an ISO string. May be empty when unknown.
+    public let certDate: String
+    /// USB-IF vendor ID for this listing, when known (nil for listings the
+    /// per-XID endpoint didn't cover). A match against the cable's own
+    /// e-marker VID is a mild CONFIRMING signal; a mismatch is NOT a fraud
+    /// signal (ODM rebrands legitimately differ). Never present the inverse.
+    public let vendorID: Int?
+
+    public init(company: String, model: String, status: String, certDate: String, vendorID: Int?) {
+        self.company = company
+        self.model = model
+        self.status = status
+        self.certDate = certDate
+        self.vendorID = vendorID
+    }
 }
 
 // MARK: - Internal types
@@ -93,11 +148,12 @@ private struct CableKey: Hashable {
 private struct Store {
     let vendors: [Int: CableDB.VendorEntry]
     let cables: [CableKey: [CuratedCable]]
+    let certs: [Int: [CableCert]]
 
     static func load() -> Store {
         guard let url = Bundle.module.url(forResource: "whatcable", withExtension: "db")
                 ?? findResourceURL(name: "whatcable", ext: "db") else {
-            return Store(vendors: [:], cables: [:])
+            return Store(vendors: [:], cables: [:], certs: [:])
         }
 
         var db: OpaquePointer?
@@ -105,16 +161,17 @@ private struct Store {
         guard sqlite3_open_v2(
             url.path, &db, SQLITE_OPEN_READONLY | SQLITE_OPEN_NOMUTEX, nil
         ) == SQLITE_OK else {
-            return Store(vendors: [:], cables: [:])
+            return Store(vendors: [:], cables: [:], certs: [:])
         }
         guard let db else {
-            return Store(vendors: [:], cables: [:])
+            return Store(vendors: [:], cables: [:], certs: [:])
         }
 
         let vendors = loadVendors(db: db)
         let cables = loadCables(db: db)
+        let certs = loadCerts(db: db)
 
-        return Store(vendors: vendors, cables: cables)
+        return Store(vendors: vendors, cables: cables, certs: certs)
     }
 
     private static func loadVendors(db: OpaquePointer) -> [Int: CableDB.VendorEntry] {
@@ -170,6 +227,42 @@ private struct Store {
                 power: sqlite3_column_text(stmt, 5).map { String(cString: $0) } ?? "",
                 type: sqlite3_column_text(stmt, 6).map { String(cString: $0) } ?? "",
                 issueURL: sqlite3_column_text(stmt, 7).map { String(cString: $0) } ?? ""
+            ))
+        }
+        return map
+    }
+
+    private static func loadCerts(db: OpaquePointer) -> [Int: [CableCert]] {
+        var stmt: OpaquePointer?
+        // Fails soft: a `whatcable.db` built before this table existed simply
+        // returns no certs rather than erroring.
+        guard sqlite3_prepare_v2(
+            db, """
+            SELECT xid, company, model, status, cert_date, vendor_id
+            FROM cable_certs
+            ORDER BY xid, company, model
+            """,
+            -1, &stmt, nil
+        ) == SQLITE_OK else {
+            return [:]
+        }
+        defer { sqlite3_finalize(stmt) }
+
+        var map: [Int: [CableCert]] = [:]
+        while sqlite3_step(stmt) == SQLITE_ROW {
+            // XID is a UInt32; read it as 64-bit so a value above Int32.max
+            // is neither truncated nor sign-extended into a negative key.
+            let xid = Int(sqlite3_column_int64(stmt, 0))
+            // vendor_id is nullable; SQLITE_NULL columns read back as a stored
+            // NULL, so distinguish it from a real 0.
+            let vendorID: Int? = sqlite3_column_type(stmt, 5) == SQLITE_NULL
+                ? nil : Int(sqlite3_column_int(stmt, 5))
+            map[xid, default: []].append(CableCert(
+                company: sqlite3_column_text(stmt, 1).map { String(cString: $0) } ?? "",
+                model: sqlite3_column_text(stmt, 2).map { String(cString: $0) } ?? "",
+                status: sqlite3_column_text(stmt, 3).map { String(cString: $0) } ?? "",
+                certDate: sqlite3_column_text(stmt, 4).map { String(cString: $0) } ?? "",
+                vendorID: vendorID
             ))
         }
         return map
